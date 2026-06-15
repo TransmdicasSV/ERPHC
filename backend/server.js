@@ -22,7 +22,7 @@ const { Pool } = pkg;
 const app = express();
 const port = process.env.PORT || 8000;
 
-// Configuración de multer
+// ConfiguraciÃ³n de multer
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -32,7 +32,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Configuración de Cloudinary
+// ConfiguraciÃ³n de Cloudinary
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
@@ -68,16 +68,16 @@ const deleteFromCloudinary = async (url) => {
   }
 };
 
-// Configuración de Multer (Memoria en vez de Disco)
+// ConfiguraciÃ³n de Multer (Memoria en vez de Disco)
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Configuración de CORS y estáticos
+// ConfiguraciÃ³n de CORS y estÃ¡ticos
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir imágenes estáticas
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir imÃ¡genes estÃ¡ticas
 
-// Conexión a PostgreSQL (Neon.tech en la Nube)
+// ConexiÃ³n a PostgreSQL (Neon.tech en la Nube)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -116,7 +116,7 @@ const initDb = async () => {
 };
 initDb();
 
-// FUNCIÓN DE AUDITORÍA
+// FUNCIÃ“N DE AUDITORÃA
 const logAction = async (userId, accion, tablaAfectada) => {
   try {
     await pool.query(
@@ -124,11 +124,11 @@ const logAction = async (userId, accion, tablaAfectada) => {
       [userId || null, accion, tablaAfectada]
     );
   } catch (err) {
-    console.error('Error de auditoría:', err);
+    console.error('Error de auditorÃ­a:', err);
   }
 };
 
-// ===================================// ENDPOINTS PÚBLICOS Y LOGIN (No requieren token)
+// ===================================// ENDPOINTS PÃšBLICOS Y LOGIN (No requieren token)
 // ==========================================
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
@@ -136,10 +136,10 @@ app.post('/api/auth/login', async (req, res) => {
     const result = await pool.query('SELECT * FROM usuarios WHERE username = $1', [username]);
     const user = result.rows[0];
     
-    if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!user) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
     
     const validPassword = bcrypt.compareSync(password, user.password_hash);
-    if (!validPassword) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!validPassword) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
     
     const userRol = user.rol || 'tecnico';
     const token = jwt.sign({ id: user.id, username: user.username, rol: userRol }, JWT_SECRET, { expiresIn: '8h' });
@@ -161,7 +161,7 @@ app.post('/api/public/incidentes', async (req, res) => {
     const values = [placa, titulo, descripcion, 'Pendiente'];
     const result = await pool.query(query, values);
     
-    await logAction(null, `Incidente reportado públicamente: ${titulo}`, 'incidentes');
+    await logAction(null, `Incidente reportado pÃºblicamente: ${titulo}`, 'incidentes');
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -177,7 +177,7 @@ const verifyToken = (req, res, next) => {
   if (!token) return res.status(403).json({ error: 'Token requerido para acceder a este recurso' });
   
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) return res.status(401).json({ error: 'Token inválido o expirado' });
+    if (err) return res.status(401).json({ error: 'Token invÃ¡lido o expirado' });
     req.user = decoded;
     next();
   });
@@ -190,11 +190,11 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
-app.use(verifyToken);
+//
+//
 
 // ==========================================
-// ENDPOINTS PÚBLICOS (PORTAL OPERADORES)
+// ENDPOINTS PÃšBLICOS (PORTAL OPERADORES)
 // ==========================================
 app.get('/api/public/consulta/:placa', async (req, res) => {
   const { placa } = req.params;
@@ -206,7 +206,7 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
 
     const estado_general = (insp.tablet === 'OK' && insp.radio === 'OK' && insp.camaras === 'OK') ? 'APROBADO' : 'OBSERVADO';
 
-    // Buscar el último incidente de soporte registrado para esta placa
+    // Buscar el Ãºltimo incidente de soporte registrado para esta placa
     const incidenteResult = await pool.query("SELECT * FROM incidentes_soporte WHERE placa = $1 ORDER BY id DESC LIMIT 1", [placa]);
     const incidente_pendiente = incidenteResult.rows[0] || null;
 
@@ -222,7 +222,7 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
       fotos: [
         { tipo: 'Tablet', url: insp.img_tablet ? (insp.img_tablet.startsWith('http') ? insp.img_tablet : `http://localhost:8000/uploads/${insp.img_tablet}`) : null },
         { tipo: 'Radio', url: insp.img_radio ? (insp.img_radio.startsWith('http') ? insp.img_radio : `http://localhost:8000/uploads/${insp.img_radio}`) : null },
-        { tipo: 'Cámaras', url: insp.img_camaras ? (insp.img_camaras.startsWith('http') ? insp.img_camaras : `http://localhost:8000/uploads/${insp.img_camaras}`) : null }
+        { tipo: 'CÃ¡maras', url: insp.img_camaras ? (insp.img_camaras.startsWith('http') ? insp.img_camaras : `http://localhost:8000/uploads/${insp.img_camaras}`) : null }
       ]
     });
   } catch (err) {
@@ -231,41 +231,139 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
   }
 });
 
-// APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
+// APLICAR PROTECCIÃ“N GLOBAL AL RESTO DE RUTAS
 app.use(verifyToken);
+
+  // ==========================================
+  // ENDPOINTS DIRECTORIO DE PERSONAL
+  // ==========================================
+  app.get('/api/personal', async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM personal ORDER BY nombre_completo ASC');
+      res.json(result.rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error obteniendo el personal' });
+    }
+  });
+
+  app.post('/api/personal', async (req, res) => {
+    const { id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado } = req.body;
+    if (!nombre_completo || !dni) {
+      return res.status(400).json({ error: 'Nombre y DNI son obligatorios' });
+    }
+    try {
+      const result = await pool.query(
+        `INSERT INTO personal (id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado || 'Activo']
+      );
+      await logAction(req.user ? req.user.id : null, `Registró nuevo personal: ${nombre_completo}`, 'personal');
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al registrar personal (DNI duplicado?)' });
+    }
+  });
+
+  app.put('/api/personal/:id', async (req, res) => {
+    const { id } = req.params;
+    const { id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado } = req.body;
+    try {
+      const result = await pool.query(
+        `UPDATE personal SET 
+          id_interno = $1, nombre_completo = $2, dni = $3, modalidad = $4, area = $5, cargo = $6, telefono = $7, estado = $8
+         WHERE id = $9 RETURNING *`,
+        [id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado, id]
+      );
+      await logAction(req.user ? req.user.id : null, `Actualizó personal: ${nombre_completo}`, 'personal');
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al actualizar personal' });
+    }
+  });
+
+  app.delete('/api/personal/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+      await pool.query('DELETE FROM personal WHERE id = $1', [id]);
+      await logAction(req.user ? req.user.id : null, `Eliminó registro de personal ID: ${id}`, 'personal');
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error al eliminar personal' });
+    }
+  });
+
+  // ==========================================
+  // ENDPOINTS MAESTRO DE FLOTAS
+  // ==========================================
+
+app.get('/api/maestro/tractos', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM vehiculos ORDER BY placa ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error obteniendo tractos' });
+  }
+});
+
+app.get('/api/maestro/semirremolques', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM semirremolques ORDER BY placa_sr ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error obteniendo semirremolques' });
+  }
+});
 
 // ==========================================
 // ENDPOINTS RELACIONALES (FLOTAS E INCIDENTES)
 // ==========================================
 
-// Obtener Vehículos (Inventario Principal - PAGINADO)
+// Obtener VehÃ­culos (Inventario Principal - PAGINADO)
 app.get('/vehiculos/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
     const search = req.query.search ? req.query.search.toLowerCase() : '';
-    const programa = req.query.programa && req.query.programa !== 'Todos' ? req.query.programa : '';
+    const operacion = req.query.operacion && req.query.operacion !== 'Todos' ? req.query.operacion : '';
 
     let whereClause = 'WHERE 1=1';
     let params = [];
     let paramIndex = 1;
 
     if (search) {
-      whereClause += ` AND LOWER(v.placa) LIKE $${paramIndex}`;
+      whereClause += ` AND (LOWER(v.placa) LIKE $${paramIndex} OR LOWER(v.operacion) LIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
 
-    if (programa) {
-      whereClause += ` AND v.programa = $${paramIndex}`;
-      params.push(programa);
-      paramIndex++;
-    }
+      if (operacion) {
+        if (operacion === 'Falta identificar') {
+          whereClause += ` AND (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+        } else if (operacion === 'Industrias') {
+          whereClause += ` AND LOWER(v.operacion) LIKE $${paramIndex}`;
+          params.push('%industria%');
+          paramIndex++;
+        } else if (operacion === 'Bambas') {
+          whereClause += ` AND LOWER(v.operacion) LIKE $${paramIndex}`;
+          params.push('%bambas%');
+          paramIndex++;
+        } else {
+          whereClause += ` AND LOWER(v.operacion) = $${paramIndex}`;
+          params.push(operacion.toLowerCase());
+          paramIndex++;
+        }
+      }
 
     const query = `
       SELECT 
-        v.placa, v.programa, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.operacion, v.cliente,
+        v.placa, v.operacion as programa, v.tipo_vehiculo, v.marca as marca_tracto, v.modelo as modelo_tracto, v.anio as anio_fabricacion, v.operacion, v.cliente,
         i.tablet, i.radio, i.camaras, i.fecha, i.observaciones
       FROM vehiculos v
       LEFT JOIN (
@@ -280,7 +378,7 @@ app.get('/vehiculos/', async (req, res) => {
     const result = await pool.query(query, params);
 
     let vehiculosConEstado = result.rows.map(v => {
-      let estado = 'Falta de revisión';
+      let estado = 'Falta de revisiÃ³n';
       if (v.tablet) {
         const t = v.tablet.trim().toUpperCase();
         const r = v.radio.trim().toUpperCase();
@@ -314,16 +412,17 @@ app.get('/vehiculos/', async (req, res) => {
   }
 });
 
-// Crear Vehículo
+// Crear VehÃ­culo
 app.post('/vehiculos/', async (req, res) => {
   const { placa, programa, tipo_vehiculo, operacion, cliente, marca_tracto, modelo_tracto, anio_fabricacion } = req.body;
-  if (!placa || !programa) return res.status(400).json({ error: 'Placa y Programa son obligatorios' });
+  const opFinal = operacion || programa;
+  if (!placa || !opFinal) return res.status(400).json({ error: 'Placa y Operacion son obligatorios' });
   try {
-    const query = 'INSERT INTO vehiculos (placa, programa, tipo_vehiculo, operacion, cliente, marca_tracto, modelo_tracto, anio_fabricacion) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *';
-    const values = [placa, programa, tipo_vehiculo, operacion, cliente, marca_tracto, modelo_tracto, anio_fabricacion];
+    const query = 'INSERT INTO vehiculos (placa, operacion, tipo_vehiculo, cliente, marca, modelo, anio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
+    const values = [placa, opFinal, tipo_vehiculo, cliente, marca_tracto, modelo_tracto, anio_fabricacion];
     const result = await pool.query(query, values);
     
-    await logAction(req.user ? req.user.id : null, `Creó el vehículo ${placa}`, 'vehiculos');
+    await logAction(req.user ? req.user.id : null, `CreÃ³ el vehÃ­culo ${placa}`, 'vehiculos');
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -333,18 +432,19 @@ app.post('/vehiculos/', async (req, res) => {
   }
 });
 
-// Editar datos estáticos de Vehículo
+// Editar datos estÃ¡ticos de VehÃ­culo
 app.put('/vehiculos/:placa', async (req, res) => {
   const { placa } = req.params;
   const { programa, tipo_vehiculo, marca_tracto, modelo_tracto, anio_fabricacion, operacion, cliente } = req.body;
+  const opFinal = operacion || programa;
   try {
     const result = await pool.query(
       `UPDATE vehiculos 
-       SET programa = $1, tipo_vehiculo = $2, marca_tracto = $3, modelo_tracto = $4, anio_fabricacion = $5, operacion = $6, cliente = $7 
-       WHERE placa = $8 RETURNING *`,
-      [programa, tipo_vehiculo, marca_tracto, modelo_tracto, anio_fabricacion, operacion, cliente, placa]
+       SET operacion = $1, tipo_vehiculo = $2, marca = $3, modelo = $4, anio = $5, cliente = $6 
+       WHERE placa = $7 RETURNING *`,
+      [opFinal, tipo_vehiculo, marca_tracto, modelo_tracto, anio_fabricacion, cliente, placa]
     );
-    await logAction(req.user ? req.user.id : null, `Editó el vehículo ${placa}`, 'vehiculos');
+    await logAction(req.user ? req.user.id : null, `EditÃ³ el vehÃ­culo ${placa}`, 'vehiculos');
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar vehiculo' });
@@ -352,7 +452,7 @@ app.put('/vehiculos/:placa', async (req, res) => {
 });
 
 // ==========================================
-// ENDPOINTS: MANTENIMIENTO TÉCNICO Y EXCEL
+// ENDPOINTS: MANTENIMIENTO TÃ‰CNICO Y EXCEL
 // ==========================================
 
 // Listar mantenimientos
@@ -420,7 +520,7 @@ app.post('/mantenimientos/', async (req, res) => {
       INSERT INTO mantenimientos_tecnicos (placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *
     `, [placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas]);
-    await logAction(req.user ? req.user.id : null, `Registró mantenimiento para ${placa}`, 'mantenimientos_tecnicos');
+    await logAction(req.user ? req.user.id : null, `RegistrÃ³ mantenimiento para ${placa}`, 'mantenimientos_tecnicos');
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -456,10 +556,10 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
     sheet.getCell('V1').alignment = centerAlign;
     sheet.getCell('V1').border = borderAll;
 
-    // FILA 2 a 5: Título
+    // FILA 2 a 5: TÃ­tulo
     sheet.mergeCells('D2:U5');
     const titulo = sheet.getCell('D2');
-    titulo.value = 'MANTENIMIENTO DE EQUIPOS TECNOLÓGICOS - TRACTO/CAMIONETAS';
+    titulo.value = 'MANTENIMIENTO DE EQUIPOS TECNOLÃ“GICOS - TRACTO/CAMIONETAS';
     titulo.font = { bold: true, size: 14, name: 'Arial' };
     titulo.alignment = centerAlign;
     titulo.border = borderAll;
@@ -471,7 +571,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
     sheet.getCell('A2').font = fontBold;
     sheet.getCell('A2').border = borderAll;
 
-    const metadata = ['Versión:', 'Fecha:', 'Revisa:', 'Aprueba:'];
+    const metadata = ['VersiÃ³n:', 'Fecha:', 'Revisa:', 'Aprueba:'];
     for(let i=0; i<4; i++) {
       const c = sheet.getCell('V' + (i+2));
       c.value = metadata[i];
@@ -498,7 +598,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 
     // FILA 7: Columnas (Verde claro/cian)
     const headers = [
-      'N°', 'TIPO DE VEHÍCULO', 'PLACA', 'MARCA TRACTO', 'MODELO TRACTO', 'AÑO FABRICACIÓN TRACTO', 'OPERACIÓN', 'CLIENTE',
+      'NÂ°', 'TIPO DE VEHÃCULO', 'PLACA', 'MARCA TRACTO', 'MODELO TRACTO', 'AÃ‘O FABRICACIÃ“N TRACTO', 'OPERACIÃ“N', 'CLIENTE',
       'FECHA ULT MANTENIMIENTO', 'FRECUENCIA', 'FECHA PROX MANTENIMIENTO',
       'DVR', 'COPILOTO', 'RADIO BASE', 'HANDY', 'CAMARA INTERNA', 'CAMARA EXTERNA', 'CAMARA DE RETROCESO', 'SENSORES DE RETROCESO', 'SENSORES DELANTEROS', 'SISTEMA ADAS', 'FECHA EJECUTADA'
     ];
@@ -580,7 +680,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
         row.operacion || '',
         row.cliente || '',
         formatDate(ultMant),
-        freq === 180 ? 'Semestral' : `${freq} días`,
+        freq === 180 ? 'Semestral' : `${freq} dÃ­as`,
         formatDate(proxMant),
         row.dvr || '', row.copiloto || '', row.radio_base || '', row.handy || '',
         row.camara_interna || '', row.camara_externa || '', row.camara_retroceso || '',
@@ -611,10 +711,10 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 
 
 // ==========================================
-// ENDPOINTS: GESTIÓN DE INCIDENTES (SOPORTE TI)
+// ENDPOINTS: GESTIÃ“N DE INCIDENTES (SOPORTE TI)
 // ==========================================
 
-// Crear Incidente (Desde Portal Público)
+// Crear Incidente (Desde Portal PÃºblico)
 app.post('/api/public/incidentes', async (req, res) => {
   const { placa, tipo_solicitud, descripcion, operador } = req.body;
   try {
@@ -646,7 +746,7 @@ app.put('/api/incidentes/:id', async (req, res) => {
   const { estado } = req.body;
   try {
     await pool.query('UPDATE incidentes_soporte SET estado = $1 WHERE id = $2', [estado, id]);
-    await logAction(req.user ? req.user.id : null, `Actualizó estado de incidente #${id}`, 'incidentes_soporte');
+    await logAction(req.user ? req.user.id : null, `ActualizÃ³ estado de incidente #${id}`, 'incidentes_soporte');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar incidente' });
@@ -658,7 +758,7 @@ app.delete('/api/incidentes/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query('DELETE FROM incidentes_soporte WHERE id = $1', [id]);
-    await logAction(req.user ? req.user.id : null, `Eliminó incidente de soporte #${id}`, 'incidentes_soporte');
+    await logAction(req.user ? req.user.id : null, `EliminÃ³ incidente de soporte #${id}`, 'incidentes_soporte');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar incidente' });
@@ -666,7 +766,7 @@ app.delete('/api/incidentes/:id', requireAdmin, async (req, res) => {
 });
 // ==========================================
 
-// Obtener inspecciones de un vehículo (Historial)
+// Obtener inspecciones de un vehÃ­culo (Historial)
 app.get('/inspecciones/:placa', async (req, res) => {
   try {
     const { placa } = req.params;
@@ -678,11 +778,11 @@ app.get('/inspecciones/:placa', async (req, res) => {
   }
 });
 
-// Registrar Inspección CON Imágenes
+// Registrar InspecciÃ³n CON ImÃ¡genes
 app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_radio' }, { name: 'img_camaras' }]), async (req, res) => {
   const { placa, programa, fecha, hora, tablet, radio, camaras, observaciones } = req.body;
   
-  // Subir imágenes a Cloudinary
+  // Subir imÃ¡genes a Cloudinary
   let img_tablet = '';
   let img_radio = '';
   let img_camaras = '';
@@ -693,19 +793,19 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
     if (req.files['img_camaras']) img_camaras = await uploadToCloudinary(req.files['img_camaras'][0].buffer, 'flotas_inspecciones');
   } catch(e) {
     console.error("Error subiendo a Cloudinary:", e);
-    return res.status(500).json({ error: 'Error al subir imágenes a la nube' });
+    return res.status(500).json({ error: 'Error al subir imÃ¡genes a la nube' });
   }
 
   try {
     await pool.query('BEGIN');
     
-    // Asegurar que el vehículo exista (Upsert)
+    // Asegurar que el vehÃ­culo exista (Upsert)
     await pool.query(
-      'INSERT INTO vehiculos (placa, programa) VALUES ($1, $2) ON CONFLICT (placa) DO UPDATE SET programa = $2',
+      'INSERT INTO vehiculos (placa, operacion) VALUES ($1, $2) ON CONFLICT (placa) DO UPDATE SET operacion = $2',
       [placa, programa]
     );
 
-    // Insertar inspección en el historial
+    // Insertar inspecciÃ³n en el historial
     const query = `
       INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
@@ -713,23 +813,23 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
     const values = [placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones || ''];
     const result = await pool.query(query, values);
     
-    await logAction(req.user ? req.user.id : null, `Registró inspección en ${placa}`, 'inspecciones_flota');
+    await logAction(req.user ? req.user.id : null, `RegistrÃ³ inspecciÃ³n en ${placa}`, 'inspecciones_flota');
     
     await pool.query('COMMIT');
     res.json(result.rows[0]);
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Error al registrar inspección' });
+    res.status(500).json({ error: 'Error al registrar inspecciÃ³n' });
   }
 });
 
-// Actualizar Vehículo (Programa)
+// Actualizar VehÃ­culo (Programa)
 app.put('/vehiculos/:placa', async (req, res) => {
   const { placa } = req.params;
   const { programa } = req.body;
   try {
-    const result = await pool.query('UPDATE vehiculos SET programa = $1 WHERE placa = $2 RETURNING *', [programa, placa]);
+    const result = await pool.query('UPDATE vehiculos SET operacion = $1 WHERE placa = $2 RETURNING *', [programa, placa]);
     await logAction(req.user ? req.user.id : null, `Actualizó programa de ${placa}`, 'vehiculos');
     res.json(result.rows[0]);
   } catch (err) {
@@ -737,15 +837,15 @@ app.put('/vehiculos/:placa', async (req, res) => {
   }
 });
 
-// Eliminar Vehículo (Protegido por Foreign Key constraint por defecto)
+// Eliminar VehÃ­culo (Protegido por Foreign Key constraint por defecto)
 app.delete('/vehiculos/:placa', requireAdmin, async (req, res) => {
   const { placa } = req.params;
   try {
     await pool.query('DELETE FROM vehiculos WHERE placa = $1', [placa]);
-    await logAction(req.user ? req.user.id : null, `Eliminó el vehículo ${placa}`, 'vehiculos');
-    res.json({ message: 'Vehículo eliminado' });
+    await logAction(req.user ? req.user.id : null, `EliminÃ³ el vehÃ­culo ${placa}`, 'vehiculos');
+    res.json({ message: 'VehÃ­culo eliminado' });
   } catch (err) {
-    // Código de error de PostgreSQL para Foreign Key Violation es 23503
+    // CÃ³digo de error de PostgreSQL para Foreign Key Violation es 23503
     if (err.code === '23503') {
       res.status(400).json({ error: 'No se puede eliminar porque tiene historial de inspecciones. Elimine el historial primero.' });
     } else {
@@ -754,7 +854,7 @@ app.delete('/vehiculos/:placa', requireAdmin, async (req, res) => {
   }
 });
 
-// Eliminar Inspección individual
+// Eliminar InspecciÃ³n individual
 app.delete('/inspecciones/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -769,14 +869,14 @@ app.delete('/inspecciones/:id', async (req, res) => {
     }
     
     await pool.query('DELETE FROM inspecciones_flota WHERE id = $1', [id]);
-    res.json({ message: 'Inspección eliminada' });
+    res.json({ message: 'InspecciÃ³n eliminada' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al eliminar inspección' });
+    res.status(500).json({ error: 'Error al eliminar inspecciÃ³n' });
   }
 });
 
-// Editar Estado y Fotos de Inspección individual
+// Editar Estado y Fotos de InspecciÃ³n individual
 app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img_radio' }, { name: 'img_camaras' }]), async (req, res) => {
   const { id } = req.params;
   const { fecha, hora, tablet, radio, camaras, observaciones } = req.body;
@@ -810,7 +910,7 @@ app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar inspección completa' });
+    res.status(500).json({ error: 'Error al actualizar inspecciÃ³n completa' });
   }
 });
 
@@ -887,7 +987,7 @@ app.post('/entregas/', async (req, res) => {
   }
 });
 
-// Estadísticas Rápidas
+// EstadÃ­sticas RÃ¡pidas
 app.get('/stats/', async (req, res) => {
   try {
     const vehiculosCount = await pool.query('SELECT COUNT(*) FROM vehiculos');
@@ -901,7 +1001,7 @@ app.get('/stats/', async (req, res) => {
   }
 });
 
-// Datos Avanzados para Gráficos (BI)
+// Datos Avanzados para GrÃ¡ficos (BI)
 app.get('/stats/charts', async (req, res) => {
   try {
     // 1. Obtener todas las inspecciones para procesar en memoria (seguro contra formatos raros)
@@ -911,16 +1011,16 @@ app.get('/stats/charts', async (req, res) => {
     const conteoFechas = {};
     all.rows.forEach(r => {
       let f = r.fecha;
-      // Normalizar formato si es necesario (asumimos que la mayoría son válidas o consistentes)
+      // Normalizar formato si es necesario (asumimos que la mayorÃ­a son vÃ¡lidas o consistentes)
       if (f && f !== '--/--/----') {
         conteoFechas[f] = (conteoFechas[f] || 0) + 1;
       }
     });
 
-    // Ordenar las fechas y tomar las últimas 7
+    // Ordenar las fechas y tomar las Ãºltimas 7
     const sortedFechas = Object.keys(conteoFechas).sort((a, b) => {
       // Intento de parseo de fechas para ordenarlas
-      // Si a = DD/MM/YYYY y b = YYYY-MM-DD será difícil, pero simplifiquemos:
+      // Si a = DD/MM/YYYY y b = YYYY-MM-DD serÃ¡ difÃ­cil, pero simplifiquemos:
       return new Date(a) - new Date(b); 
     });
 
@@ -929,7 +1029,7 @@ app.get('/stats/charts', async (req, res) => {
       inspecciones: conteoFechas[date]
     }));
 
-    // 2. Distribución de fallos globales
+    // 2. DistribuciÃ³n de fallos globales
     const errors = await pool.query(`
       SELECT 
         SUM(CASE WHEN tablet != 'OK' AND tablet != 'N/A' THEN 1 ELSE 0 END) as tablet_errors,
@@ -939,7 +1039,7 @@ app.get('/stats/charts', async (req, res) => {
     `);
 
     // 3. Distribución por Programas
-    const veh = await pool.query('SELECT programa, COUNT(*) as count FROM vehiculos GROUP BY programa');
+    const veh = await pool.query('SELECT operacion as programa, COUNT(*) as count FROM vehiculos GROUP BY operacion');
     const programas = veh.rows.map(r => ({
       name: r.programa || 'Sin Categoría',
       value: parseInt(r.count)
@@ -975,7 +1075,7 @@ app.get('/stats/charts', async (req, res) => {
         value: parseInt(r.count)
       }));
     } catch(e) {
-      // Si tipo_movimiento no existe aún, solo contamos el total
+      // Si tipo_movimiento no existe aÃºn, solo contamos el total
       const inv = await pool.query(`SELECT COUNT(*) as count FROM entregas_ti`);
       inventarioData = [{ name: 'Entregas Registradas', value: parseInt(inv.rows[0].count) }];
     }
@@ -990,7 +1090,7 @@ app.get('/stats/charts', async (req, res) => {
       fallos: [
         { name: 'Tablet', errores: parseInt(errors.rows[0].tablet_errors || 0) },
         { name: 'Radio', errores: parseInt(errors.rows[0].radio_errors || 0) },
-        { name: 'Cámaras', errores: parseInt(errors.rows[0].camaras_errors || 0) }
+        { name: 'CÃ¡maras', errores: parseInt(errors.rows[0].camaras_errors || 0) }
       ],
       soporte: soporteData,
       inventario: inventarioData
@@ -1010,13 +1110,13 @@ app.get('/radar/stream', (req, res) => {
 
 app.post('/radar/force', async (req, res) => {
   res.json({ message: 'Escaneo forzado iniciado' });
-  runRadarScan(pool); // Se corre asincrónicamente
+  runRadarScan(pool); // Se corre asincrÃ³nicamente
 });
 
 // Iniciar Motor de Radar al arrancar el servidor
 startRadarService(pool);
 
-// Iniciar Bot Táctico de Telegram
+// Iniciar Bot TÃ¡ctico de Telegram
 startTelegramBot(pool);
 
 // ==========================================
@@ -1117,7 +1217,7 @@ app.delete('/api/entregas/:id', async (req, res) => {
 });
 
 app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+  if (!req.file) return res.status(400).json({ error: 'No se subiÃ³ ningÃºn archivo' });
 
   try {
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
@@ -1175,7 +1275,7 @@ app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) =
       }
     }
     fs.unlinkSync(req.file.path);
-    res.json({ message: `Importación exitosa. ${inserted} registros nuevos añadidos (se ignoraron los duplicados).` });
+    res.json({ message: `ImportaciÃ³n exitosa. ${inserted} registros nuevos aÃ±adidos (se ignoraron los duplicados).` });
   } catch (error) {
     console.error('Error importando Excel:', error);
     res.status(500).json({ error: 'Error procesando el archivo Excel' });
@@ -1184,13 +1284,13 @@ app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) =
 
 app.get('/api/entregas/export-excel', async (req, res) => {
   try {
-    const { tipo } = req.query; // 'Entrega' o 'Devolución'
+    const { tipo } = req.query; // 'Entrega' o 'DevoluciÃ³n'
     let query = 'SELECT * FROM entregas_ti';
     let params = [];
     
-    if (tipo === 'Devolución') {
+    if (tipo === 'DevoluciÃ³n') {
       query += ' WHERE tipo_movimiento = $1';
-      params.push('Devolución');
+      params.push('DevoluciÃ³n');
     } else if (tipo === 'Entrega') {
       query += " WHERE tipo_movimiento = $1 OR tipo_movimiento IS NULL OR tipo_movimiento = ''";
       params.push('Entrega');
@@ -1226,10 +1326,10 @@ app.get('/api/entregas/export-excel', async (req, res) => {
       });
     }
 
-    // Título Principal
+    // TÃ­tulo Principal
     worksheet.mergeCells('D2:J3');
     const titleCell = worksheet.getCell('D2');
-    titleCell.value = tipo === 'Devolución' ? 'REGISTRO DE DEVOLUCIONES TI' : 'REGISTRO DE ENTREGAS TI';
+    titleCell.value = tipo === 'DevoluciÃ³n' ? 'REGISTRO DE DEVOLUCIONES TI' : 'REGISTRO DE ENTREGAS TI';
     titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -1239,9 +1339,9 @@ app.get('/api/entregas/export-excel', async (req, res) => {
 
     // Cabeceras
     const headers = [
-      "N°", "FECHA", "ENTREGADO POR TI", "NOMBRES Y APELLIDOS / CUSTODIO", "DNI",
+      "NÂ°", "FECHA", "ENTREGADO POR TI", "NOMBRES Y APELLIDOS / CUSTODIO", "DNI",
       "CARGO", "OPERACION", "CONDICION DE EQUIPO A ENTREGAR", "EQUIPO", "MARCA",
-      "MODELO", "S/N Y/O N° DE SERIE", "LAPTOP", "MOUSE", "CARGADOR", "MOTIVO DE ENTREGA Y/O CAMBIO", "OBSERVACION", "PRECIO"
+      "MODELO", "S/N Y/O NÂ° DE SERIE", "LAPTOP", "MOUSE", "CARGADOR", "MOTIVO DE ENTREGA Y/O CAMBIO", "OBSERVACION", "PRECIO"
     ];
 
     const headerRow = worksheet.getRow(6);
@@ -1310,7 +1410,7 @@ app.get('/api/entregas/export-excel', async (req, res) => {
 
     const buffer = await workbook.xlsx.writeBuffer();
     
-    const filename = tipo === 'Devolución' ? 'Devoluciones_Equipos_TI_Premium.xlsx' : 'Entrega_Equipos_TI_Premium.xlsx';
+    const filename = tipo === 'DevoluciÃ³n' ? 'Devoluciones_Equipos_TI_Premium.xlsx' : 'Entrega_Equipos_TI_Premium.xlsx';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(buffer);

@@ -244,7 +244,7 @@ export const runRadarScan = async (pool) => {
 
   try {
     // 1. Obtener todas las placas del sistema y sus programas
-    const vRes = await pool.query('SELECT placa, programa FROM vehiculos');
+    const vRes = await pool.query('SELECT placa, operacion as programa FROM vehiculos');
     // Guardaremos un array de objetos con placa y programa
     const todasLasUnidades = vRes.rows.map(r => ({ placa: r.placa.toUpperCase(), programa: r.programa || 'Sin Categoría' }));
     const todasLasPlacas = todasLasUnidades.map(u => u.placa);

@@ -113,12 +113,12 @@ export function FlotasDashboard() {
     }
   };
 
-  const handleEditVehiculo = async (placa, currentPrograma) => {
-    const nuevoPrograma = window.prompt(`Editar categoría para ${placa}:`, currentPrograma);
-    if (nuevoPrograma && nuevoPrograma !== currentPrograma) {
+  const handleEditVehiculo = async (placa, currentOperacion) => {
+    const nuevaOperacion = window.prompt(`Editar categoría para ${placa}:`, currentOperacion);
+    if (nuevaOperacion && nuevaOperacion !== currentOperacion) {
       try {
         toast.loading('Actualizando vehículo...', { id: 'update-vehiculo' });
-        await api.updateVehiculo(placa, { programa: nuevoPrograma });
+        await api.updateVehiculo(placa, { programa: nuevaOperacion });
         toast.success('Categoría actualizada', { id: 'update-vehiculo' });
         loadData();
       } catch (err) {
@@ -172,7 +172,7 @@ export function FlotasDashboard() {
         
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--bg-color)', padding: '0.25rem', borderRadius: '0.5rem' }}>
-            {['Todos', 'Primax', 'Bambas', 'Industrias', 'Falta identificar'].map(cat => (
+            {['Todos', 'Primax', 'Bambas', 'Industrias', 'Repsol', 'Mantenimiento', 'GLP', 'Falta identificar'].map(cat => (
               <button 
                 key={cat}
                 onClick={() => setCategoria(cat)}
@@ -244,7 +244,7 @@ export function FlotasDashboard() {
             }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Programa</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Operación</label>
                   <input type="text" value={editVehiculoData.programa} onChange={e => setEditVehiculoData({...editVehiculoData, programa: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ export function FlotasDashboard() {
               <thead>
                 <tr>
                   <th>Placa</th>
-                  <th>Programa</th>
+                  <th>Operación</th>
                   <th>Estado</th>
                   <th 
                     style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -367,7 +367,7 @@ export function FlotasDashboard() {
                       <td style={{textAlign: 'right'}}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                           <button 
-                            onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${v.placa}`, '_blank')}
+                            onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${v.placa}&token=${localStorage.getItem('nexus_token')}`, '_blank')}
                             style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.4rem 0.8rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
                           >
                             PDF Directo
@@ -420,11 +420,12 @@ function ExportModal({ onClose }) {
   const [valor, setValor] = useState('');
 
   const handleExport = () => {
-    if (filtro !== 'todos' && !valor.trim()) {
+    if (filtro !== 'todos' && filtro !== 'gerencial' && !valor.trim()) {
       toast.error('Debe ingresar un valor para filtrar');
       return;
     }
-    const url = `${BASE_API_URL}/reportes/${formato}?filtro=${filtro}&valor=${valor}`;
+    const token = localStorage.getItem('nexus_token') || '';
+    const url = `${BASE_API_URL}/reportes/${formato}?filtro=${filtro}&valor=${valor}&token=${token}`;
     window.open(url, '_blank');
     onClose();
   };
@@ -437,16 +438,26 @@ function ExportModal({ onClose }) {
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Formato de Archivo</label>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <label><input type="radio" name="formato" checked={formato === 'pdf'} onChange={() => setFormato('pdf')} /> PDF con Fotos</label>
-              <label><input type="radio" name="formato" checked={formato === 'excel'} onChange={() => setFormato('excel')} /> Excel con Enlaces</label>
+              <label style={{ opacity: filtro === 'gerencial' ? 0.5 : 1 }}>
+                <input type="radio" name="formato" checked={formato === 'pdf' && filtro !== 'gerencial'} onChange={() => setFormato('pdf')} disabled={filtro === 'gerencial'} /> PDF con Fotos
+              </label>
+              <label>
+                <input type="radio" name="formato" checked={formato === 'excel'} onChange={() => setFormato('excel')} /> Excel con Enlaces
+              </label>
             </div>
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Filtro de Extracción</label>
-            <select value={filtro} onChange={e=>{setFiltro(e.target.value); setValor('');}} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
+            <select value={filtro} onChange={e=>{
+              const newFiltro = e.target.value;
+              setFiltro(newFiltro); 
+              setValor('');
+              if (newFiltro === 'gerencial') setFormato('excel');
+            }} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
               <option value="todos">Todas las Unidades (Completo)</option>
               <option value="placa">Por Placa Específica</option>
-              <option value="programa">Por Programa (Categoría)</option>
+              <option value="programa">Por Operación (Categoría)</option>
+              <option value="gerencial">Reporte Gerencial (Último Estado, Sin Fotos)</option>
             </select>
           </div>
           
@@ -459,12 +470,15 @@ function ExportModal({ onClose }) {
           
           {filtro === 'programa' && (
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Seleccione Programa</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Seleccione Operación</label>
               <select value={valor} onChange={e=>setValor(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
                 <option value="">Seleccione...</option>
                 <option value="Primax">Primax</option>
                 <option value="Bambas">Bambas</option>
                 <option value="Industrias">Industrias</option>
+                <option value="Repsol">Repsol</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+                <option value="GLP">GLP</option>
                 <option value="Falta identificar">Falta identificar</option>
               </select>
             </div>
@@ -485,7 +499,7 @@ function ExportModal({ onClose }) {
 // ==========================================
 function VehiculoModal({ onClose, onReload }) {
   const [placa, setPlaca] = useState(localStorage.getItem('quick_register_placa') || '');
-  const [programa, setPrograma] = useState('Falta identificar');
+  const [programa, setOperación] = useState('Falta identificar');
 
   useEffect(() => {
     localStorage.removeItem('quick_register_placa');
@@ -514,8 +528,8 @@ function VehiculoModal({ onClose, onReload }) {
             <input required value={placa} onChange={e=>setPlaca(e.target.value)} type="text" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd', textTransform: 'uppercase' }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600' }}>Programa</label>
-            <select value={programa} onChange={e=>setPrograma(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600' }}>Operación</label>
+            <select value={programa} onChange={e=>setOperación(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
               <option>Primax</option><option>Bambas</option><option>Industrias</option><option>Falta identificar</option>
             </select>
           </div>
@@ -806,7 +820,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
               {!vehiculoSeleccionado && placaInput && <p style={{color: '#EF4444', fontSize: '0.75rem', marginTop: '0.25rem'}}>Placa no registrada.</p>}
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Programa Heredado</label>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Operación Heredada</label>
               <input type="text" readOnly value={programaAsociado} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-secondary)' }} />
             </div>
             

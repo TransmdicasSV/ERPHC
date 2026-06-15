@@ -35,8 +35,18 @@ export function EntregasTIDashboard({ vista }) {
     }
   };
 
+  const loadPersonal = async () => {
+    try {
+      const data = await api.getPersonal();
+      setPersonalList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error cargando personal', error);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadPersonal();
   }, []);
 
   const handleFileUpload = async (e) => {
@@ -115,6 +125,26 @@ export function EntregasTIDashboard({ vista }) {
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePersonalSelect = (e) => {
+    const selectedDni = e.target.value;
+    if (!selectedDni || selectedDni === 'OTRO') {
+      if (selectedDni !== 'OTRO') {
+        setFormData(prev => ({ ...prev, dni: '', nombre: '', cargo: '', operacion: '' }));
+      }
+      return;
+    }
+    const person = personalList.find(p => p.dni === selectedDni);
+    if (person) {
+      setFormData(prev => ({ 
+        ...prev, 
+        dni: person.dni, 
+        nombre: person.nombre_completo, 
+        cargo: person.cargo || '', 
+        operacion: person.area || '' 
+      }));
+    }
   };
 
   const handleSave = async (e) => {
@@ -410,20 +440,41 @@ export function EntregasTIDashboard({ vista }) {
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-                <h4 style={{ margin: '0 0 0.75rem 0', color: '#374151' }}>Datos del Receptor</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+              {/* 2. RECEPTOR */}
+              <div style={{ backgroundColor: 'var(--bg-primary)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-primary)', borderBottom: '2px solid #e5e7eb', paddingBottom: '0.5rem' }}>
+                  Receptor (Usuario)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Seleccionar del Directorio *</label>
+                    <select 
+                      value={formData.dni} 
+                      onChange={handlePersonalSelect}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="">-- Seleccionar Empleado --</option>
+                      {personalList.map(p => (
+                        <option key={p.dni} value={p.dni}>
+                          {p.nombre_completo} - {p.cargo || 'Sin cargo'}
+                        </option>
+                      ))}
+                      <option value="OTRO">Otro (Manual)</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div style={{ gridColumn: 'span 2' }}>
-                    <input type="text" name="nombre" value={formData.nombre} onChange={handleFormChange} placeholder="Nombre completo" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                    <input type="text" name="nombre" value={formData.nombre} onChange={handleFormChange} placeholder="Nombre completo" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
                   </div>
                   <div>
-                    <input type="text" name="dni" value={formData.dni} onChange={handleFormChange} placeholder="DNI" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                    <input type="text" name="dni" value={formData.dni} onChange={handleFormChange} placeholder="DNI" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
                   </div>
                   <div>
-                    <input type="text" name="cargo" value={formData.cargo} onChange={handleFormChange} placeholder="Cargo" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                    <input type="text" name="cargo" value={formData.cargo} onChange={handleFormChange} placeholder="Cargo" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
                   </div>
                   <div style={{ gridColumn: 'span 2' }}>
-                    <input type="text" name="operacion" value={formData.operacion} onChange={handleFormChange} placeholder="Operación" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                    <input type="text" name="operacion" value={formData.operacion} onChange={handleFormChange} placeholder="Operación" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
                   </div>
                 </div>
               </div>
