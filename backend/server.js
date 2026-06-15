@@ -231,6 +231,9 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
   }
 });
 
+// APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
+app.use(verifyToken);
+
 // ==========================================
 // ENDPOINTS RELACIONALES (FLOTAS E INCIDENTES)
 // ==========================================
