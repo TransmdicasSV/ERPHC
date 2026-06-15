@@ -32,7 +32,57 @@ const fetchWithAuth = async (url, options = {}) => {
   return response;
 };
 
-export const api = {  // === FLOTAS (NUEVO MODELO RELACIONAL) ===
+export const api = {  // ==========================================
+  // MAESTRO DE FLOTA
+  // ==========================================
+  getTractos: async () => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/maestro/tractos`);
+    if (!response.ok) throw new Error('Error al cargar tractos');
+    return response.json();
+  },
+  
+  getSemirremolques: async () => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/maestro/semirremolques`);
+    if (!response.ok) throw new Error('Error al cargar semirremolques');
+    return response.json();
+  },
+
+  // ==========================================
+  // DIRECTORIO DE PERSONAL
+  // ==========================================
+  getPersonal: async () => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/personal`);
+    if (!response.ok) throw new Error('Error al cargar personal');
+    return response.json();
+  },
+
+  createPersonal: async (data) => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/personal`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Error al registrar personal');
+    return response.json();
+  },
+
+  updatePersonal: async (id, data) => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/personal/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Error al actualizar personal');
+    return response.json();
+  },
+
+  deletePersonal: async (id) => {
+    const response = await fetchWithAuth(`${BASE_API_URL}/api/personal/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Error al eliminar personal');
+    return response.json();
+  },
+
+  // ==========================================
+  // RELACIONALES
+  // ==========================================
   getStats: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/stats/`);
     if (!response.ok) throw new Error('Error al cargar stats');
@@ -45,10 +95,10 @@ export const api = {  // === FLOTAS (NUEVO MODELO RELACIONAL) ===
     return response.json();
   },
 
-  getVehiculos: async (page = 1, limit = 50, search = '', programa = '', estado = '') => {
+  getVehiculos: async (page = 1, limit = 50, search = '', operacion = '', estado = '') => {
     let url = `${BASE_URL}/vehiculos/?page=${page}&limit=${limit}`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
-    if (programa) url += `&programa=${encodeURIComponent(programa)}`;
+    if (operacion) url += `&operacion=${encodeURIComponent(operacion)}`;
     if (estado) url += `&estado=${encodeURIComponent(estado)}`;
     const response = await fetchWithAuth(url);
     if (!response.ok) throw new Error('Error al cargar vehiculos');

@@ -22,15 +22,25 @@ const formatDMY = (dateObj) => {
 // ==========================================
 export const generatePDF = async (pool, filtro, valor, res) => {
   try {
-    let query = 'SELECT i.*, v.programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa';
+    let query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa';
     let params = [];
 
     if (filtro === 'placa') {
       query += ' WHERE i.placa = $1';
       params.push(valor.toUpperCase());
     } else if (filtro === 'programa') {
-      query += ' WHERE v.programa = $1';
-      params.push(valor);
+      if (valor === 'Falta identificar') {
+        query += ` WHERE (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+      } else if (valor === 'Industrias') {
+        query += ` WHERE LOWER(v.operacion) LIKE $1`;
+        params.push('%industria%');
+      } else if (valor === 'Bambas') {
+        query += ` WHERE LOWER(v.operacion) LIKE $1`;
+        params.push('%bambas%');
+      } else {
+        query += ` WHERE LOWER(v.operacion) = $1`;
+        params.push(valor.toLowerCase());
+      }
     }
     
     query += ' ORDER BY i.fecha DESC, i.hora DESC';
@@ -150,59 +160,166 @@ export const generatePDF = async (pool, filtro, valor, res) => {
 // ==========================================
 export const generateExcel = async (pool, filtro, valor, res) => {
   try {
-    let query = 'SELECT i.*, v.programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa';
+    let query = '';
     let params = [];
 
-    if (filtro === 'placa') {
-      query += ' WHERE i.placa = $1';
-      params.push(valor.toUpperCase());
-    } else if (filtro === 'programa') {
-      query += ' WHERE v.programa = $1';
-      params.push(valor);
+    if (filtro === 'gerencial') {
+      query = `
+        SELECT 
+          v.placa, v.tipo_vehiculo as tipo, v.operacion as programa, 'Activo' as estado_vehiculo,
+          i.fecha, i.hora, i.tablet, i.radio, i.camaras, i.observaciones
+        FROM vehiculos v
+        LEFT JOIN inspecciones_flota i ON v.placa = i.placa
+        ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, v.placa ASC
+      `;
+    } else {
+      query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa';
+      if (filtro === 'placa') {
+        query += ' WHERE i.placa = $1';
+        params.push(valor.toUpperCase());
+      } else if (filtro === 'programa') {
+        if (valor === 'Falta identificar') {
+          query += ` WHERE (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+        } else if (valor === 'Industrias') {
+          query += ` WHERE LOWER(v.operacion) LIKE $1`;
+          params.push('%industria%');
+        } else if (valor === 'Bambas') {
+          query += ` WHERE LOWER(v.operacion) LIKE $1`;
+          params.push('%bambas%');
+        } else {
+          query += ` WHERE LOWER(v.operacion) = $1`;
+          params.push(valor.toLowerCase());
+        }
+      }
+      query += ' ORDER BY i.fecha DESC, i.hora DESC';
     }
-    
-    query += ' ORDER BY i.fecha DESC, i.hora DESC';
     const result = await pool.query(query, params);
     const inspecciones = result.rows;
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Inspecciones');
 
-    // Definir columnas
-    worksheet.columns = [
-      { header: 'ID', key: 'id', width: 10 },
-      { header: 'Placa', key: 'placa', width: 15 },
-      { header: 'Programa', key: 'programa', width: 15 },
-      { header: 'Fecha', key: 'fecha', width: 15 },
-      { header: 'Hora', key: 'hora', width: 10 },
-      { header: 'Tablet', key: 'tablet', width: 15 },
-      { header: 'Radio Base', key: 'radio', width: 15 },
-      { header: 'Cámaras', key: 'camaras', width: 15 },
-      { header: 'Foto Tablet', key: 'img_tablet', width: 40 },
-      { header: 'Foto Radio', key: 'img_radio', width: 40 },
-      { header: 'Foto Cámaras', key: 'img_camaras', width: 40 },
-    ];
+    if (filtro === 'gerencial') {
+      // Configurar anchos de columna sin fijar la primera fila de cabecera automáticamente
+      worksheet.columns = [
+        { key: 'programa', width: 20 },
+        { key: 'placa', width: 15 },
+        { key: 'tipo', width: 18 },
+        { key: 'estado_vehiculo', width: 15 },
+        { key: 'fecha', width: 15 },
+        { key: 'hora', width: 10 },
+        { key: 'tablet', width: 15 },
+        { key: 'radio', width: 15 },
+        { key: 'camaras', width: 15 },
+        { key: 'observaciones', width: 45 },
+      ];
 
-    // Estilizar cabecera
-    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    worksheet.getRow(1).fill = { type: 'pattern', pattern:'solid', fgColor:{ argb:'FF1E3A8A' } };
+      // 1. Título principal
+      const titleRow = worksheet.addRow(['REPORTE GERENCIAL DE FLOTAS E INSPECCIONES']);
+      worksheet.mergeCells('A1:J1');
+      titleRow.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Azul oscuro muy profesional
+      titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      titleRow.height = 30;
 
-    // Agregar filas
-    inspecciones.forEach(insp => {
-      worksheet.addRow({
-        id: insp.id,
-        placa: insp.placa,
-        programa: insp.programa,
-        fecha: formatDMY(insp.fecha),
-        hora: insp.hora,
-        tablet: insp.tablet,
-        radio: insp.radio,
-        camaras: insp.camaras,
-        img_tablet: insp.img_tablet ? `http://localhost:8000/uploads/${insp.img_tablet}` : 'N/A',
-        img_radio: insp.img_radio ? `http://localhost:8000/uploads/${insp.img_radio}` : 'N/A',
-        img_camaras: insp.img_camaras ? `http://localhost:8000/uploads/${insp.img_camaras}` : 'N/A',
+      // 2. Subtítulo (Fecha de Generación)
+      const dateRow = worksheet.addRow([`Fecha de Emisión: ${new Date().toLocaleString('es-PE')}`]);
+      worksheet.mergeCells('A2:J2');
+      dateRow.font = { name: 'Arial', size: 11, italic: true, color: { argb: 'FF333333' } };
+      dateRow.alignment = { vertical: 'middle', horizontal: 'right' };
+      dateRow.height = 20;
+
+      // Espaciador
+      worksheet.addRow([]);
+
+      // 3. Cabecera de la tabla
+      const headerRow = worksheet.addRow([
+        'Operación', 'Placa', 'Tipo Unidad', 'Estado Unidad', 
+        'Última Insp.', 'Hora', 'Tablet', 'Radio Base', 'Cámaras', 'Observaciones'
+      ]);
+      
+      headerRow.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } }; // Verde esmeralda
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      headerRow.height = 25;
+
+      // Bordes para la cabecera
+      headerRow.eachCell(cell => {
+        cell.border = {
+          top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'medium'}, right: {style:'thin'}
+        };
       });
-    });
+
+      // 4. Agregar Datos
+      inspecciones.forEach((insp, index) => {
+        const row = worksheet.addRow({
+          programa: insp.programa || 'Sin Operación',
+          placa: insp.placa,
+          tipo: insp.tipo || 'N/A',
+          estado_vehiculo: insp.estado_vehiculo || 'N/A',
+          fecha: formatDMY(insp.fecha) || 'Sin Inspección',
+          hora: insp.hora || '-',
+          tablet: insp.tablet || '-',
+          radio: insp.radio || '-',
+          camaras: insp.camaras || '-',
+          observaciones: insp.observaciones || '-'
+        });
+
+        // Estilos de filas de datos
+        row.font = { name: 'Arial', size: 10 };
+        row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        
+        // Alineación izquierda para observaciones
+        row.getCell(10).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        
+        // Colores alternados (Zebra striping)
+        if (index % 2 === 0) {
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+        }
+
+        row.eachCell(cell => {
+          cell.border = {
+            top: {style:'hair'}, left: {style:'hair'}, bottom: {style:'hair'}, right: {style:'hair'}
+          };
+        });
+      });
+
+      // Añadir Autocorrector de filtros a la tabla
+      worksheet.autoFilter = 'A4:J4';
+    } else {
+      worksheet.columns = [
+        { header: 'ID', key: 'id', width: 10 },
+        { header: 'Placa', key: 'placa', width: 15 },
+        { header: 'Programa', key: 'programa', width: 15 },
+        { header: 'Fecha', key: 'fecha', width: 15 },
+        { header: 'Hora', key: 'hora', width: 10 },
+        { header: 'Tablet', key: 'tablet', width: 15 },
+        { header: 'Radio Base', key: 'radio', width: 15 },
+        { header: 'Cámaras', key: 'camaras', width: 15 },
+        { header: 'Foto Tablet', key: 'img_tablet', width: 40 },
+        { header: 'Foto Radio', key: 'img_radio', width: 40 },
+        { header: 'Foto Cámaras', key: 'img_camaras', width: 40 },
+      ];
+
+      worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern:'solid', fgColor:{ argb:'FF1E3A8A' } };
+
+      inspecciones.forEach(insp => {
+        worksheet.addRow({
+          id: insp.id,
+          placa: insp.placa,
+          programa: insp.programa,
+          fecha: formatDMY(insp.fecha),
+          hora: insp.hora,
+          tablet: insp.tablet,
+          radio: insp.radio,
+          camaras: insp.camaras,
+          img_tablet: insp.img_tablet ? `http://localhost:8000/uploads/${insp.img_tablet}` : 'N/A',
+          img_radio: insp.img_radio ? `http://localhost:8000/uploads/${insp.img_radio}` : 'N/A',
+          img_camaras: insp.img_camaras ? `http://localhost:8000/uploads/${insp.img_camaras}` : 'N/A',
+        });
+      });
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=Reporte_Flotas_${filtro || 'General'}.xlsx`);

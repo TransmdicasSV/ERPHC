@@ -8,6 +8,8 @@ import { MantenimientoTecnico } from './components/MantenimientoTecnico';
 import { SoporteTicketsDashboard } from './components/SoporteTicketsDashboard';
 import { PublicPortal } from './components/PublicPortal';
 import { Login } from './components/Login';
+import { MaestroFlotaDashboard } from './components/MaestroFlotaDashboard';
+import { DirectorioPersonal } from './components/DirectorioPersonal';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 
@@ -17,6 +19,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSoporteOpen, setIsSoporteOpen] = useState(false);
   const [isInventarioOpen, setIsInventarioOpen] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null); // Para menú colapsable de maestros
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('jdcali_theme');
     return saved === 'dark';
@@ -112,8 +115,65 @@ function App() {
           <button 
             onClick={() => setActiveTab('resumen')}
             style={{ width: '100%', textAlign: 'left', padding: '1rem 1.5rem', background: activeTab === 'resumen' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'resumen' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-            🛸 Centro de Control
+            📊 Centro de Control
           </button>
+            <div
+              onClick={() => setActiveMenu(activeMenu === 'maestros' ? null : 'maestros')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem 1.5rem',
+                cursor: 'pointer',
+                backgroundColor: activeMenu === 'maestros' ? '#1f2937' : 'transparent',
+                color: activeMenu === 'maestros' ? 'white' : '#9ca3af',
+                fontSize: '0.875rem',
+                fontWeight: '600'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span>📦</span> Maestros Generales
+              </div>
+              <span style={{ transform: activeMenu === 'maestros' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                ▼
+              </span>
+            </div>
+            
+            {activeMenu === 'maestros' && (
+              <div style={{ backgroundColor: '#111827' }}>
+                <button
+                  onClick={() => setActiveTab('maestro')}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.75rem 1rem 0.75rem 3rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: activeTab === 'maestro' ? 'white' : '#9ca3af',
+                    backgroundColor: activeTab === 'maestro' ? '#374151' : 'transparent',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  🚚 Flota
+                </button>
+                <button
+                  onClick={() => setActiveTab('personal')}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.75rem 1rem 0.75rem 3rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: activeTab === 'personal' ? 'white' : '#9ca3af',
+                    backgroundColor: activeTab === 'personal' ? '#374151' : 'transparent',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  👤 Personal
+                </button>
+              </div>
+            )}
+
           <button 
             onClick={() => setActiveTab('dashboard')}
             style={{ width: '100%', textAlign: 'left', padding: '1rem 1.5rem', background: activeTab === 'dashboard' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'dashboard' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
@@ -198,6 +258,8 @@ function App() {
       {/* CONTENIDO PRINCIPAL */}
       <main className="main-content-admin">
         {activeTab === 'resumen' && <ResumenDashboard />}
+        {activeTab === 'maestro' && <MaestroFlotaDashboard />}
+        {activeTab === 'personal' && <DirectorioPersonal />}
         {activeTab === 'dashboard' && <FlotasDashboard />}
         {activeTab === 'radar' && <RadarDashboard navigate={setActiveTab} />}
         {activeTab === 'incidentes' && <IncidentesDashboard />}
