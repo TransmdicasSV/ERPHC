@@ -173,7 +173,7 @@ export const api = {  // ==========================================
   },
 
   createIncidente: async (data) => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/incidentes`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/incidentes_soporte`, {
       method: 'POST',
       body: JSON.stringify(data),
     });

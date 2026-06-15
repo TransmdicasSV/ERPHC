@@ -8,6 +8,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 
 export function EntregasTIDashboard({ vista }) {
   const [entregas, setEntregas] = useState([]);
+  const [personalList, setPersonalList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -15,6 +16,8 @@ export function EntregasTIDashboard({ vista }) {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isNewPersonal, setIsNewPersonal] = useState(false);
+  const [dniSearchStatus, setDniSearchStatus] = useState(null); // null | 'loading' | 'found' | 'not_found'
   const [formData, setFormData] = useState({
     fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
   });
@@ -112,6 +115,8 @@ export function EntregasTIDashboard({ vista }) {
     });
     setActaFile(null);
     setIsEditing(false);
+    setIsNewPersonal(false);
+    setDniSearchStatus(null);
     setShowFormModal(true);
   };
 
@@ -119,6 +124,8 @@ export function EntregasTIDashboard({ vista }) {
     setFormData({ ...item, fecha: item.fecha ? item.fecha.split('T')[0] : '', tipo_movimiento: item.tipo_movimiento || 'Entrega' });
     setActaFile(null);
     setIsEditing(true);
+    setIsNewPersonal(false);
+    setDniSearchStatus('found'); // Assuming existing records have valid personnel
     setShowFormModal(true);
   };
 
@@ -127,30 +134,65 @@ export function EntregasTIDashboard({ vista }) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePersonalSelect = (e) => {
-    const selectedDni = e.target.value;
-    if (!selectedDni || selectedDni === 'OTRO') {
-      if (selectedDni !== 'OTRO') {
-        setFormData(prev => ({ ...prev, dni: '', nombre: '', cargo: '', operacion: '' }));
-      }
+  const handleSearchDNI = async () => {
+    const searchDni = formData.dni.trim();
+    if (!searchDni) {
+      toast.error('Ingrese un DNI para buscar');
       return;
     }
-    const person = personalList.find(p => p.dni === selectedDni);
-    if (person) {
-      setFormData(prev => ({ 
-        ...prev, 
-        dni: person.dni, 
-        nombre: person.nombre_completo, 
-        cargo: person.cargo || '', 
-        operacion: person.area || '' 
-      }));
-    }
+    
+    setDniSearchStatus('loading');
+    
+    // Simulate tiny network delay for UX
+    setTimeout(() => {
+      const person = personalList.find(p => p.dni === searchDni);
+      if (person) {
+        setFormData(prev => ({ 
+          ...prev, 
+          nombre: person.nombre_completo, 
+          cargo: person.cargo || '', 
+          operacion: person.area || '' 
+        }));
+        setIsNewPersonal(false);
+        setDniSearchStatus('found');
+        toast.success('¡Personal encontrado!');
+      } else {
+        setFormData(prev => ({ ...prev, nombre: '', cargo: '', operacion: '' }));
+        setIsNewPersonal(true);
+        setDniSearchStatus('not_found');
+        toast.error('DNI no registrado. Complete los datos para agregarlo automáticamente.');
+      }
+    }, 400);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    
+    if (!formData.dni || !formData.nombre) {
+      toast.error('El DNI y Nombre del receptor son obligatorios');
+      return;
+    }
+
     try {
       toast.loading('Guardando...', { id: 'save-entrega' });
+      
+      // Auto-create personnel if it's new
+      if (isNewPersonal) {
+        try {
+          await api.createPersonal({
+            dni: formData.dni,
+            nombre_completo: formData.nombre,
+            cargo: formData.cargo || '',
+            area: formData.operacion || '',
+            estado: 'Activo'
+          });
+          // Refresh personal list quietly
+          loadPersonal();
+        } catch (perErr) {
+          console.warn('El personal ya existía o hubo error al auto-crearlo', perErr);
+        }
+      }
+
       const dataToSend = new FormData();
       Object.keys(formData).forEach(key => {
         if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
@@ -445,36 +487,75 @@ export function EntregasTIDashboard({ vista }) {
                 <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-primary)', borderBottom: '2px solid #e5e7eb', paddingBottom: '0.5rem' }}>
                   Receptor (Usuario)
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1rem' }}>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Seleccionar del Directorio *</label>
-                    <select 
-                      value={formData.dni} 
-                      onChange={handlePersonalSelect}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
-                    >
-                      <option value="">-- Seleccionar Empleado --</option>
-                      {personalList.map(p => (
-                        <option key={p.dni} value={p.dni}>
-                          {p.nombre_completo} - {p.cargo || 'Sin cargo'}
-                        </option>
-                      ))}
-                      <option value="OTRO">Otro (Manual)</option>
-                    </select>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>DNI *</label>
+                    <div style={{ display: 'flex' }}>
+                      <input 
+                        type="text" 
+                        name="dni" 
+                        value={formData.dni} 
+                        onChange={(e) => {
+                          handleFormChange(e);
+                          setDniSearchStatus(null); // Reset status if user changes DNI
+                        }} 
+                        placeholder="Buscar DNI" 
+                        required 
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem 0 0 0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={handleSearchDNI}
+                        disabled={dniSearchStatus === 'loading'}
+                        style={{ padding: '0 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0 0.375rem 0.375rem 0', cursor: 'pointer', fontWeight: 'bold' }}
+                      >
+                        {dniSearchStatus === 'loading' ? '⌛' : '🔍'}
+                      </button>
+                    </div>
+                    {dniSearchStatus === 'found' && <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'block', marginTop: '0.25rem' }}>✓ Personal encontrado</span>}
+                    {dniSearchStatus === 'not_found' && <span style={{ fontSize: '0.75rem', color: '#ef4444', display: 'block', marginTop: '0.25rem' }}>⚠ DNI nuevo. Llene los datos.</span>}
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>Nombre Completo *</label>
+                    <input 
+                      type="text" 
+                      name="nombre" 
+                      value={formData.nombre} 
+                      onChange={handleFormChange} 
+                      placeholder="Nombre del trabajador" 
+                      required 
+                      disabled={dniSearchStatus === 'found' && !isEditing}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                    />
                   </div>
                 </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <input type="text" name="nombre" value={formData.nombre} onChange={handleFormChange} placeholder="Nombre completo" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cargo</label>
+                    <input 
+                      type="text" 
+                      name="cargo" 
+                      value={formData.cargo} 
+                      onChange={handleFormChange} 
+                      placeholder="Ej. Conductor, Administrador" 
+                      disabled={dniSearchStatus === 'found' && !isEditing}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                    />
                   </div>
                   <div>
-                    <input type="text" name="dni" value={formData.dni} onChange={handleFormChange} placeholder="DNI" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
-                  </div>
-                  <div>
-                    <input type="text" name="cargo" value={formData.cargo} onChange={handleFormChange} placeholder="Cargo" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <input type="text" name="operacion" value={formData.operacion} onChange={handleFormChange} placeholder="Operación" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} />
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Operación / Área</label>
+                    <input 
+                      type="text" 
+                      name="operacion" 
+                      value={formData.operacion} 
+                      onChange={handleFormChange} 
+                      placeholder="Ej. Lima, Callao, Mina" 
+                      disabled={dniSearchStatus === 'found' && !isEditing}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                    />
                   </div>
                 </div>
               </div>
