@@ -1,0 +1,531 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-hot-toast';
+import { api, BASE_API_URL } from '../services/api';
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// Configurar el worker de PDF.js
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+export function EntregasTIDashboard({ vista }) {
+  const [entregas, setEntregas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [selectedEntrega, setSelectedEntrega] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+  });
+  const [actaFile, setActaFile] = useState(null);
+  const [docUrlViewer, setDocUrlViewer] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
+  const fileInputRef = useRef(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getEntregas();
+      setEntregas(data || []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      toast.loading('Importando Excel...', { id: 'upload-excel' });
+      await api.uploadEntregasExcel(file);
+      toast.success('Excel importado correctamente', { id: 'upload-excel' });
+      loadData(); // Recargar la tabla
+    } catch (error) {
+      toast.error('Error al importar Excel: ' + error.message, { id: 'upload-excel' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const sortedData = [...entregas].sort((a, b) => {
+    let aValue = a[sortConfig.key] || '';
+    let bValue = b[sortConfig.key] || '';
+    
+    if (sortConfig.key === 'fecha') {
+      aValue = a.fecha ? new Date(a.fecha).getTime() : 0;
+      bValue = b.fecha ? new Date(b.fecha).getTime() : 0;
+    } else {
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+    }
+    
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const filteredData = sortedData.filter(e => {
+    const matchesSearch = (e.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (e.dni || '').includes(searchTerm) ||
+                          (e.equipo_tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const itemTipo = e.tipo_movimiento || 'Entrega';
+    const matchesVista = !vista || itemTipo === vista;
+    return matchesSearch && matchesVista;
+  });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getLocalDateString = () => {
+    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+    return new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+  };
+
+  const openCreateModal = () => {
+    setFormData({
+      fecha: getLocalDateString(), encargado: '', nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+    });
+    setActaFile(null);
+    setIsEditing(false);
+    setShowFormModal(true);
+  };
+
+  const openEditModal = (item) => {
+    setFormData({ ...item, fecha: item.fecha ? item.fecha.split('T')[0] : '', tipo_movimiento: item.tipo_movimiento || 'Entrega' });
+    setActaFile(null);
+    setIsEditing(true);
+    setShowFormModal(true);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      toast.loading('Guardando...', { id: 'save-entrega' });
+      const dataToSend = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
+          dataToSend.append(key, formData[key]);
+        }
+      });
+      if (actaFile) dataToSend.append('acta', actaFile);
+
+      if (isEditing) {
+        await api.updateEntrega(formData.id, dataToSend);
+        toast.success('Registro actualizado correctamente', { id: 'save-entrega' });
+      } else {
+        await api.createEntrega(dataToSend);
+        toast.success('Registro guardado correctamente', { id: 'save-entrega' });
+      }
+      setShowFormModal(false);
+      loadData();
+    } catch (error) {
+      toast.error('Error guardando los datos: ' + error.message, { id: 'save-entrega' });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.')) {
+      toast.loading('Eliminando...', { id: 'delete' });
+      try {
+        await api.deleteEntrega(id);
+        toast.success('Registro eliminado', { id: 'delete' });
+        loadData();
+      } catch (error) {
+        toast.error('Error eliminando: ' + error.message, { id: 'delete' });
+      }
+    }
+  };
+
+  const handleDownloadViewer = async (e) => {
+    e.preventDefault();
+    try {
+      toast.loading('Preparando descarga...', { id: 'download' });
+      const response = await fetch(docUrlViewer);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (docUrlViewer.toLowerCase().includes('.pdf') || docUrlViewer.includes('/raw/')) ? 'Acta_Documento.pdf' : 'Acta_Documento.jpg';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Descarga iniciada', { id: 'download' });
+    } catch (error) {
+      toast.dismiss('download');
+      window.open(docUrlViewer, '_blank');
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+            {vista === 'Devolución' ? '📥 Devoluciones TI' : '📤 Entregas TI'}
+          </h2>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            {vista === 'Devolución' ? 'Control de equipos retornados por los usuarios.' : 'Control de inventario y actas de equipos entregados.'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button 
+            onClick={() => api.exportExcelEntregas(vista)}
+            style={{ backgroundColor: '#f59e0b', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+            📥 Exportar Excel
+          </button>
+          <button 
+            onClick={openCreateModal}
+            style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+            {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
+          </button>
+          <input 
+            type="file" 
+            accept=".xlsx, .xls" 
+            style={{ display: 'none' }} 
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+          />
+          <button 
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()} 
+            style={{ backgroundColor: '#10B981', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: uploading ? 'wait' : 'pointer', fontWeight: '600' }}>
+            {uploading ? '⏳ Subiendo...' : '📄 Cargar Excel'}
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 250px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>🔍</span>
+          <input 
+            type="text" 
+            placeholder="Buscar por Nombre, DNI o Equipo..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', outline: 'none' }}
+          />
+        </div>
+      </div>
+
+      <div className="table-container">
+        {loading ? (
+          <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando datos...</p>
+        ) : filteredData.length === 0 ? (
+          <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No hay registros para mostrar. Usa "Cargar Excel" para importar tu base de datos.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th onClick={() => requestSort('fecha')} style={{cursor: 'pointer', userSelect: 'none'}}>Fecha {sortConfig.key === 'fecha' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => requestSort('nombre')} style={{cursor: 'pointer', userSelect: 'none'}}>Receptor {sortConfig.key === 'nombre' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => requestSort('operacion')} style={{cursor: 'pointer', userSelect: 'none'}}>Operación {sortConfig.key === 'operacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('tipo_movimiento')}>
+                Tipo {sortConfig.key === 'tipo_movimiento' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+              </th>
+              <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('equipo_tipo')}>
+                Equipo {sortConfig.key === 'equipo_tipo' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+              </th>
+              <th onClick={() => requestSort('marca')} style={{cursor: 'pointer', userSelect: 'none'}}>Marca/Modelo {sortConfig.key === 'marca' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => requestSort('serie')} style={{cursor: 'pointer', userSelect: 'none'}}>Serie {sortConfig.key === 'serie' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                <th onClick={() => requestSort('condicion')} style={{cursor: 'pointer', userSelect: 'none'}}>Estado {sortConfig.key === 'condicion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map(item => (
+                <tr key={item.id}>
+                  <td>
+                    {item.fecha ? (() => {
+                      const [year, month, day] = item.fecha.split('T')[0].split('-');
+                      return `${day}-${month}-${year}`;
+                    })() : '-'}
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 'bold' }}>{item.nombre}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>DNI: {item.dni}</div>
+                  </td>
+                  <td>{item.operacion}</td>
+                  <td style={{ padding: '0.75rem 1rem' }}>
+                    <span style={{ backgroundColor: item.tipo_movimiento === 'Devolución' ? '#fce7f3' : '#d1fae5', color: item.tipo_movimiento === 'Devolución' ? '#9d174d' : '#065f46', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      {item.tipo_movimiento === 'Devolución' ? '📥 Devolución' : '📤 Entrega'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem' }}>
+                    <div style={{ fontWeight: '500' }}>{item.equipo_tipo}</div>
+                    {item.laptop && <div style={{ fontSize: '0.75rem' }}>💻 {item.laptop}</div>}
+                    {item.mouse && <div style={{ fontSize: '0.75rem' }}>🖱️ {item.mouse}</div>}
+                  </td>
+                  <td>
+                    <div>{item.marca}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.modelo}</div>
+                  </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{item.serie}</td>
+                  <td>
+                    <span className={`badge ${item.condicion === 'NUEVO' ? 'badge-success' : 'badge-warning'}`}>
+                      {item.condicion}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button 
+                        onClick={() => { setSelectedEntrega(item); setShowDetailModal(true); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#3b82f6' }}
+                        title="Ver Detalles"
+                      >
+                        👁️
+                      </button>
+                      {item.documento_url && (
+                        <button onClick={(e) => { e.stopPropagation(); setDocUrlViewer(item.documento_url); }} title="Ver Acta" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                          📄
+                        </button>
+                      )}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
+                        style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                        title="Editar"
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
+                        title="Eliminar"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* MODAL DE DETALLE */}
+      {showDetailModal && selectedEntrega && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <button onClick={() => setShowDetailModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
+            
+            <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Detalles de Entrega TI</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: '#374151' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <p style={{ margin: 0 }}><strong>Fecha:</strong> {selectedEntrega.fecha ? (() => {
+                  const d = new Date(selectedEntrega.fecha);
+                  return `${d.getDate().toString().padStart(2, '0')}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+                })() : '-'}</p>
+                <p style={{ margin: 0 }}><strong>Encargado:</strong> {selectedEntrega.encargado || '-'}</p>
+              </div>
+              <p style={{ margin: 0 }}><strong>Receptor:</strong> {selectedEntrega.nombre} <span style={{ color: 'var(--text-secondary)' }}>(DNI: {selectedEntrega.dni})</span></p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <p style={{ margin: 0 }}><strong>Cargo:</strong> {selectedEntrega.cargo || '-'}</p>
+                <p style={{ margin: 0 }}><strong>Operación:</strong> {selectedEntrega.operacion || '-'}</p>
+              </div>
+              
+              <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0.5rem 0' }} />
+              
+              <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Información del Equipo</h4>
+              <p style={{ margin: 0 }}><strong>Tipo:</strong> {selectedEntrega.equipo_tipo}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <p style={{ margin: 0 }}><strong>Marca:</strong> {selectedEntrega.marca || '-'}</p>
+                <p style={{ margin: 0 }}><strong>Modelo:</strong> {selectedEntrega.modelo || '-'}</p>
+              </div>
+              <p style={{ margin: 0 }}><strong>N° Serie:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedEntrega.serie || '-'}</span></p>
+              <p style={{ margin: 0 }}><strong>Condición:</strong> <span className={`badge ${selectedEntrega.condicion === 'NUEVO' ? 'badge-success' : 'badge-warning'}`}>{selectedEntrega.condicion}</span></p>
+              
+              {(selectedEntrega.laptop || selectedEntrega.mouse || selectedEntrega.cargador) && (
+                <div style={{ backgroundColor: 'var(--bg-color)', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
+                  <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>Accesorios / Periféricos:</p>
+                  <ul style={{ margin: '0 0 0 1.5rem', padding: 0 }}>
+                    {selectedEntrega.laptop && <li>Laptop: {selectedEntrega.laptop}</li>}
+                    {selectedEntrega.mouse && <li>Mouse: {selectedEntrega.mouse}</li>}
+                    {selectedEntrega.cargador && <li>Cargador: {selectedEntrega.cargador}</li>}
+                  </ul>
+                </div>
+              )}
+              
+              <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0.5rem 0' }} />
+              
+              <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Datos Finales</h4>
+              <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedEntrega.motivo || '-'}</p>
+              <p style={{ margin: 0 }}><strong>Precio:</strong> {selectedEntrega.precio ? `$${selectedEntrega.precio}` : '-'}</p>
+              <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
+                <p style={{ margin: 0 }}><strong>Observaciones:</strong></p>
+                <p style={{ margin: '0.25rem 0 0 0', color: '#92400e' }}>{selectedEntrega.observaciones || 'Ninguna.'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL FORMULARIO CRUD */}
+      {showFormModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '700px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <button type="button" onClick={() => setShowFormModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
+            <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+              {isEditing ? `✏️ Editar ${vista || 'Registro'}` : `➕ Nuevo Registro de ${vista || 'Entrega'}`}
+            </h3>
+
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                {!vista && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Tipo Movimiento</label>
+                    <select name="tipo_movimiento" value={formData.tipo_movimiento} onChange={handleFormChange} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', fontWeight: 'bold' }}>
+                      <option value="Entrega">📤 Entrega</option>
+                      <option value="Devolución">📥 Devolución</option>
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Fecha</label>
+                  <input type="date" name="fecha" value={formData.fecha} onChange={handleFormChange} required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Encargado TI</label>
+                  <input type="text" name="encargado" value={formData.encargado} onChange={handleFormChange} placeholder="Quien entrega" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', color: '#374151' }}>Datos del Receptor</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <input type="text" name="nombre" value={formData.nombre} onChange={handleFormChange} placeholder="Nombre completo" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  </div>
+                  <div>
+                    <input type="text" name="dni" value={formData.dni} onChange={handleFormChange} placeholder="DNI" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  </div>
+                  <div>
+                    <input type="text" name="cargo" value={formData.cargo} onChange={handleFormChange} placeholder="Cargo" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <input type="text" name="operacion" value={formData.operacion} onChange={handleFormChange} placeholder="Operación" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', color: '#374151' }}>Información del Equipo Principal</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Tipo Equipo</label>
+                    <input type="text" name="equipo_tipo" value={formData.equipo_tipo} onChange={handleFormChange} placeholder="Laptop, Radio, etc." required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Condición</label>
+                    <select name="condicion" value={formData.condicion} onChange={handleFormChange} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}>
+                      <option value="NUEVO">NUEVO</option>
+                      <option value="USADO">USADO</option>
+                      <option value="PARA REPARAR">PARA REPARAR</option>
+                    </select>
+                  </div>
+                  <div><input type="text" name="marca" value={formData.marca} onChange={handleFormChange} placeholder="Marca" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', marginTop: '1.25rem' }} /></div>
+                  <div><input type="text" name="modelo" value={formData.modelo} onChange={handleFormChange} placeholder="Modelo" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', marginTop: '1.25rem' }} /></div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <input type="text" name="serie" value={formData.serie} onChange={handleFormChange} placeholder="N° de Serie Principal" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-color)' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', color: '#374151' }}>Periféricos y Accesorios (Opcional)</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                  <input type="text" name="laptop" value={formData.laptop} onChange={handleFormChange} placeholder="S/N Laptop extra" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  <input type="text" name="mouse" value={formData.mouse} onChange={handleFormChange} placeholder="S/N Mouse" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  <input type="text" name="cargador" value={formData.cargador} onChange={handleFormChange} placeholder="S/N Cargador" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Motivo</label>
+                  <input type="text" name="motivo" value={formData.motivo} onChange={handleFormChange} placeholder="Renovación, Nuevo Ingreso, etc." style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Costo ($/S/)</label>
+                  <input type="number" step="0.01" name="precio" value={formData.precio} onChange={handleFormChange} placeholder="0.00" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Observaciones</label>
+                <textarea name="observaciones" value={formData.observaciones} onChange={handleFormChange} rows="2" placeholder="Detalles extra, rayones, teclado roto..." style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', resize: 'vertical' }}></textarea>
+              </div>
+
+              <div style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', color: '#374151' }}>Adjuntar Documento (Opcional)</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Puedes subir el acta escaneada (PDF o Imagen JPG/PNG).</label>
+                  <input type="file" accept=".pdf,image/*" onChange={(e) => setActaFile(e.target.files[0])} style={{ padding: '0.5rem', border: '1px dashed #d1d5db', borderRadius: '0.375rem', backgroundColor: 'var(--bg-color)' }} />
+                  {formData.documento_url && !actaFile && (
+                    <div style={{ fontSize: '0.85rem', color: '#10b981', marginTop: '0.25rem' }}>📄 Ya existe un documento adjunto en este registro. (Si subes uno nuevo, se reemplazará).</div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setShowFormModal(false)} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--card-bg)', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#10b981', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {isEditing ? 'Guardar Cambios' : 'Registrar Entrega'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL VISOR DE DOCUMENTOS */}
+      {docUrlViewer && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.5rem', width: '800px', maxWidth: '95%', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>📄 Visor de Acta</h3>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={handleDownloadViewer} style={{ padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.875rem' }}>Descargar</button>
+                <button onClick={() => setDocUrlViewer(null)} style={{ padding: '0.5rem 1rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.875rem' }}>Cerrar</button>
+              </div>
+            </div>
+            <div style={{ flex: 1, backgroundColor: 'var(--bg-color)', borderRadius: '0.25rem', overflow: 'hidden' }}>
+              {(docUrlViewer.toLowerCase().includes('.pdf') || docUrlViewer.includes('/raw/')) ? (
+                <div style={{ height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', backgroundColor: '#525659', padding: '1rem' }}>
+                  <Document 
+                    file={docUrlViewer} 
+                    loading={<p style={{ color: 'white' }}>Cargando documento PDF...</p>}
+                    error={<p style={{ color: 'white' }}>Error al cargar el PDF. Intenta descargarlo directamente.</p>}
+                  >
+                    <Page pageNumber={1} renderTextLayer={false} renderAnnotationLayer={false} width={700} />
+                  </Document>
+                </div>
+              ) : (
+                <img src={docUrlViewer} alt="Acta" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
