@@ -10,6 +10,7 @@ import { PublicPortal } from './components/PublicPortal';
 import { Login } from './components/Login';
 import { MaestroFlotaDashboard } from './components/MaestroFlotaDashboard';
 import { DirectorioPersonal } from './components/DirectorioPersonal';
+import { ReportesDashboard } from './components/ReportesDashboard';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 
@@ -238,6 +239,11 @@ function App() {
             style={{ width: '100%', textAlign: 'left', padding: '1rem 1.5rem', background: activeTab === 'mantenimiento' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'mantenimiento' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
             🛠️ Mantenimiento Técnico
           </button>
+          <button 
+            onClick={() => setActiveTab('reportes')}
+            style={{ width: '100%', textAlign: 'left', padding: '1rem 1.5rem', background: activeTab === 'reportes' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'reportes' ? '#60A5FA' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
+            📈 Reportes Gerenciales
+          </button>
         </nav>
 
         <div style={{ padding: '1rem', borderTop: '1px solid #1F2937', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -267,6 +273,7 @@ function App() {
         {activeTab === 'devoluciones' && <EntregasTIDashboard vista="Devolución" />}
         {activeTab === 'tickets' && <SoporteTicketsDashboard />}
         {activeTab === 'mantenimiento' && <MantenimientoTecnico />}
+        {activeTab === 'reportes' && <ReportesDashboard />}
       </main>
     </div>
   );

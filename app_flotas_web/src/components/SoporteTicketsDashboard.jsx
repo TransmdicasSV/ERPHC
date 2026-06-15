@@ -7,6 +7,13 @@ export function SoporteTicketsDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    placa: '',
+    operador: '',
+    tipo_solicitud: 'Soporte Técnico',
+    descripcion: ''
+  });
 
   useEffect(() => {
     fetchTickets();
@@ -42,6 +49,22 @@ export function SoporteTicketsDashboard() {
       fetchTickets();
     } catch (error) {
       toast.error(error.message || 'Error al eliminar');
+    }
+  };
+
+  const handleSaveTicket = async (e) => {
+    e.preventDefault();
+    try {
+      await api.createIncidente({
+        ...formData,
+        fecha: new Date().toISOString()
+      });
+      toast.success('Ticket creado exitosamente');
+      setShowModal(false);
+      fetchTickets();
+      setFormData({ placa: '', operador: '', tipo_solicitud: 'Soporte Técnico', descripcion: '' });
+    } catch (error) {
+      toast.error('Error al crear el ticket');
     }
   };
 
@@ -89,6 +112,9 @@ export function SoporteTicketsDashboard() {
         </select>
         <button onClick={fetchTickets} style={{ padding: '0.75rem 1rem', background: '#374151', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}>
           🔄 Actualizar
+        </button>
+        <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1rem', background: '#10B981', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', marginLeft: 'auto' }}>
+          ➕ Nuevo Ticket
         </button>
       </div>
 
@@ -147,6 +173,56 @@ export function SoporteTicketsDashboard() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal Nuevo Ticket */}
+      {showModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
+          <div style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Nuevo Ticket de Ayuda</h2>
+              <button 
+                onClick={() => setShowModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}
+              >✕</button>
+            </div>
+            
+            <form onSubmit={handleSaveTicket} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Placa de Vehículo</label>
+                  <input type="text" value={formData.placa} onChange={e => setFormData({...formData, placa: e.target.value.toUpperCase()})} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nombre del Solicitante</label>
+                  <input type="text" value={formData.operador} onChange={e => setFormData({...formData, operador: e.target.value})} placeholder="Ej. Juan Pérez" required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Categoría del Problema</label>
+                <select value={formData.tipo_solicitud} onChange={e => setFormData({...formData, tipo_solicitud: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+                  <option value="Soporte Técnico">Soporte Técnico (General)</option>
+                  <option value="GPS No Reporta">GPS No Reporta</option>
+                  <option value="Cámaras Desconectadas">Cámaras Desconectadas</option>
+                  <option value="Mantenimiento de Equipo">Mantenimiento de Equipo</option>
+                  <option value="Instalación de Software">Instalación de Software</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Descripción Detallada</label>
+                <textarea value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})} rows="4" placeholder="Describa el problema reportado..." required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', resize: 'vertical' }}></textarea>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '0.75rem 1.5rem', backgroundColor: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '0.5rem', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>Crear Ticket</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

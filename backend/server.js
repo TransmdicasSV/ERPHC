@@ -14,6 +14,7 @@ import jwt from 'jsonwebtoken';
 import ExcelJS from 'exceljs';
 import xlsx from 'xlsx';
 import { generatePDF, generateExcel } from './reports.js';
+import { generateMasterReport } from './reporteMaster.js';
 import { startRadarService, addRadarClient, runRadarScan } from './radarService.js';
 import { startTelegramBot } from './telegramBot.js';
 
@@ -116,7 +117,7 @@ const initDb = async () => {
 };
 initDb();
 
-// FUNCIÃ“N DE AUDITORÃA
+// FUNCIÃ“N DE AUDITORÃ A
 const logAction = async (userId, accion, tablaAfectada) => {
   try {
     await pool.query(
@@ -528,6 +529,21 @@ app.post('/mantenimientos/', async (req, res) => {
   }
 });
 
+  // Generar Reporte Master (Auditoría)
+app.get('/api/reportes/master', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  try {
+    const workbook = await generateMasterReport(pool, startDate, endDate);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=Reporte_Master.xlsx`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Error generando Reporte Master:', err);
+    res.status(500).json({ error: 'Error interno generando reporte' });
+  }
+});
+
 // Generar Reporte Excel
 app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
   try {
@@ -715,7 +731,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 // ==========================================
 
 // Crear Incidente (Desde Portal PÃºblico)
-app.post('/api/public/incidentes', async (req, res) => {
+app.post('/api/incidentes_soporte', async (req, res) => {
   const { placa, tipo_solicitud, descripcion, operador } = req.body;
   try {
     await pool.query(
