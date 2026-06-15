@@ -139,12 +139,12 @@ const loginTracklog = async () => {
   }
 };
 
-const fetchTracklogLocations = async () => {
+const fetchTracklogLocations = async (pool) => {
   if (!tracklogToken) {
     const logged = await loginTracklog();
     if (!logged) {
       emitToClients('log', { text: '[!] Bloqueo WAF en Login. Iniciando SIMULACIÓN TÁCTICA...', type: 'warning' });
-      return generarMockGps();
+      return generarMockGps(pool);
     }
   }
   
@@ -159,26 +159,25 @@ const fetchTracklogLocations = async () => {
       const logged = await loginTracklog();
       if (!logged) {
         emitToClients('log', { text: '[!] Bloqueo WAF en Reconexión. Iniciando SIMULACIÓN TÁCTICA...', type: 'warning' });
-        return generarMockGps();
+        return generarMockGps(pool);
       }
       try {
         const res2 = await axiosSession.get(TRACKLOG_API_URL);
         return procesarDatosGps(res2.data);
       } catch (e2) {
         emitToClients('log', { text: `[!] Cloudflare WAF bloqueó la petición. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
-        return generarMockGps();
+        return generarMockGps(pool);
       }
     }
     emitToClients('log', { text: `[!] ERROR DE RED: ${error.message}. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
-    return generarMockGps();
+    return generarMockGps(pool);
   }
 };
 
-const generarMockGps = async () => {
+const generarMockGps = async (pool) => {
   // Simulador avanzado en caso de bloqueo WAF
   const mockData = [];
   try {
-    const { pool } = await import('./db.js');
     const result = await pool.query('SELECT placa FROM vehiculos');
     
     // Coordenadas base (Ate, Lima)
@@ -271,7 +270,7 @@ export const runRadarScan = async (pool) => {
     emitToClients('targets', pendientesAAlertar); // Mantenemos targets para retrocompatibilidad con logs antiguos
 
     // 4. Descargar GPS
-    const ubicaciones = await fetchTracklogLocations();
+    const ubicaciones = await fetchTracklogLocations(pool);
     
     // Guardar en caché y transmitir ubicaciones al frontend
     lastUbicaciones = ubicaciones;
