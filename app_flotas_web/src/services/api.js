@@ -22,8 +22,9 @@ const fetchWithAuth = async (url, options = {}) => {
   
   const response = await fetch(url, newOptions);
   
-  if (response.status === 401 || response.status === 403) {
-    // Si el token expira, limpiar y forzar login
+  // Solo forzar logout en 401 (Token inválido/expirado). 
+  // 403 significa acceso denegado (ej. no es admin), no debe cerrar sesión.
+  if (response.status === 401) {
     localStorage.removeItem('nexus_token');
     localStorage.removeItem('nexus_user');
     window.location.reload();
