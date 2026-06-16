@@ -184,12 +184,12 @@ const verifyToken = (req, res, next) => {
   });
 };
 
-const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.rol !== 'admin') {
-    return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de Administrador.' });
-  }
-  next();
-};
+  const requireAdmin = (req, res, next) => {
+    if (!req.user || (req.user.rol !== 'admin' && req.user.rol !== 'Administrador')) {
+      return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de Administrador.' });
+    }
+    next();
+  };
 
 //
 //

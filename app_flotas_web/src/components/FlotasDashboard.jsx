@@ -1,6 +1,93 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api, BASE_API_URL } from '../services/api';
 import toast from 'react-hot-toast';
+
+const processImageWithWatermark = (file, placa, fecha, hora) => {
+  return new Promise((resolve) => {
+    if (!file) return resolve(null);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Sello de agua fondo
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      const padding = 20;
+      const fontSize = Math.max(30, canvas.width * 0.03); 
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      
+      const text1 = `PLACA: ${placa || 'SIN-PLACA'}`;
+      const text2 = `FECHA: ${fecha} ${hora}`;
+      const metrics1 = ctx.measureText(text1);
+      const metrics2 = ctx.measureText(text2);
+      const textWidth = Math.max(metrics1.width, metrics2.width);
+      
+      const rectWidth = textWidth + padding * 2;
+      const rectHeight = (fontSize * 2) + padding * 3;
+      const x = canvas.width - rectWidth - 20;
+      const y = canvas.height - rectHeight - 20;
+
+      ctx.fillRect(x, y, rectWidth, rectHeight);
+      
+      // Texto
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textBaseline = 'top';
+      ctx.fillText(text1, x + padding, y + padding);
+      ctx.fillText(text2, x + padding, y + padding * 2 + fontSize);
+
+      canvas.toBlob((blob) => {
+        resolve(new File([blob], file.name, { type: file.type }));
+      }, file.type, 0.85);
+    };
+    img.onerror = () => resolve(file);
+    img.src = url;
+  });
+};
+
+function MobileCameraInput({ label, onSelect, preview, setPreview }) {
+  const fileInputRef = useRef(null);
+
+  const handleCapture = (e) => {
+    const file = e.target.files[0];
+    onSelect(file, setPreview);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+      <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        onChange={handleCapture}
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+      />
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <button 
+          type="button" 
+          onClick={() => fileInputRef.current.click()}
+          style={{ 
+            flex: 1, padding: '0.8rem', 
+            background: preview ? '#4B5563' : '#10B981', 
+            color: 'white', border: 'none', borderRadius: '0.5rem', 
+            fontWeight: '600', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem',
+            fontSize: '1rem'
+          }}>
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          {preview ? 'Cambiar Foto' : `Tomar Foto`}
+        </button>
+        {preview && (
+          <img src={preview} alt="Preview" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '0.25rem', border: '2px solid #10B981' }} />
+        )}
+      </div>
+    </div>
+  );
+}
 
 const ITEMS_PER_PAGE = 50;
 
@@ -746,12 +833,24 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
   const [previewRadio, setPreviewRadio] = useState(editInsp && editInsp.img_radio ? imgUrl(editInsp.img_radio) : null);
   const [previewCamaras, setPreviewCamaras] = useState(editInsp && editInsp.img_camaras ? imgUrl(editInsp.img_camaras) : null);
 
-  const handleImageSelect = (file, setImg, setPreview) => {
-    setImg(file);
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-    } else {
+  const handleImageSelect = async (file, setImg, setPreview) => {
+    if (!file) {
+      setImg(null);
       setPreview(null);
+      return;
+    }
+    // Mostrar preview rápido
+    setPreview(URL.createObjectURL(file));
+    
+    // Procesar marca de agua asíncronamente
+    toast.loading('Agregando marca de agua...', { id: 'watermark' });
+    try {
+      const processedBlob = await processImageWithWatermark(file, placaInput.trim().toUpperCase(), fecha, hora);
+      setImg(processedBlob);
+      toast.success('Marca de agua lista', { id: 'watermark' });
+    } catch (e) {
+      toast.error('Error procesando imagen', { id: 'watermark' });
+      setImg(file); // fallback
     }
   };
 
@@ -837,35 +936,38 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
           <div style={{ borderTop: '1px solid var(--border-color)' }}></div>
 
           <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h4 style={{ color: 'var(--text-primary)', margin: 0 }}>1. Inspección de Tablet</h4>
-              <select value={tabletStatus} onChange={e=>setTabletStatus(e.target.value)} style={{ padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}><option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option></select>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <input type="file" accept="image/*" onChange={e => handleImageSelect(e.target.files[0], setImgTablet, setPreviewTablet)} style={{ fontSize: '0.875rem', flex: 1 }} />
-              {previewTablet && <img src={previewTablet} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '0.25rem', border: '1px solid #ddd' }} />}
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h4 style={{ color: 'var(--text-primary)', margin: 0 }}>2. Inspección de Radio Base</h4>
-              <select value={radioStatus} onChange={e=>setRadioStatus(e.target.value)} style={{ padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}><option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option></select>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <input type="file" accept="image/*" onChange={e => handleImageSelect(e.target.files[0], setImgRadio, setPreviewRadio)} style={{ fontSize: '0.875rem', flex: 1 }} />
-              {previewRadio && <img src={previewRadio} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '0.25rem', border: '1px solid #ddd' }} />}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1.1rem' }}>1. Tablet</h4>
+                <select value={tabletStatus} onChange={e=>setTabletStatus(e.target.value)} style={{ padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', fontSize: '1rem', minWidth: '120px' }}>
+                  <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
+                </select>
+              </div>
+              <MobileCameraInput label="Tablet" onSelect={(file) => handleImageSelect(file, setImgTablet, setPreviewTablet)} preview={previewTablet} setPreview={setPreviewTablet} />
             </div>
           </div>
 
           <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h4 style={{ color: 'var(--text-primary)', margin: 0 }}>3. Inspección de Cámaras</h4>
-              <select value={camarasStatus} onChange={e=>setCamarasStatus(e.target.value)} style={{ padding: '0.25rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}><option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option></select>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1.1rem' }}>2. Radio Base</h4>
+                <select value={radioStatus} onChange={e=>setRadioStatus(e.target.value)} style={{ padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', fontSize: '1rem', minWidth: '120px' }}>
+                  <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
+                </select>
+              </div>
+              <MobileCameraInput label="Radio" onSelect={(file) => handleImageSelect(file, setImgRadio, setPreviewRadio)} preview={previewRadio} setPreview={setPreviewRadio} />
             </div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <input type="file" accept="image/*" onChange={e => handleImageSelect(e.target.files[0], setImgCamaras, setPreviewCamaras)} style={{ fontSize: '0.875rem', flex: 1 }} />
-              {previewCamaras && <img src={previewCamaras} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '0.25rem', border: '1px solid #ddd' }} />}
+          </div>
+
+          <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1.1rem' }}>3. Cámaras</h4>
+                <select value={camarasStatus} onChange={e=>setCamarasStatus(e.target.value)} style={{ padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', fontSize: '1rem', minWidth: '120px' }}>
+                  <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
+                </select>
+              </div>
+              <MobileCameraInput label="Cámaras" onSelect={(file) => handleImageSelect(file, setImgCamaras, setPreviewCamaras)} preview={previewCamaras} setPreview={setPreviewCamaras} />
             </div>
           </div>
 
