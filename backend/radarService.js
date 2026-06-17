@@ -35,7 +35,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 puppeteer.use(StealthPlugin());
 
 let cloudflareCookies = '';
-let browserUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+// Removemos el User-Agent estático, dejamos que Chrome/Stealth generen uno realista
 
 // Funciones de utilidad para SSE (Server-Sent Events)
 export const addRadarClient = (req, res) => {
@@ -116,7 +116,6 @@ const TRACKLOG_HEADERS = () => ({
   "Accept-Language": "es-419,es;q=0.9,en-US;q=0.8,en;q=0.7",
   "Origin": "https://www.tracklogweb.com",
   "Referer": "https://www.tracklogweb.com/",
-  "User-Agent": browserUserAgent,
   "Cookie": cloudflareCookies,
   "Sec-Ch-Ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"",
   "Sec-Ch-Ua-Mobile": "?0",
@@ -141,7 +140,6 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
       ]
     });
     
-    browserUserAgent = await browser.userAgent();
     const page = await browser.newPage();
     
     // Evitar bloqueos de Content Security Policy (CSP) que causan 'Failed to fetch'
