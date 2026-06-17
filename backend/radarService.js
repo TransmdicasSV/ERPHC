@@ -167,17 +167,30 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
       }
     });
 
-    emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare en dominio principal...', type: 'system' });
-    // Navegar al dominio PRINCIPAL para que Chrome configure el Origin y Referer correctamente
-    // Usamos domcontentloaded para evitar timeouts por scripts de rastreo colgando
-    await page.goto('https://www.tracklogweb.com', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(e => {
+    emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare (API)...', type: 'system' });
+    // Navegar directamente a la API. Cloudflare interceptará con la página "Just a moment..."
+    await page.goto('https://api.tracklogweb.com/v2.0/livedata', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(e => {
         emitToClients('log', { text: `[WAF] Aviso en goto: ${e.message}`, type: 'warning' });
     });
     
-    // Pequeña pausa para asegurar contexto
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    emitToClients('log', { text: '[WAF] Esperando resolución del desafío Turnstile...', type: 'system' });
     
-    emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Ejecutando Peticiones Nativas...', type: 'success' });
+    // Polling: Esperar activamente hasta 15 segundos a que aparezca la galleta cf_clearance
+    let isSolved = false;
+    for (let i = 0; i < 15; i++) {
+      const cookies = await page.cookies();
+      if (cookies.find(c => c.name === 'cf_clearance')) {
+        isSolved = true;
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    if (isSolved) {
+      emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Galleta asegurada. Ejecutando Peticiones Nativas...', type: 'success' });
+    } else {
+      emitToClients('log', { text: '[WAF] ⚠️ No se detectó cf_clearance. Intentando peticiones a ciegas...', type: 'warning' });
+    }
     
     // Ejecutar FETCH DENTRO del navegador para heredar el Fingerprint TLS y las Cookies!
     const result = await page.evaluate(async (authUrl, apiUrl) => {
