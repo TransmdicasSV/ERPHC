@@ -126,8 +126,8 @@ const TRACKLOG_HEADERS = () => ({
   "Sec-Fetch-Site": "same-origin"
 });
 
-const solveCloudflareChallenge = async () => {
-  emitToClients('log', { text: '[WAF] Desplegando Navegador Fantasma (Puppeteer Stealth)...', type: 'system' });
+const solveCloudflareChallengeAndFetch = async (pool) => {
+  emitToClients('log', { text: '[WAF] Desplegando Navegador Fantasma...', type: 'system' });
   let browser = null;
   try {
     browser = await puppeteer.launch({
@@ -141,7 +141,6 @@ const solveCloudflareChallenge = async () => {
       ]
     });
     
-    browserUserAgent = await browser.userAgent();
     const page = await browser.newPage();
     
     // Bloquear imágenes y estilos para ahorrar RAM
@@ -155,121 +154,67 @@ const solveCloudflareChallenge = async () => {
     });
 
     emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare...', type: 'system' });
-    // Navegar al endpoint de la API para disparar el desafío JS de Cloudflare.
-    // Ignoramos errores 404/405/401 porque lo que nos importa es pasar la pantalla "Just a moment..."
+    // Navegar al endpoint para disparar el desafío JS de Cloudflare.
     await page.goto('https://api.tracklogweb.com/v2.0/livedata', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {});
     
-    // Extraer las preciadas cookies (cf_clearance)
-    const cookies = await page.cookies();
-    cloudflareCookies = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-    emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Galletas de evasión extraídas.', type: 'success' });
+    emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Ejecutando Peticiones Nativas...', type: 'success' });
     
+    // Ejecutar FETCH DENTRO del navegador para heredar el Fingerprint TLS y las Cookies!
+    const result = await page.evaluate(async (authUrl, apiUrl) => {
+      // 1. Obtener Token
+      const params = new URLSearchParams();
+      params.append('grant_type', 'password');
+      params.append('username', 'TransTransmdicas');
+      params.append('password', 'Trdcs18');
+      params.append('client_id', 'efbdc332-83c5-4691-852f-735e5af0fc39');
+      params.append('client_secret', '19389B4A6C3CA19B47711A8AF1F380A0');
+
+      const authRes = await fetch(authUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+
+      if (!authRes.ok) {
+        return { error: `Auth Error: ${authRes.status}` };
+      }
+
+      const authData = await authRes.json();
+      const token = authData.access_token;
+
+      // 2. Obtener GPS Data
+      const apiRes = await fetch(apiUrl, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!apiRes.ok) {
+        return { error: `API Error: ${apiRes.status}` };
+      }
+
+      const gpsData = await apiRes.json();
+      return { success: true, data: gpsData };
+
+    }, TRACKLOG_AUTH_URL, TRACKLOG_API_URL);
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    emitToClients('log', { text: '[API] 📡 Se descargó información cruda exitosamente vía Chrome.', type: 'success' });
+    return procesarDatosGps(result.data);
+
   } catch (err) {
-    emitToClients('log', { text: `[!] WAF BYPASS ERROR: ${err.message}`, type: 'error' });
+    emitToClients('log', { text: `[!] WAF BYPASS ERROR: ${err.message}. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
+    return generarMockGps(pool);
   } finally {
     if (browser) await browser.close();
   }
 };
 
-const loginTracklog = async () => {
-  emitToClients('log', { text: '[API] Iniciando sesión para obtener un nuevo Token...', type: 'system' });
-  
-  // Si no tenemos cookies de Cloudflare, lanzamos el navegador fantasma primero
-  if (!cloudflareCookies) {
-    await solveCloudflareChallenge();
-  }
-
-  try {
-    const params = new URLSearchParams();
-    params.append('grant_type', 'password');
-    params.append('username', 'TransTransmdicas');
-    params.append('password', 'Trdcs18');
-    params.append('client_id', 'efbdc332-83c5-4691-852f-735e5af0fc39');
-    params.append('client_secret', '19389B4A6C3CA19B47711A8AF1F380A0');
-
-    const response = await fetch(TRACKLOG_AUTH_URL, {
-      method: 'POST',
-      headers: { 
-        ...TRACKLOG_HEADERS(),
-        'Content-Type': 'application/x-www-form-urlencoded' 
-      },
-      body: params.toString()
-    });
-    
-    // Si obtenemos 403, significa que Cloudflare nos bloqueó incluso con la cookie
-    // O la cookie expiró. Forzamos un re-desafío.
-    if (response.status === 403) {
-      emitToClients('log', { text: '[WAF] 403 detectado. La galleta expiró. Relanzando Navegador...', type: 'warning' });
-      cloudflareCookies = ''; // Limpiar cookie caducada
-      throw new Error("HTTP 403 - Necesario renovar cf_clearance");
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    tracklogToken = data.access_token;
-    emitToClients('log', { text: '[API] ✅ Sesión iniciada correctamente. Token renovado.', type: 'success' });
-    return true;
-  } catch (error) {
-    emitToClients('log', { text: `[!] ACCESO DENEGADO: ${error.message}`, type: 'error' });
-    return false;
-  }
-};
-
 const fetchTracklogLocations = async (pool) => {
-  if (!tracklogToken) {
-    const logged = await loginTracklog();
-    if (!logged) {
-      emitToClients('log', { text: '[!] Bloqueo WAF en Login. Iniciando SIMULACIÓN TÁCTICA...', type: 'warning' });
-      return generarMockGps(pool);
-    }
-  }
-  
-  emitToClients('log', { text: '[API] Consultando GPS en Tracklog...', type: 'system' });
-  
-  try {
-    let response = await fetch(TRACKLOG_API_URL, {
-      headers: {
-        ...TRACKLOG_HEADERS(),
-        'Authorization': `Bearer ${tracklogToken}`
-      }
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      emitToClients('log', { text: '[!] Token expirado o bloqueo WAF 403. Intentando reconexión profunda...', type: 'error' });
-      // Si es 403, forzamos vaciar las cookies para que loginTracklog lance Puppeteer de nuevo
-      if (response.status === 403) {
-        cloudflareCookies = '';
-      }
-
-      const logged = await loginTracklog();
-      if (!logged) {
-        emitToClients('log', { text: '[!] Bloqueo WAF en Reconexión. Iniciando SIMULACIÓN TÁCTICA...', type: 'warning' });
-        return generarMockGps(pool);
-      }
-      
-      const res2 = await fetch(TRACKLOG_API_URL, {
-        headers: {
-          ...TRACKLOG_HEADERS(),
-          'Authorization': `Bearer ${tracklogToken}`
-        }
-      });
-      if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
-      const data2 = await res2.json();
-      return procesarDatosGps(data2);
-    }
-    
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    return procesarDatosGps(data);
-
-  } catch (error) {
-    emitToClients('log', { text: `[!] ERROR DE RED O WAF: ${error.message}. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
-    return generarMockGps(pool);
-  }
+  // Ahora consolidamos todo en el navegador invisible para garantizar que el
+  // TLS fingerprint y las cookies CF coincidan al 100%.
+  return await solveCloudflareChallengeAndFetch(pool);
 };
 
 const generarMockGps = async (pool) => {
