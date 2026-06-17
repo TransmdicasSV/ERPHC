@@ -150,14 +150,18 @@ export function RadarDashboard({ navigate }) {
   function MapFitBounds({ vehiculosGps, fitTrigger }) {
     const map = useMap();
     const hasFit = useRef(false);
+    const lastTrigger = useRef(0);
     
     useEffect(() => {
-      if ((!hasFit.current || fitTrigger > 0) && Object.keys(vehiculosGps).length > 0) {
+      const isManualTrigger = fitTrigger > lastTrigger.current;
+      
+      if ((!hasFit.current || isManualTrigger) && Object.keys(vehiculosGps).length > 0) {
         const coords = Object.values(vehiculosGps).map(v => [v.lat, v.lon]);
         coords.push([BASE_LAT, BASE_LON]); // Incluir siempre la base
         try {
           map.fitBounds(L.latLngBounds(coords), { padding: [50, 50], maxZoom: 16 });
           hasFit.current = true;
+          lastTrigger.current = fitTrigger;
         } catch(e) {}
       }
     }, [vehiculosGps, map, fitTrigger]);
