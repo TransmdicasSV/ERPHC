@@ -157,48 +157,64 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
 
     emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare en dominio principal...', type: 'system' });
     // Navegar al dominio PRINCIPAL para que Chrome configure el Origin y Referer correctamente
-    await page.goto('https://www.tracklogweb.com', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {});
+    // Usamos domcontentloaded para evitar timeouts por scripts de rastreo colgando
+    await page.goto('https://www.tracklogweb.com', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(e => {
+        emitToClients('log', { text: `[WAF] Aviso en goto: ${e.message}`, type: 'warning' });
+    });
+    
+    // Pequeña pausa para asegurar contexto
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Ejecutando Peticiones Nativas...', type: 'success' });
     
     // Ejecutar FETCH DENTRO del navegador para heredar el Fingerprint TLS y las Cookies!
     const result = await page.evaluate(async (authUrl, apiUrl) => {
-      // 1. Obtener Token
-      const params = new URLSearchParams();
-      params.append('grant_type', 'password');
-      params.append('username', 'TransTransmdicas');
-      params.append('password', 'Trdcs18');
-      params.append('client_id', 'efbdc332-83c5-4691-852f-735e5af0fc39');
-      params.append('client_secret', '19389B4A6C3CA19B47711A8AF1F380A0');
+      try {
+        // 1. Obtener Token
+        const params = new URLSearchParams();
+        params.append('grant_type', 'password');
+        params.append('username', 'TransTransmdicas');
+        params.append('password', 'Trdcs18');
+        params.append('client_id', 'efbdc332-83c5-4691-852f-735e5af0fc39');
+        params.append('client_secret', '19389B4A6C3CA19B47711A8AF1F380A0');
 
-      const authRes = await fetch(authUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json, text/plain, */*'
-        },
-        body: params.toString()
-      });
+        const authRes = await fetch(authUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://www.tracklogweb.com',
+            'Referer': 'https://www.tracklogweb.com/'
+          },
+          body: params.toString()
+        });
 
-      if (!authRes.ok) {
-        return { error: `Auth Error: ${authRes.status}` };
+        if (!authRes.ok) {
+          return { error: `Auth Error HTTP ${authRes.status}: ${await authRes.text().catch(e=>'')}` };
+        }
+
+        const authData = await authRes.json();
+        const token = authData.access_token;
+
+        // 2. Obtener GPS Data
+        const apiRes = await fetch(apiUrl, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://www.tracklogweb.com',
+            'Referer': 'https://www.tracklogweb.com/'
+          }
+        });
+
+        if (!apiRes.ok) {
+          return { error: `API Error HTTP ${apiRes.status}` };
+        }
+
+        const gpsData = await apiRes.json();
+        return { success: true, data: gpsData };
+      } catch (e) {
+        return { error: `Browser Fetch Exception: ${e.message}` };
       }
-
-      const authData = await authRes.json();
-      const token = authData.access_token;
-
-      // 2. Obtener GPS Data
-      const apiRes = await fetch(apiUrl, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (!apiRes.ok) {
-        return { error: `API Error: ${apiRes.status}` };
-      }
-
-      const gpsData = await apiRes.json();
-      return { success: true, data: gpsData };
-
     }, TRACKLOG_AUTH_URL, TRACKLOG_API_URL);
 
     if (result.error) {
