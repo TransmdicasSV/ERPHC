@@ -153,9 +153,9 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
       }
     });
 
-    emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare...', type: 'system' });
-    // Navegar al endpoint para disparar el desafío JS de Cloudflare.
-    await page.goto('https://api.tracklogweb.com/v2.0/livedata', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {});
+    emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare en dominio principal...', type: 'system' });
+    // Navegar al dominio PRINCIPAL para que Chrome configure el Origin y Referer correctamente
+    await page.goto('https://www.tracklogweb.com', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {});
     
     emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Ejecutando Peticiones Nativas...', type: 'success' });
     
@@ -171,7 +171,10 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
 
       const authRes = await fetch(authUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json, text/plain, */*'
+        },
         body: params.toString()
       });
 
