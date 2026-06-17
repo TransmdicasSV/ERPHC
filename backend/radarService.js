@@ -117,9 +117,6 @@ const TRACKLOG_HEADERS = () => ({
   "Origin": "https://www.tracklogweb.com",
   "Referer": "https://www.tracklogweb.com/",
   "Cookie": cloudflareCookies,
-  "Sec-Ch-Ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"",
-  "Sec-Ch-Ua-Mobile": "?0",
-  "Sec-Ch-Ua-Platform": "\"Windows\"",
   "Sec-Fetch-Dest": "empty",
   "Sec-Fetch-Mode": "cors",
   "Sec-Fetch-Site": "same-origin"
