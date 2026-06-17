@@ -40,7 +40,7 @@ export function PublicPortal({ onAdminClick }) {
     e.preventDefault();
     setSupportLoading(true);
     try {
-      const res = await fetch(`${BASE_API_URL}/api/public/incidentes`, {
+      const res = await fetch(`${BASE_API_URL}/api/incidentes_soporte`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(supportData)

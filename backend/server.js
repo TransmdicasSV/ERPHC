@@ -233,7 +233,23 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
   }
 });
 
-// APLICAR PROTECCIÃ“N GLOBAL AL RESTO DE RUTAS
+// Crear Incidente (Desde Portal Público)
+app.post('/api/incidentes_soporte', async (req, res) => {
+  const { placa, tipo_solicitud, descripcion, operador } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO incidentes_soporte (placa, tipo_solicitud, descripcion, operador) VALUES ($1, $2, $3, $4)',
+      [placa, tipo_solicitud, descripcion, operador]
+    );
+    await logAction(null, `Solicitud de soporte para ${placa}`, 'incidentes_soporte');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al registrar la solicitud' });
+  }
+});
+
+// APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
 // Endpoint para recibir la telemetría del Core Desktop local (Sin JWT, usa secret interno)
 app.post('/api/radar/sync', async (req, res) => {
   await syncRadarData(req, res, pool);
@@ -735,22 +751,6 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 // ==========================================
 // ENDPOINTS: GESTIÃ“N DE INCIDENTES (SOPORTE TI)
 // ==========================================
-
-// Crear Incidente (Desde Portal PÃºblico)
-app.post('/api/incidentes_soporte', async (req, res) => {
-  const { placa, tipo_solicitud, descripcion, operador } = req.body;
-  try {
-    await pool.query(
-      'INSERT INTO incidentes_soporte (placa, tipo_solicitud, descripcion, operador) VALUES ($1, $2, $3, $4)',
-      [placa, tipo_solicitud, descripcion, operador]
-    );
-    await logAction(null, `Solicitud de soporte para ${placa}`, 'incidentes_soporte');
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al registrar la solicitud' });
-  }
-});
 
 // Listar Incidentes (Para el Dashboard Interno)
 app.get('/api/incidentes', async (req, res) => {
