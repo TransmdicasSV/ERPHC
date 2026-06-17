@@ -106,10 +106,16 @@ const guardarPlacaAlertada = (placa) => {
 // Cabeceras HTTP idénticas a Python para saltar el Firewall de Tracklog
 const TRACKLOG_HEADERS = {
   "Accept": "application/json, text/plain, */*",
-  "Accept-Language": "es-419,es;q=0.9,en;q=0.8",
+  "Accept-Language": "es-419,es;q=0.9,en-US;q=0.8,en;q=0.7",
   "Origin": "https://www.tracklogweb.com",
   "Referer": "https://www.tracklogweb.com/",
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Sec-Ch-Ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"",
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": "\"Windows\"",
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin"
 };
 
 // Instancia global de Axios para simular Session() de Python
