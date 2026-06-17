@@ -39,6 +39,28 @@ function MapFlyTo({ coords }) {
   return null;
 }
 
+function MapFitBounds({ vehiculosGps, fitTrigger }) {
+  const map = useMap();
+  const hasFit = useRef(false);
+  const lastTrigger = useRef(0);
+  
+  useEffect(() => {
+    const isManualTrigger = fitTrigger > lastTrigger.current;
+    
+    if ((!hasFit.current || isManualTrigger) && Object.keys(vehiculosGps).length > 0) {
+      const coords = Object.values(vehiculosGps).map(v => [v.lat, v.lon]);
+      coords.push([BASE_LAT, BASE_LON]); // Incluir siempre la base
+      try {
+        map.fitBounds(L.latLngBounds(coords), { padding: [50, 50], maxZoom: 16 });
+        hasFit.current = true;
+        lastTrigger.current = fitTrigger;
+      } catch(e) {}
+    }
+  }, [vehiculosGps, map, fitTrigger]);
+  
+  return null;
+}
+
 export function RadarDashboard({ navigate }) {
   const [logs, setLogs] = useState([]);
   const [targets, setTargets] = useState([]);
@@ -146,28 +168,6 @@ export function RadarDashboard({ navigate }) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
   };
-
-  function MapFitBounds({ vehiculosGps, fitTrigger }) {
-    const map = useMap();
-    const hasFit = useRef(false);
-    const lastTrigger = useRef(0);
-    
-    useEffect(() => {
-      const isManualTrigger = fitTrigger > lastTrigger.current;
-      
-      if ((!hasFit.current || isManualTrigger) && Object.keys(vehiculosGps).length > 0) {
-        const coords = Object.values(vehiculosGps).map(v => [v.lat, v.lon]);
-        coords.push([BASE_LAT, BASE_LON]); // Incluir siempre la base
-        try {
-          map.fitBounds(L.latLngBounds(coords), { padding: [50, 50], maxZoom: 16 });
-          hasFit.current = true;
-          lastTrigger.current = fitTrigger;
-        } catch(e) {}
-      }
-    }, [vehiculosGps, map, fitTrigger]);
-    
-    return null;
-  }
 
   const baseIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
   const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
