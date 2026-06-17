@@ -136,8 +136,6 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
         '--disable-web-security',
         '--disable-features=IsolateOrigins,site-per-process'
       ]
@@ -155,16 +153,6 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
     });
     page.on('requestfailed', request => {
       emitToClients('log', { text: `[WAF-CHROME-NET] Fallo: ${request.url()} - ${request.failure()?.errorText}`, type: 'warning' });
-    });
-    
-    // Bloquear imágenes y estilos para ahorrar RAM
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      if (['image', 'stylesheet', 'font', 'media'].includes(request.resourceType())) {
-        request.abort();
-      } else {
-        request.continue();
-      }
     });
 
     emitToClients('log', { text: '[WAF] Navegando al muro de Cloudflare (API)...', type: 'system' });
