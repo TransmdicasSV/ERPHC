@@ -45,17 +45,26 @@ function MapFitBounds({ vehiculosGps, fitTrigger }) {
   const lastTrigger = useRef(0);
   
   useEffect(() => {
+    // Only proceed if we have GPS data
+    if (Object.keys(vehiculosGps).length === 0) return;
+
     const isManualTrigger = fitTrigger > lastTrigger.current;
     
-    if ((!hasFit.current || isManualTrigger) && Object.keys(vehiculosGps).length > 0) {
-      const coords = Object.values(vehiculosGps).map(v => [v.lat, v.lon]);
-      coords.push([BASE_LAT, BASE_LON]); // Incluir siempre la base
-      try {
+    // Si ya se ajustó una vez y no hay trigger manual, salir.
+    if (hasFit.current && !isManualTrigger) return;
+
+    const coords = Object.values(vehiculosGps).map(v => [v.lat, v.lon]);
+    
+    try {
+      if (coords.length > 0) {
         map.fitBounds(L.latLngBounds(coords), { padding: [50, 50], maxZoom: 16 });
-        hasFit.current = true;
-        lastTrigger.current = fitTrigger;
-      } catch(e) {}
-    }
+      }
+      hasFit.current = true;
+      lastTrigger.current = fitTrigger;
+    } catch(e) {}
+    
+  // EXTREMADAMENTE IMPORTANTE: vehiculosGps DEBE estar para que corra el auto-zoom inicial
+  // una vez que lleguen los datos. La variable hasFit evita el bucle infinito.
   }, [vehiculosGps, map, fitTrigger]);
   
   return null;
