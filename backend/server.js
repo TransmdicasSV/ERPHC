@@ -234,6 +234,11 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
 });
 
 // APLICAR PROTECCIÃ“N GLOBAL AL RESTO DE RUTAS
+// Endpoint para recibir la telemetría del Core Desktop local (Sin JWT, usa secret interno)
+app.post('/api/radar/sync', async (req, res) => {
+  await syncRadarData(req, res, pool);
+});
+
 app.use(verifyToken);
 
   // ==========================================
@@ -1123,11 +1128,6 @@ app.get('/stats/charts', async (req, res) => {
 // ==========================================
 app.get('/radar/stream', (req, res) => {
   addRadarClient(req, res);
-});
-
-// Endpoint para recibir la telemetría del Core Desktop local
-app.post('/api/radar/sync', async (req, res) => {
-  await syncRadarData(req, res, pool);
 });
 
 app.post('/radar/force', async (req, res) => {
