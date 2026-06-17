@@ -29,13 +29,9 @@ let lastLogs = [];
 
 import axios from 'axios';
 import { sendTelegramAlert } from './telegramBot.js';
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-puppeteer.use(StealthPlugin());
+// Ya no importamos Puppeteer ni StealthPlugin, este servidor ahora es solo un Relay.
 
-let cloudflareCookies = '';
-// Removemos el User-Agent estático, dejamos que Chrome/Stealth generen uno realista
 
 // Funciones de utilidad para SSE (Server-Sent Events)
 export const addRadarClient = (req, res) => {
@@ -110,151 +106,7 @@ const guardarPlacaAlertada = (placa) => {
   } catch(e) {}
 };
 
-// Cabeceras HTTP idénticas a Python para saltar el Firewall de Tracklog
-const TRACKLOG_HEADERS = () => ({
-  "Accept": "application/json, text/plain, */*",
-  "Accept-Language": "es-419,es;q=0.9,en-US;q=0.8,en;q=0.7",
-  "Origin": "https://www.tracklogweb.com",
-  "Referer": "https://www.tracklogweb.com/",
-  "Cookie": cloudflareCookies,
-  "Sec-Fetch-Dest": "empty",
-  "Sec-Fetch-Mode": "cors",
-  "Sec-Fetch-Site": "same-origin"
-});
-
-const solveCloudflareChallengeAndFetch = async (pool) => {
-  emitToClients('log', { text: '[WAF] Desplegando Navegador Fantasma...', type: 'system' });
-  let browser = null;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process'
-      ]
-    });
-    
-    const page = await browser.newPage();
-    
-    // Evitar bloqueos de Content Security Policy (CSP) que causan 'Failed to fetch'
-    await page.setBypassCSP(true);
-
-    // Capturar errores internos del navegador para depuración extrema
-    page.on('console', msg => {
-      if (msg.type() === 'error') emitToClients('log', { text: `[WAF-CHROME] ${msg.text()}`, type: 'warning' });
-    });
-    page.on('requestfailed', request => {
-      emitToClients('log', { text: `[WAF-CHROME-NET] Fallo: ${request.url()} - ${request.failure()?.errorText}`, type: 'warning' });
-    });
-
-    emitToClients('log', { text: '[WAF] Navegando al dominio de la API para evadir restricciones cruzadas...', type: 'system' });
-    // Navegar al dominio de la API (Same-Origin) en lugar del principal
-    await page.goto('https://api.tracklogweb.com/', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {
-        emitToClients('log', { text: `[WAF] Aviso en goto: ${e.message}`, type: 'warning' });
-    });
-    
-    emitToClients('log', { text: '[WAF] ✅ Desafío Cloudflare superado. Ejecutando Peticiones Nativas...', type: 'success' });
-    
-    // Ejecutar FETCH DENTRO del navegador para heredar el Fingerprint TLS y las Cookies!
-    const result = await page.evaluate(async (authUrl, apiUrl) => {
-      try {
-        // 1. Obtener Token
-        const params = new URLSearchParams();
-        params.append('grant_type', 'password');
-        params.append('username', 'TransTransmdicas');
-        params.append('password', 'Trdcs18');
-        params.append('client_id', 'efbdc332-83c5-4691-852f-735e5af0fc39');
-        params.append('client_secret', '19389B4A6C3CA19B47711A8AF1F380A0');
-
-        const authRes = await fetch(authUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json, text/plain, */*',
-            'Origin': 'https://www.tracklogweb.com',
-            'Referer': 'https://www.tracklogweb.com/'
-          },
-          body: params.toString()
-        });
-
-        if (!authRes.ok) {
-          return { error: `Auth Error HTTP ${authRes.status}: ${await authRes.text().catch(e=>'')}` };
-        }
-
-        const authData = await authRes.json();
-        const token = authData.access_token;
-
-        // 2. Obtener GPS Data
-        const apiRes = await fetch(apiUrl, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json, text/plain, */*',
-            'Origin': 'https://www.tracklogweb.com',
-            'Referer': 'https://www.tracklogweb.com/'
-          }
-        });
-
-        if (!apiRes.ok) {
-          return { error: `API Error HTTP ${apiRes.status}` };
-        }
-
-        const gpsData = await apiRes.json();
-        return { success: true, data: gpsData };
-      } catch (e) {
-        return { error: `Browser Fetch Exception: ${e.message}` };
-      }
-    }, TRACKLOG_AUTH_URL, TRACKLOG_API_URL);
-
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
-    emitToClients('log', { text: '[API] 📡 Se descargó información cruda exitosamente vía Chrome.', type: 'success' });
-    return procesarDatosGps(result.data);
-
-  } catch (err) {
-    emitToClients('log', { text: `[!] WAF BYPASS ERROR: ${err.message}. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
-    return generarMockGps(pool);
-  } finally {
-    if (browser) await browser.close();
-  }
-};
-
-const fetchTracklogLocations = async (pool) => {
-  // Ahora consolidamos todo en el navegador invisible para garantizar que el
-  // TLS fingerprint y las cookies CF coincidan al 100%.
-  return await solveCloudflareChallengeAndFetch(pool);
-};
-
-const generarMockGps = async (pool) => {
-  // Simulador avanzado en caso de bloqueo WAF
-  const mockData = [];
-  try {
-    const result = await pool.query('SELECT placa FROM vehiculos');
-    
-    // Coordenadas base (Ate, Lima)
-    const baseLat = -12.025;
-    const baseLon = -76.905;
-    
-    result.rows.forEach(v => {
-      // Pequeña variación aleatoria para que se muevan
-      const lat = baseLat + (Math.random() - 0.5) * 0.05;
-      const lon = baseLon + (Math.random() - 0.5) * 0.05;
-      mockData.push({
-        registration: v.placa,
-        latitude: lat,
-        longitude: lon,
-        speed: Math.floor(Math.random() * 60)
-      });
-    });
-  } catch (e) {
-    console.error('Error generando mock:', e);
-  }
-  return procesarDatosGps(mockData);
-};
+// (Lógica de Puppeteer y Mock removida)
 
 let gpsHistory = {}; // Almacenará el rastro
 
@@ -291,55 +143,66 @@ const procesarDatosGps = (data) => {
 };
 
 // ==========================================
-// BUCLE PRINCIPAL DEL RADAR
+// RECEPCIÓN DE DATOS DESDE EL CORE DESKTOP
 // ==========================================
-export const runRadarScan = async (pool) => {
+export const syncRadarData = async (req, res, pool) => {
+  const { secret, tracklogData } = req.body;
+  
+  if (secret !== 'CORE_RADAR_SECURE_KEY_2026') {
+    return res.status(403).json({ error: 'Acceso Denegado' });
+  }
+  
+  if (!tracklogData || !Array.isArray(tracklogData['hydra:member'] || tracklogData)) {
+    return res.status(400).json({ error: 'Payload GPS inválido' });
+  }
+
+  res.json({ message: 'Payload recibido y procesado por el Relay' });
+
   emitToClients('log', { text: '==================================================', type: 'system' });
-  emitToClients('log', { text: '[SYS] BARRIDO TÁCTICO INICIADO', type: 'system' });
+  emitToClients('log', { text: '[SYS] RECEPCIÓN DE DATOS DESDE CORE DESKTOP', type: 'system' });
 
   try {
-    // 1. Obtener todas las placas del sistema y sus programas
+    // 1. Procesar RAW GPS a formato simplificado
+    const ubicaciones = procesarDatosGps(tracklogData);
+
+    // 2. Obtener la base de datos de vehiculos
     const vRes = await pool.query('SELECT placa, operacion as programa FROM vehiculos');
-    // Guardaremos un array de objetos con placa y programa
     const todasLasUnidades = vRes.rows.map(r => ({ placa: r.placa.toUpperCase(), programa: r.programa || 'Sin Categoría' }));
     const todasLasPlacas = todasLasUnidades.map(u => u.placa);
 
-    // 2. Obtener placas con inspecciones HOY
+    // 3. Obtener placas con inspecciones HOY
     const hoy = new Date().toISOString().split('T')[0];
     const iRes = await pool.query('SELECT DISTINCT placa FROM inspecciones_flota WHERE fecha = $1', [hoy]);
     const inspeccionadosHoy = new Set(iRes.rows.map(r => r.placa.toUpperCase()));
 
-    // 3. Determinar placas PENDIENTES
+    // 4. Determinar placas PENDIENTES
     const alertadasHoy = obtenerPlacasAlertadasHoy();
     const pendientesTotales = todasLasPlacas.filter(p => !inspeccionadosHoy.has(p));
     const pendientesAAlertar = pendientesTotales.filter(p => !alertadasHoy.includes(p));
 
-    emitToClients('log', { text: `[DB] ${pendientesAAlertar.length} unidades pendientes por alertar (No inspeccionadas hoy).`, type: 'system' });
+    emitToClients('log', { text: `[DB] ${pendientesAAlertar.length} unidades pendientes por alertar.`, type: 'system' });
     
     lastDbState = {
-      registradas: todasLasUnidades, // Enviamos los objetos enteros
+      registradas: todasLasUnidades,
       inspeccionadasHoy: Array.from(inspeccionadosHoy),
       pendientes: pendientesAAlertar
     };
     emitToClients('db_state', lastDbState);
-    emitToClients('targets', pendientesAAlertar); // Mantenemos targets para retrocompatibilidad con logs antiguos
+    emitToClients('targets', pendientesAAlertar); 
 
-    // 4. Descargar GPS
-    const ubicaciones = await fetchTracklogLocations(pool);
-    
     // Guardar en caché y transmitir ubicaciones al frontend
     lastUbicaciones = ubicaciones;
     emitToClients('map_update', ubicaciones);
 
-    // 5. Calcular Distancias
+    // 5. Calcular Distancias y Lanzar Alertas
     for (const placa of pendientesAAlertar) {
       if (ubicaciones[placa]) {
         const gps = ubicaciones[placa];
         const distKM = getDistanceKM(BASE_LAT, BASE_LON, gps.lat, gps.lon);
         const distMetros = Math.round(distKM * 1000);
 
-        emitToClients('log', { text: `📍 [${placa}] Detectada en Lat: ${gps.lat.toFixed(5)}, Lon: ${gps.lon.toFixed(5)}`, type: 'info_gps' });
-        emitToClients('log', { text: `📏 [${placa}] Distancia al taller: ${distMetros} metros (Límite: ${RADIO_TOLERANCIA_KM * 1000}m)`, type: 'info_gps' });
+        // Opcional: Desactivar los logs de distancia muy verbosos si quieres para no saturar la UI
+        // emitToClients('log', { text: `📍 [${placa}] Distancia al taller: ${distMetros}m`, type: 'info_gps' });
 
         if (distKM <= RADIO_TOLERANCIA_KM) {
           emitToClients('log', { text: `✅ [${placa}] ¡ESTÁ DENTRO DEL RADIO! Disparando alerta...`, type: 'success' });
@@ -347,24 +210,15 @@ export const runRadarScan = async (pool) => {
           sendTelegramAlert(`La unidad *${placa}* ha ingresado a la Base Zero.\nRequiere inspección obligatoria inmediata.`);
           guardarPlacaAlertada(placa);
           emitToClients('log', { text: `[*] FIREWALL: ${placa} añadida a exclusión temporal.`, type: 'system' });
-        } else {
-          emitToClients('log', { text: `❌ [${placa}] Aún está demasiado lejos para alertar.`, type: 'error' });
         }
       }
     }
   } catch (error) {
-    emitToClients('log', { text: `[!] ERROR FATAL EN BARRIDO: ${error.message}`, type: 'error' });
+    emitToClients('log', { text: `[!] ERROR FATAL EN EL RELAY: ${error.message}`, type: 'error' });
   }
-
-  emitToClients('log', { text: '[SYS] Barrido completado.', type: 'system' });
 };
 
-// Iniciar el cron (cada 3 minutos)
 export const startRadarService = (pool) => {
-  // Ejecutar inmediatamente al arrancar el servidor
-  runRadarScan(pool);
-  
-  setInterval(() => {
-    runRadarScan(pool);
-  }, 180000); // 3 minutos
+  // El servicio ahora es pasivo, solo escucha. Limpiamos alertas si hay que limpiar algo diario.
 };
+

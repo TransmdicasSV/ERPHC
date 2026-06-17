@@ -15,7 +15,7 @@ import ExcelJS from 'exceljs';
 import xlsx from 'xlsx';
 import { generatePDF, generateExcel } from './reports.js';
 import { generateMasterReport } from './reporteMaster.js';
-import { startRadarService, addRadarClient, runRadarScan } from './radarService.js';
+import { startRadarService, addRadarClient, syncRadarData } from './radarService.js';
 import { startTelegramBot } from './telegramBot.js';
 
 const JWT_SECRET = 'NEXUS_TACTICAL_SECRET_2026';
@@ -1124,9 +1124,14 @@ app.get('/radar/stream', (req, res) => {
   addRadarClient(req, res);
 });
 
+// Endpoint para recibir la telemetría del Core Desktop local
+app.post('/api/radar/sync', async (req, res) => {
+  await syncRadarData(req, res, pool);
+});
+
 app.post('/radar/force', async (req, res) => {
   res.json({ message: 'Escaneo forzado iniciado' });
-  runRadarScan(pool); // Se corre asincrÃ³nicamente
+  syncRadarData(pool); // Se corre asincrÃ³nicamente
 });
 
 // Iniciar Motor de Radar al arrancar el servidor
