@@ -35,7 +35,8 @@ export const addRadarClient = (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders(); // Evita buffer
+  res.setHeader('X-Accel-Buffering', 'no'); // Crítico para Render/Nginx proxy
+  res.flushHeaders(); // Evita buffer local
 
   sseClients.push(res);
   
