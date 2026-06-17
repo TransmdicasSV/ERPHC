@@ -232,6 +232,15 @@ export function RadarDashboard({ navigate }) {
       {/* SECCIÓN SUPERIOR: MAPA PANORÁMICO */}
       <div style={{ flex: 1, border: '1px solid var(--border-color)', borderRadius: '0.5rem', overflow: 'hidden', position: 'relative', minHeight: 0, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         
+        {/* INDICADOR CORE DESKTOP */}
+        <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, backgroundColor: isScanning ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+          {isScanning ? (
+             <><span>🟢</span> CORE RADAR DESKTOP VINCULADO</>
+          ) : (
+             <><span>🔴</span> ESPERANDO DATOS DE CORE DESKTOP...</>
+          )}
+        </div>
+        
         {/* BUSCADOR DEL MAPA */}
         <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, backgroundColor: 'var(--card-bg)', padding: '0.5rem', borderRadius: '0.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
           <form onSubmit={handleMapSearch} style={{ display: 'flex', gap: '0.5rem' }}>
