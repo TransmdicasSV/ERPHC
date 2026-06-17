@@ -118,9 +118,6 @@ const TRACKLOG_HEADERS = {
   "Sec-Fetch-Site": "same-origin"
 };
 
-// Instancia global de Axios para simular Session() de Python
-const axiosSession = axios.create({ headers: TRACKLOG_HEADERS });
-
 const loginTracklog = async () => {
   emitToClients('log', { text: '[API] Iniciando sesión para obtener un nuevo Token...', type: 'system' });
   try {
@@ -131,17 +128,25 @@ const loginTracklog = async () => {
     params.append('client_id', 'efbdc332-83c5-4691-852f-735e5af0fc39');
     params.append('client_secret', '19389B4A6C3CA19B47711A8AF1F380A0');
 
-    const res = await axiosSession.post(TRACKLOG_AUTH_URL, params.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const response = await fetch(TRACKLOG_AUTH_URL, {
+      method: 'POST',
+      headers: { 
+        ...TRACKLOG_HEADERS,
+        'Content-Type': 'application/x-www-form-urlencoded' 
+      },
+      body: params.toString()
     });
     
-    tracklogToken = res.data.access_token;
-    axiosSession.defaults.headers.common['Authorization'] = `Bearer ${tracklogToken}`;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    tracklogToken = data.access_token;
     emitToClients('log', { text: '[API] ✅ Sesión iniciada correctamente. Token renovado.', type: 'success' });
     return true;
   } catch (error) {
-    const msg = error.response ? `HTTP ${error.response.status}` : error.message;
-    emitToClients('log', { text: `[!] ACCESO DENEGADO: ${msg}`, type: 'error' });
+    emitToClients('log', { text: `[!] ACCESO DENEGADO: ${error.message}`, type: 'error' });
     return false;
   }
 };
@@ -158,25 +163,38 @@ const fetchTracklogLocations = async (pool) => {
   emitToClients('log', { text: '[API] Consultando GPS en Tracklog...', type: 'system' });
   
   try {
-    let res = await axiosSession.get(TRACKLOG_API_URL);
-    return procesarDatosGps(res.data);
-  } catch (error) {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    let response = await fetch(TRACKLOG_API_URL, {
+      headers: {
+        ...TRACKLOG_HEADERS,
+        'Authorization': `Bearer ${tracklogToken}`
+      }
+    });
+
+    if (response.status === 401 || response.status === 403) {
       emitToClients('log', { text: '[!] Token expirado o bloqueo. Intentando reconexión...', type: 'error' });
       const logged = await loginTracklog();
       if (!logged) {
         emitToClients('log', { text: '[!] Bloqueo WAF en Reconexión. Iniciando SIMULACIÓN TÁCTICA...', type: 'warning' });
         return generarMockGps(pool);
       }
-      try {
-        const res2 = await axiosSession.get(TRACKLOG_API_URL);
-        return procesarDatosGps(res2.data);
-      } catch (e2) {
-        emitToClients('log', { text: `[!] Cloudflare WAF bloqueó la petición. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
-        return generarMockGps(pool);
-      }
+      
+      const res2 = await fetch(TRACKLOG_API_URL, {
+        headers: {
+          ...TRACKLOG_HEADERS,
+          'Authorization': `Bearer ${tracklogToken}`
+        }
+      });
+      if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
+      const data2 = await res2.json();
+      return procesarDatosGps(data2);
     }
-    emitToClients('log', { text: `[!] ERROR DE RED: ${error.message}. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return procesarDatosGps(data);
+
+  } catch (error) {
+    emitToClients('log', { text: `[!] ERROR DE RED O WAF: ${error.message}. Iniciando SIMULACIÓN TÁCTICA...`, type: 'warning' });
     return generarMockGps(pool);
   }
 };
