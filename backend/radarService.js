@@ -143,7 +143,19 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
       ]
     });
     
+    browserUserAgent = await browser.userAgent();
     const page = await browser.newPage();
+    
+    // Evitar bloqueos de Content Security Policy (CSP) que causan 'Failed to fetch'
+    await page.setBypassCSP(true);
+
+    // Capturar errores internos del navegador para depuración extrema
+    page.on('console', msg => {
+      if (msg.type() === 'error') emitToClients('log', { text: `[WAF-CHROME] ${msg.text()}`, type: 'warning' });
+    });
+    page.on('requestfailed', request => {
+      emitToClients('log', { text: `[WAF-CHROME-NET] Fallo: ${request.url()} - ${request.failure()?.errorText}`, type: 'warning' });
+    });
     
     // Bloquear imágenes y estilos para ahorrar RAM
     await page.setRequestInterception(true);
