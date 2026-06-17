@@ -8,6 +8,7 @@ export function SoporteTicketsDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [showModal, setShowModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [formData, setFormData] = useState({
     placa: '',
     operador: '',
@@ -77,14 +78,17 @@ export function SoporteTicketsDashboard() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const isoString = dateString.includes('T') ? dateString : dateString.replace(' ', 'T') + 'Z';
+    let isoString = dateString;
+    if (isoString.includes('T') && !isoString.endsWith('Z')) {
+      isoString += 'Z'; // Forzar que sea reconocido como UTC si no trae la Z
+    } else if (!isoString.includes('T')) {
+      isoString = isoString.replace(' ', 'T') + 'Z';
+    }
     const d = new Date(isoString);
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = d.getHours().toString().padStart(2, '0');
-    const minutes = d.getMinutes().toString().padStart(2, '0');
-    return `${day}-${month}-${year} ${hours}:${minutes}`;
+    return d.toLocaleString('es-PE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).replace(',', '');
   };
 
   return (
@@ -162,7 +166,10 @@ export function SoporteTicketsDashboard() {
                       <option value="Resuelto">Resuelto</option>
                     </select>
                   </td>
-                  <td style={{ padding: '1rem' }}>
+                  <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => setSelectedTicket(ticket)} style={{ padding: '0.4rem 0.6rem', backgroundColor: '#3B82F6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span>👁️</span> Ver
+                    </button>
                     <button onClick={() => handleDelete(ticket.id)} style={{ padding: '0.4rem 0.6rem', backgroundColor: '#EF4444', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8rem' }}>
                       Eliminar
                     </button>
@@ -220,6 +227,71 @@ export function SoporteTicketsDashboard() {
                 <button type="submit" style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>Crear Ticket</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ver Detalle de Ticket */}
+      {selectedTicket && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)', padding: '1rem' }}>
+          <div style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '550px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <h2 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>🎫</span> Detalle de Ticket #TKT-{selectedTicket.id}
+              </h2>
+              <button 
+                onClick={() => setSelectedTicket(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}
+              >✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Placa</span>
+                  <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                    {selectedTicket.placa || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Estado Actual</span>
+                  <span style={{ 
+                    padding: '0.4rem 0.8rem', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem',
+                    backgroundColor: selectedTicket.estado === 'Pendiente' ? '#FEE2E2' : selectedTicket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
+                    color: selectedTicket.estado === 'Pendiente' ? '#991B1B' : selectedTicket.estado === 'En Proceso' ? '#92400E' : '#065F46'
+                   }}>
+                    {selectedTicket.estado}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Fecha de Creación</span>
+                  <div style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{formatDate(selectedTicket.fecha)}</div>
+                </div>
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Operador Solicitante</span>
+                  <div style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{selectedTicket.operador || 'No especificado'}</div>
+                </div>
+              </div>
+
+              <div>
+                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Categoría</span>
+                <div style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '1.1rem' }}>{selectedTicket.tipo_solicitud}</div>
+              </div>
+
+              <div>
+                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Descripción del Problema</span>
+                <p style={{ margin: 0, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: '0.5rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                  {selectedTicket.descripcion}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
+              <button type="button" onClick={() => setSelectedTicket(null)} style={{ padding: '0.75rem 2rem', backgroundColor: '#374151', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>Cerrar Detalles</button>
+            </div>
           </div>
         </div>
       )}
