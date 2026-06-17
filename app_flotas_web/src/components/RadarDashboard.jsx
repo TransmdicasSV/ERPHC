@@ -45,6 +45,8 @@ export function RadarDashboard({ navigate }) {
   const [vehiculosGps, setVehiculosGps] = useState({});
   const [dbState, setDbState] = useState({ registradas: [], inspeccionadasHoy: [], pendientes: [] });
   const [timeLeft, setTimeLeft] = useState(180);
+  const [fitTrigger, setFitTrigger] = useState(0);
+
   const [isScanning, setIsScanning] = useState(false);
   const [mapSearch, setMapSearch] = useState('');
   const [flyCoords, setFlyCoords] = useState(null);
@@ -145,6 +147,24 @@ export function RadarDashboard({ navigate }) {
     return R * c;
   };
 
+  function MapFitBounds({ vehiculosGps, fitTrigger }) {
+    const map = useMap();
+    const hasFit = useRef(false);
+    
+    useEffect(() => {
+      if ((!hasFit.current || fitTrigger > 0) && Object.keys(vehiculosGps).length > 0) {
+        const coords = Object.values(vehiculosGps).map(v => [v.lat, v.lon]);
+        coords.push([BASE_LAT, BASE_LON]); // Incluir siempre la base
+        try {
+          map.fitBounds(L.latLngBounds(coords), { padding: [50, 50], maxZoom: 16 });
+          hasFit.current = true;
+        } catch(e) {}
+      }
+    }, [vehiculosGps, map, fitTrigger]);
+    
+    return null;
+  }
+
   const baseIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
   const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
   const blueIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] });
@@ -217,6 +237,7 @@ export function RadarDashboard({ navigate }) {
 
         <MapContainer center={[BASE_LAT, BASE_LON]} zoom={15} maxZoom={22} style={{ height: '100%', width: '100%', backgroundColor: 'var(--bg-color)' }}>
           {flyCoords && <MapFlyTo coords={flyCoords} />}
+          <MapFitBounds vehiculosGps={vehiculosGps} fitTrigger={fitTrigger} />
           
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="Modo Táctico">
@@ -382,8 +403,15 @@ export function RadarDashboard({ navigate }) {
           </div>
         </div>
 
-        {/* BOTÓN FOTOGRAFÍA (Abajo a la Izquierda) */}
-        <div style={{ position: 'absolute', bottom: 20, left: 20, zIndex: 1000 }}>
+        {/* BOTÓN FOTOGRAFÍA y CENTRAR (Abajo a la Izquierda) */}
+        <div style={{ position: 'absolute', bottom: 20, left: 20, zIndex: 1000, display: 'flex', gap: '0.5rem' }}>
+          <button onClick={() => setFitTrigger(t => t + 1)} style={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #555', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', backdropFilter: 'blur(5px)', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1E3A8A'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(10, 10, 10, 0.8)'; }}
+          >
+            🌍 CENTRAR FLOTA
+          </button>
+          
           <button onClick={handleSnapshot} style={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #555', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', backdropFilter: 'blur(5px)', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.color = 'black'; }}
             onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(10, 10, 10, 0.8)'; e.currentTarget.style.color = 'white'; }}
@@ -445,9 +473,9 @@ export function RadarDashboard({ navigate }) {
           </button>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <h3 style={{ fontSize: '0.9rem', color: '#00f3ff', marginBottom: '0.5rem' }}>&gt; PENDIENTES ({targets.length})</h3>
+            <h3 style={{ fontSize: '0.9rem', color: '#00f3ff', marginBottom: '0.5rem' }}>&gt; PENDIENTES ({dbState.pendientes.length})</h3>
             <div style={{ backgroundColor: '#000000', border: '1px solid #1f1f1f', padding: '0.5rem', flex: 1, overflowY: 'auto', color: '#888', fontSize: '0.8rem' }}>
-              {targets.length === 0 ? '[!] 0 Targets Encontrados' : targets.map(t => <div key={t}>[ ] {t}</div>)}
+              {dbState.pendientes.length === 0 ? '[!] 0 Targets Encontrados' : dbState.pendientes.map(t => <div key={t}>[ ] {t}</div>)}
             </div>
           </div>
         </div>
