@@ -150,9 +150,9 @@ const solveCloudflareChallengeAndFetch = async (pool) => {
       emitToClients('log', { text: `[WAF-CHROME-NET] Fallo: ${request.url()} - ${request.failure()?.errorText}`, type: 'warning' });
     });
 
-    emitToClients('log', { text: '[WAF] Navegando a www.tracklogweb.com para obtener credenciales Cloudflare...', type: 'system' });
-    // Navegar al dominio PRINCIPAL (igual que el test local exitoso)
-    await page.goto('https://www.tracklogweb.com', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {
+    emitToClients('log', { text: '[WAF] Navegando al dominio de la API para evadir restricciones cruzadas...', type: 'system' });
+    // Navegar al dominio de la API (Same-Origin) en lugar del principal
+    await page.goto('https://api.tracklogweb.com/', { waitUntil: 'networkidle2', timeout: 30000 }).catch(e => {
         emitToClients('log', { text: `[WAF] Aviso en goto: ${e.message}`, type: 'warning' });
     });
     
