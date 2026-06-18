@@ -89,7 +89,7 @@ function MobileCameraInput({ label, onSelect, preview, setPreview }) {
   );
 }
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 8;
 
 export function FlotasDashboard() {
   const [vehiculos, setVehiculos] = useState([]);
@@ -100,7 +100,6 @@ export function FlotasDashboard() {
   const [categoria, setCategoria] = useState('Todos');
   const [filtroEstado, setFiltroEstado] = useState('Todos');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [sortFecha, setSortFecha] = useState('desc'); // 'desc', 'asc', o 'none'
 
   // Modals
@@ -140,9 +139,9 @@ export function FlotasDashboard() {
 
   const loadData = async () => {
     try {
-      const vData = await api.getVehiculos(currentPage, ITEMS_PER_PAGE, searchTerm, categoria, filtroEstado);
+      // Pedimos 1000 para traer todos y poder ordenar globalmente en el frontend
+      const vData = await api.getVehiculos(1, 1000, searchTerm, categoria, filtroEstado);
       setVehiculos(vData.data || []);
-      setTotalPages(vData.totalPages || 1);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error(error);
@@ -189,7 +188,8 @@ export function FlotasDashboard() {
 
 
   const filteredData = getFilteredVehiculos();
-  const paginatedData = filteredData;
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
+  const paginatedData = filteredData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getStatusColor = (estado) => {
     switch(estado) {
@@ -405,8 +405,8 @@ function ExportModal({ onClose }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-      <div className="card" style={{ width: '450px' }}>
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '450px', transform: 'scale(1)', animation: 'scaleUp 0.2s ease-out' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Generador de Reportes</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
@@ -528,8 +528,8 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
   }
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-      <div className="card" style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <div>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Historial de Inspecciones</h3>
@@ -618,8 +618,8 @@ function InspectionDetailModal({ insp, placa, onBack }) {
   const imageStyle = { width: '100%', height: '150px', objectFit: 'cover', borderRadius: '0.25rem', cursor: 'zoom-in', border: '1px solid #ddd', transition: 'transform 0.2s' };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
-      <div className="card" style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div onClick={onBack} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'scaleUp 0.2s ease-out' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <button onClick={onBack} style={{ background: 'none', border: '1px solid var(--border-color)', padding: '0.2rem 0.5rem', borderRadius: '0.3rem', cursor: 'pointer', marginRight: '1rem' }}>← Volver</button>
           <div style={{flex: 1}}>
@@ -755,8 +755,8 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div className="card" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'scaleUp 0.2s ease-out' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{editInsp ? 'Editar Inspección Física' : 'Nueva Inspección Física'}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
