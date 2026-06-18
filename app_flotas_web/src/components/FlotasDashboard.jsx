@@ -104,16 +104,11 @@ export function FlotasDashboard() {
   const [sortFecha, setSortFecha] = useState('desc'); // 'desc', 'asc', o 'none'
 
   // Modals
-  const [showVehiculoModal, setShowVehiculoModal] = useState(false);
   const [showInspectionModal, setShowInspectionModal] = useState(false);
   const [editInspData, setEditInspData] = useState(null);
   const [historyPlaca, setHistoryPlaca] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
-  // Edit Vehicle Info Modal
-  const [showEditVehiculoModal, setShowEditVehiculoModal] = useState(false);
-  const [editVehiculoData, setEditVehiculoData] = useState({ placa: '', programa: '', tipo_vehiculo: '', marca_tracto: '', modelo_tracto: '', anio_fabricacion: '', operacion: '', cliente: '' });
 
   useEffect(() => {
     loadData();
@@ -137,8 +132,7 @@ export function FlotasDashboard() {
           setCategoria('Todos');
           setHistoryPlaca(vehiculoDb.placa); // Abrir historial automáticamente
         } else {
-          localStorage.setItem('quick_register_placa', quickPlaca);
-          setShowVehiculoModal(true); // Abrir registro automáticamente
+          toast.error('Placa no encontrada en los registros. Debe registrarla en el Maestro de Flota.', { id: 'quick-placa' });
         }
       }
     }
@@ -167,6 +161,12 @@ export function FlotasDashboard() {
           if (d.includes('/')) {
             const parts = d.split('/');
             if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]);
+          } else if (d.includes('-')) {
+            const parts = d.split('-');
+            if (parts.length === 3) {
+              if (parts[0].length === 4) return new Date(parts[0], parts[1] - 1, parts[2]);
+              if (parts[2].length === 4) return new Date(parts[2], parts[1] - 1, parts[0]);
+            }
           }
           return new Date(d);
         };
@@ -187,32 +187,6 @@ export function FlotasDashboard() {
     return filtered;
   };
 
-  const handleDeleteVehiculo = async (placa) => {
-    if (window.confirm(`¿Estás seguro de eliminar el vehículo ${placa}?`)) {
-      try {
-        toast.loading('Eliminando vehículo...', { id: 'delete-vehiculo' });
-        await api.deleteVehiculo(placa);
-        toast.success('Vehículo eliminado', { id: 'delete-vehiculo' });
-        loadData();
-      } catch (err) {
-        toast.error(err.message, { id: 'delete-vehiculo' });
-      }
-    }
-  };
-
-  const handleEditVehiculo = async (placa, currentOperacion) => {
-    const nuevaOperacion = window.prompt(`Editar categoría para ${placa}:`, currentOperacion);
-    if (nuevaOperacion && nuevaOperacion !== currentOperacion) {
-      try {
-        toast.loading('Actualizando vehículo...', { id: 'update-vehiculo' });
-        await api.updateVehiculo(placa, { programa: nuevaOperacion });
-        toast.success('Categoría actualizada', { id: 'update-vehiculo' });
-        loadData();
-      } catch (err) {
-        toast.error('Error al actualizar: ' + err.message, { id: 'update-vehiculo' });
-      }
-    }
-  };
 
   const filteredData = getFilteredVehiculos();
   const paginatedData = filteredData;
@@ -240,11 +214,6 @@ export function FlotasDashboard() {
             onClick={() => setShowExportModal(true)}
             style={{ backgroundColor: '#1E3A8A', color: 'white', border: 'none', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
             ⬇ Exportar
-          </button>
-          <button 
-            onClick={() => setShowVehiculoModal(true)}
-            style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
-            + Registrar Vehículo
           </button>
           <button 
             onClick={() => setShowInspectionModal(true)}
@@ -309,64 +278,6 @@ export function FlotasDashboard() {
         </div>
       </div>
 
-      {/* MODAL PARA EDITAR VEHICULO */}
-      {showEditVehiculoModal && (
-        <div className="modal-overlay" onClick={() => setShowEditVehiculoModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', maxWidth: '500px', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Editar Datos: {editVehiculoData.placa}</h3>
-              <button onClick={() => setShowEditVehiculoModal(false)} style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
-            </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              toast.loading('Guardando...', { id: 'save-vehiculo' });
-              try {
-                await api.updateVehiculo(editVehiculoData.placa, editVehiculoData);
-                toast.success('Vehículo actualizado', { id: 'save-vehiculo' });
-                setShowEditVehiculoModal(false);
-                loadData();
-              } catch (error) {
-                toast.error('Error al guardar', { id: 'save-vehiculo' });
-              }
-            }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Operación</label>
-                  <input type="text" value={editVehiculoData.programa} onChange={e => setEditVehiculoData({...editVehiculoData, programa: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Tipo (Tracto/Camioneta)</label>
-                  <input type="text" value={editVehiculoData.tipo_vehiculo} onChange={e => setEditVehiculoData({...editVehiculoData, tipo_vehiculo: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Marca</label>
-                  <input type="text" value={editVehiculoData.marca_tracto} onChange={e => setEditVehiculoData({...editVehiculoData, marca_tracto: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Modelo</label>
-                  <input type="text" value={editVehiculoData.modelo_tracto} onChange={e => setEditVehiculoData({...editVehiculoData, modelo_tracto: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Año Fabricación</label>
-                  <input type="text" value={editVehiculoData.anio_fabricacion} onChange={e => setEditVehiculoData({...editVehiculoData, anio_fabricacion: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Operación</label>
-                  <input type="text" value={editVehiculoData.operacion} onChange={e => setEditVehiculoData({...editVehiculoData, operacion: e.target.value})} style={{ width: '100%', padding: '0.5rem' }} />
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Cliente</label>
-                  <input type="text" style={{width:'100%', padding: '0.5rem'}} value={editVehiculoData.cliente} onChange={e => setEditVehiculoData({...editVehiculoData, cliente: e.target.value})} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                <button type="button" onClick={() => setShowEditVehiculoModal(false)} style={{ padding: '0.5rem 1rem' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '0.5rem 1rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.375rem' }}>Guardar Cambios</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* TABLA PRINCIPAL DE VEHÍCULOS */}
       <div className="table-container">
@@ -391,7 +302,6 @@ export function FlotasDashboard() {
                   >
                     Última Inspección {sortFecha === 'desc' ? '⬇️' : sortFecha === 'asc' ? '⬆️' : '↕️'}
                   </th>
-                  <th>Acciones CRUD</th>
                   <th style={{textAlign: 'right'}}>Historial / Reportes</th>
                 </tr>
               </thead>
@@ -405,25 +315,6 @@ export function FlotasDashboard() {
                     <tr key={v.placa}>
                       <td style={{ fontWeight: '700', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {v.placa}
-                        <button 
-                          onClick={() => {
-                            setEditVehiculoData({
-                              placa: v.placa,
-                              programa: v.programa || '',
-                              tipo_vehiculo: v.tipo_vehiculo || '',
-                              marca_tracto: v.marca_tracto || '',
-                              modelo_tracto: v.modelo_tracto || '',
-                              anio_fabricacion: v.anio_fabricacion || '',
-                              operacion: v.operacion || '',
-                              cliente: v.cliente || ''
-                            });
-                            setShowEditVehiculoModal(true);
-                          }}
-                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1rem' }}
-                          title="Editar Datos del Vehículo"
-                        >
-                          ✏️
-                        </button>
                       </td>
                       <td><span className="badge" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid #E5E7EB' }}>{v.programa || 'Sin Categoría'}</span></td>
                       <td>
@@ -440,16 +331,13 @@ export function FlotasDashboard() {
                           if (!f || f === '--/--/----' || f.trim() === '') return 'Sin registro';
                           if (f.includes('-')) {
                             const p = f.split('-');
-                            if (p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
+                            if (p.length === 3) {
+                              if (p[0].length === 4) return `${p[2]}-${p[1]}-${p[0]}`; // YYYY-MM-DD -> DD-MM-YYYY
+                              return f; // Already DD-MM-YYYY
+                            }
                           }
                           return f;
                         })()}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button onClick={() => handleEditVehiculo(v.placa, v.programa)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} title="Editar Categoría">✏️</button>
-                          <button onClick={() => handleDeleteVehiculo(v.placa)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }} title="Eliminar Vehículo">🗑️</button>
-                        </div>
                       </td>
                       <td style={{textAlign: 'right'}}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -490,7 +378,6 @@ export function FlotasDashboard() {
         )}
       </div>
 
-      {showVehiculoModal && <VehiculoModal onClose={() => setShowVehiculoModal(false)} onReload={loadData} />}
       {showInspectionModal && <InspectionModal onClose={() => {setShowInspectionModal(false); setEditInspData(null);}} onReload={loadData} vehiculosExistentes={vehiculos} editInsp={editInspData} />}
       {historyPlaca && <HistoryModal placa={historyPlaca} onClose={() => setHistoryPlaca(null)} onEdit={(insp) => { setEditInspData(insp); setShowInspectionModal(true); }} refreshTrigger={refreshTrigger} />}
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
@@ -581,54 +468,7 @@ function ExportModal({ onClose }) {
   );
 }
 
-// ==========================================
-// MODAL: REGISTRAR VEHÍCULO
-// ==========================================
-function VehiculoModal({ onClose, onReload }) {
-  const [placa, setPlaca] = useState(localStorage.getItem('quick_register_placa') || '');
-  const [programa, setOperación] = useState('Falta identificar');
 
-  useEffect(() => {
-    localStorage.removeItem('quick_register_placa');
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      toast.loading('Registrando vehículo...', { id: 'add-vehiculo' });
-      await api.createVehiculo({ placa: placa.toUpperCase(), programa });
-      toast.success('Vehículo registrado', { id: 'add-vehiculo' });
-      onReload();
-      onClose();
-    } catch (err) {
-      toast.error(err.message, { id: 'add-vehiculo' });
-    }
-  };
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-      <div className="card" style={{ width: '400px' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Registrar Vehículo</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600' }}>Placa</label>
-            <input required value={placa} onChange={e=>setPlaca(e.target.value)} type="text" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd', textTransform: 'uppercase' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600' }}>Operación</label>
-            <select value={programa} onChange={e=>setOperación(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
-              <option>Primax</option><option>Bambas</option><option>Industrias</option><option>Falta identificar</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-            <button type="button" onClick={onClose} style={{ padding: '0.5rem', background: 'none', border: 'none', cursor: 'pointer' }}>Cancelar</button>
-            <button type="submit" style={{ padding: '0.5rem 1rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}>Guardar</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ==========================================
 // MODAL DE HISTORIAL
@@ -645,7 +485,13 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
   const fetchHistory = async () => {
     try {
       const data = await api.getInspecciones(placa);
-      setInspecciones(data);
+      // Ensure sorted by newest
+      const sorted = [...data].sort((a,b) => {
+        const da = new Date(a.fecha.split('-').reverse().join('-') + 'T' + a.hora);
+        const db = new Date(b.fecha.split('-').reverse().join('-') + 'T' + b.hora);
+        return db - da; // desc
+      });
+      setInspecciones(sorted);
     } catch (e) {
       console.error(e);
     } finally {
@@ -686,46 +532,63 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
       <div className="card" style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Historial de Inspecciones</h3>
-            <p style={{ color: 'var(--accent-color)', fontWeight: '700' }}>Vehículo: {placa}</p>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Historial de Inspecciones</h3>
+            <p style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '1.1rem' }}>Vehículo: {placa}</p>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <button onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${placa}`, '_blank')} style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.4rem 0.8rem', borderRadius: '0.3rem', cursor: 'pointer', fontWeight: '600' }}>Descargar PDF</button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
+            <button onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${placa}`, '_blank')} style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>⬇ PDF Directo</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.8rem', color: '#6B7280' }}>&times;</button>
           </div>
         </div>
         
-        <div style={{ overflowY: 'auto', flex: 1 }}>
-          {loading ? <p>Cargando historial...</p> : (
-            inspecciones.length === 0 ? <p>No hay inspecciones registradas.</p> : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{padding: '0.5rem', borderBottom: '1px solid #ddd'}}>Fecha/Hora</th>
-                    <th style={{padding: '0.5rem', borderBottom: '1px solid #ddd'}}>Tablet</th>
-                    <th style={{padding: '0.5rem', borderBottom: '1px solid #ddd'}}>Radio Base</th>
-                    <th style={{padding: '0.5rem', borderBottom: '1px solid #ddd'}}>Cámaras</th>
-                    <th style={{padding: '0.5rem', borderBottom: '1px solid #ddd'}}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inspecciones.map(insp => (
-                    <tr key={insp.id}>
-                      <td style={{padding: '0.75rem 0.5rem', borderBottom: '1px solid #eee', fontWeight: '500'}}>{insp.fecha} <br/> <span style={{color: '#888'}}>{insp.hora}</span></td>
-                      <td style={{padding: '0.75rem 0.5rem', borderBottom: '1px solid #eee'}}>{renderBadge(insp.tablet)}</td>
-                      <td style={{padding: '0.75rem 0.5rem', borderBottom: '1px solid #eee'}}>{renderBadge(insp.radio)}</td>
-                      <td style={{padding: '0.75rem 0.5rem', borderBottom: '1px solid #eee'}}>{renderBadge(insp.camaras)}</td>
-                      <td style={{padding: '0.75rem 0.5rem', borderBottom: '1px solid #eee'}}>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.4rem 0.6rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.75rem' }}>Ver Detalle</button>
-                          <button onClick={() => handleEdit(insp)} style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-secondary)', border: '1px solid #D1D5DB', padding: '0.4rem 0.6rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.75rem' }}>✏️</button>
-                          <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: 'var(--card-bg)', color: '#EF4444', border: '1px solid #EF4444', padding: '0.4rem 0.6rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.75rem' }}>🗑️</button>
+        <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 0' }}>
+          {loading ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>Cargando historial...</p></div> : (
+            inspecciones.length === 0 ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>No hay inspecciones registradas.</p></div> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
+                {/* Línea del Timeline */}
+                <div style={{ position: 'absolute', left: '1.5rem', top: '1rem', bottom: '1rem', width: '2px', backgroundColor: '#E5E7EB', zIndex: 0 }}></div>
+                
+                {inspecciones.map((insp) => (
+                  <div key={insp.id} style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
+                    {/* Punto del Timeline */}
+                    <div style={{ width: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                      <div style={{ width: '1.25rem', height: '1.25rem', borderRadius: '50%', backgroundColor: 'var(--accent-color)', border: '3px solid var(--bg-color)', boxShadow: '0 0 0 2px #E5E7EB', marginTop: '1rem' }}></div>
+                    </div>
+                    
+                    {/* Tarjeta de Inspección */}
+                    <div style={{ flex: 1, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'transform 0.2s, box-shadow 0.2s' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                        <div>
+                          <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            📅 {insp.fecha}
+                          </h4>
+                          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
+                          <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
+                          <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📱 Tablet</span>
+                          {renderBadge(insp.tablet)}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📻 Radio Base</span>
+                          {renderBadge(insp.radio)}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📹 Cámaras</span>
+                          {renderBadge(insp.camaras)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )
           )}
         </div>
