@@ -480,6 +480,13 @@ export function SoporteTicketsDashboard() {
                     {selectedTicket.descripcion}
                   </div>
                 </div>
+                
+                {selectedTicket.evidencia && (
+                  <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #E5E7EB' }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Evidencia Fotográfica de Resolución</span>
+                    <img src={selectedTicket.evidencia} alt="Evidencia de resolución" style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '0.5rem', backgroundColor: '#F3F4F6' }} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -487,6 +494,43 @@ export function SoporteTicketsDashboard() {
               <button type="button" onClick={() => { setSelectedTicket(null); handleDelete(selectedTicket.id); }} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>🗑️ Eliminar Ticket</button>
               <button type="button" onClick={() => setSelectedTicket(null)} style={{ padding: '0.75rem 2rem', backgroundColor: '#374151', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>Cerrar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Resolución (Adjuntar Evidencia) */}
+      {showResolveModal && (
+        <div onClick={() => setShowResolveModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, backdropFilter: 'blur(5px)', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', animation: 'scaleUp 0.2s ease-out' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-primary)' }}>✅ Resolver Ticket</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Adjunte una foto del trabajo realizado y/o un comentario opcional para el cierre.</p>
+            
+            <form onSubmit={handleResolveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Evidencia Fotográfica (Opcional)</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => setResolveFormData({ ...resolveFormData, evidencia: e.target.files[0] })}
+                  style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Nota de Resolución (Opcional)</label>
+                <textarea 
+                  value={resolveFormData.resolucion_desc}
+                  onChange={(e) => setResolveFormData({ ...resolveFormData, resolucion_desc: e.target.value })}
+                  placeholder="Se reemplazó el equipo dañado por uno nuevo..."
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setShowResolveModal(false)} style={{ padding: '0.75rem 1.5rem', backgroundColor: 'transparent', border: '1px solid #D1D5DB', color: '#374151', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Cancelar</button>
+                <button type="submit" style={{ padding: '0.75rem 1.5rem', backgroundColor: '#10B981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(16, 185, 129, 0.2)' }}>Cerrar Ticket</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
