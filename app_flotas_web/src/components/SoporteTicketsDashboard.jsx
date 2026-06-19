@@ -74,7 +74,7 @@ export function SoporteTicketsDashboard() {
   const resueltos = tickets.filter(t => t.estado === 'Resuelto');
 
   const getFilteredList = (list) => {
-    return list.filter(t => t.placa.toLowerCase().includes(searchTerm.toLowerCase()) || `tkt-${t.id}`.includes(searchTerm.toLowerCase()));
+    return list.filter(t => (t.placa || '').toLowerCase().includes(searchTerm.toLowerCase()) || `tkt-${t.id}`.includes(searchTerm.toLowerCase()));
   };
 
   const renderKanbanColumn = (title, status, ticketsList, colorHex, icon) => {
