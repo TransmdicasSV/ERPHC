@@ -407,8 +407,10 @@ app.get('/vehiculos/', async (req, res) => {
         const r = v.radio.trim().toUpperCase();
         const c = v.camaras.trim().toUpperCase();
 
-        if (t === 'OK' && r === 'OK' && c === 'OK') estado = 'Operativa';
-        else if (t === 'N/A' && r === 'N/A' && c === 'N/A') estado = 'N/A';
+        const isOkOrNa = (val) => val === 'OK' || val === 'N/A';
+
+        if (t === 'N/A' && r === 'N/A' && c === 'N/A') estado = 'N/A';
+        else if (isOkOrNa(t) && isOkOrNa(r) && isOkOrNa(c)) estado = 'Operativa';
         else estado = 'Observada';
       }
       return { ...v, estado };
