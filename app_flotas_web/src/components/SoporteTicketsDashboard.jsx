@@ -24,7 +24,7 @@ export function SoporteTicketsDashboard() {
     setLoading(true);
     try {
       const data = await api.getIncidentes();
-      setTickets(data);
+      setTickets(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error('No se pudieron cargar los tickets');
     } finally {
@@ -74,7 +74,28 @@ export function SoporteTicketsDashboard() {
   const resueltos = tickets.filter(t => t.estado === 'Resuelto');
 
   const getFilteredList = (list) => {
-    return list.filter(t => (t.placa || '').toLowerCase().includes(searchTerm.toLowerCase()) || `tkt-${t.id}`.includes(searchTerm.toLowerCase()));
+    return list.filter(t => {
+      const p = t.placa ? String(t.placa).toLowerCase() : '';
+      const id = t.id ? String(t.id).toLowerCase() : '';
+      const s = searchTerm ? String(searchTerm).toLowerCase() : '';
+      return p.includes(s) || `tkt-${id}`.includes(s);
+    });
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    let isoString = String(dateString);
+    if (isoString.includes('T') && !isoString.endsWith('Z')) {
+      isoString += 'Z'; // Forzar que sea reconocido como UTC si no trae la Z
+    } else if (!isoString.includes('T')) {
+      isoString = isoString.replace(' ', 'T') + 'Z';
+    }
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return String(dateString).split(' ')[0]; // Fallback si es invalida
+    return d.toLocaleString('es-PE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).replace(',', '');
   };
 
   const renderKanbanColumn = (title, status, ticketsList, colorHex, icon) => {
