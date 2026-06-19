@@ -747,6 +747,30 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
         await api.createInspeccion(formData);
       }
       toast.success('Inspección guardada exitosamente', { id: 'save-inspeccion' });
+
+      // Lógica automática para solicitar Técnico Externo
+      if (['Falta', 'Error'].includes(tabletStatus) || ['Falta', 'Error'].includes(radioStatus) || ['Falta', 'Error'].includes(camarasStatus)) {
+        if (window.confirm('🚨 Se detectaron componentes con fallas o faltantes en esta unidad.\n\n¿Desea solicitar automáticamente un TÉCNICO EXTERNO a la mesa de ayuda?')) {
+          try {
+            let fallas = [];
+            if (['Falta', 'Error'].includes(tabletStatus)) fallas.push('Tablet');
+            if (['Falta', 'Error'].includes(radioStatus)) fallas.push('Radio');
+            if (['Falta', 'Error'].includes(camarasStatus)) fallas.push('Cámaras');
+
+            await api.createIncidente({
+              placa: placaInput.trim().toUpperCase(),
+              tipo_solicitud: 'Técnico Externo',
+              descripcion: `🔴 Reporte automático desde campo. Fallas detectadas: ${fallas.join(', ')}.\nObservaciones del inspector: ${observaciones}`,
+              operador: 'Sistema Inspecciones',
+              fecha: new Date().toISOString()
+            });
+            toast.success('✅ Ticket de Técnico Externo creado y derivado a Soporte TI.');
+          } catch (ticketError) {
+            toast.error('No se pudo crear el ticket para el técnico externo.');
+          }
+        }
+      }
+
       onReload();
       onClose();
     } catch (error) {
