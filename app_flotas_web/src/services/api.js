@@ -199,7 +199,11 @@ export const api = {  // ==========================================
       },
       body: formData
     });
-    if (!res.ok) throw new Error('Error al actualizar incidente con evidencia');
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Respuesta Error de Servidor:", res.status, errorText);
+      throw new Error(errorText || 'Error al actualizar incidente con evidencia');
+    }
     return res.json();
   },
 
