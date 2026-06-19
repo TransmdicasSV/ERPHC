@@ -190,6 +190,18 @@ export const api = {  // ==========================================
     if (!res.ok) throw new Error('Error al actualizar incidente');
     return res.json();
   },
+  updateIncidenteConEvidencia: async (id, formData) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${BASE_URL}/api/incidentes/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    if (!res.ok) throw new Error('Error al actualizar incidente con evidencia');
+    return res.json();
+  },
 
   deleteIncidente: async (id) => {
     const res = await fetchWithAuth(`${BASE_URL}/api/incidentes/${id}`, {

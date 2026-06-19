@@ -765,11 +765,23 @@ app.get('/api/incidentes', async (req, res) => {
 });
 
 // Actualizar Estado de Incidente
-app.put('/api/incidentes/:id', async (req, res) => {
+app.put('/api/incidentes/:id', upload.single('evidencia'), async (req, res) => {
   const { id } = req.params;
-  const { estado } = req.body;
+  const { estado, resolucion_desc } = req.body;
+  let evidenciaUrl = null;
+
   try {
-    await pool.query('UPDATE incidentes_soporte SET estado = $1 WHERE id = $2', [estado, id]);
+    if (req.file) {
+      evidenciaUrl = await uploadToCloudinary(req.file.buffer, 'tickets_evidencias');
+    }
+
+    const updateQuery = evidenciaUrl 
+      ? 'UPDATE incidentes_soporte SET estado = $1, evidencia = $2 WHERE id = $3'
+      : 'UPDATE incidentes_soporte SET estado = $1 WHERE id = $2';
+    
+    const updateParams = evidenciaUrl ? [estado, evidenciaUrl, id] : [estado, id];
+
+    await pool.query(updateQuery, updateParams);
     await logAction(req.user ? req.user.id : null, `Actualizó estado de incidente #${id}`, 'incidentes_soporte');
 
     // Lógica de Técnico Externo -> Reparación Automática de Inspección
@@ -788,9 +800,13 @@ app.put('/api/incidentes/:id', async (req, res) => {
             const newRadio = ['Falta', 'Error'].includes(insp.radio) ? 'OK' : insp.radio;
             const newCamaras = ['Falta', 'Error'].includes(insp.camaras) ? 'OK' : insp.camaras;
 
+            const observacionFinal = resolucion_desc 
+              ? `Reparado por Soporte TI - Técnico Externo (TKT-${id}). Nota: ${resolucion_desc}` 
+              : `Reparado por Soporte TI - Técnico Externo (TKT-${id})`;
+
             await pool.query(
-              'INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, observaciones) VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, $4, $5)',
-              [ticket.placa, newTablet, newRadio, newCamaras, 'Reparado por Soporte TI - Técnico Externo (TKT-' + id + ')']
+              'INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, observaciones, img_tablet) VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, $4, $5, $6)',
+              [ticket.placa, newTablet, newRadio, newCamaras, observacionFinal, evidenciaUrl || '']
             );
             await logAction(req.user ? req.user.id : null, `Generó inspección automática (Reparado) para ${ticket.placa}`, 'inspecciones_flota');
           }
@@ -798,7 +814,7 @@ app.put('/api/incidentes/:id', async (req, res) => {
       }
     }
 
-    res.json({ success: true });
+    res.json({ success: true, evidenciaUrl });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al actualizar incidente' });

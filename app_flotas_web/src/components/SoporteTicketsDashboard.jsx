@@ -12,6 +12,11 @@ export function SoporteTicketsDashboard() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [draggedTicketId, setDraggedTicketId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  // Estados para Modal de Resolución con Evidencia
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolvingTicketId, setResolvingTicketId] = useState(null);
+  const [resolveFormData, setResolveFormData] = useState({ resolucion_desc: '', evidencia: null });
   const [formData, setFormData] = useState({
     placa: '',
     operador: '',
@@ -36,12 +41,44 @@ export function SoporteTicketsDashboard() {
   };
 
   const handleStatusChange = async (id, newStatus) => {
+    if (newStatus === 'Resuelto') {
+      setResolvingTicketId(id);
+      setResolveFormData({ resolucion_desc: '', evidencia: null });
+      setShowResolveModal(true);
+      return;
+    }
+
     try {
       await api.updateIncidente(id, { estado: newStatus });
       toast.success(`Ticket actualizado a ${newStatus}`);
       fetchTickets(); // Recargar datos
     } catch (error) {
       toast.error('Error al actualizar ticket');
+    }
+  };
+
+  const handleResolveSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      toast.loading('Resolviendo ticket...', { id: 'resolve-ticket' });
+      const formData = new FormData();
+      formData.append('estado', 'Resuelto');
+      if (resolveFormData.resolucion_desc) {
+        formData.append('resolucion_desc', resolveFormData.resolucion_desc);
+      }
+      if (resolveFormData.evidencia) {
+        formData.append('evidencia', resolveFormData.evidencia);
+      }
+      
+      await api.updateIncidenteConEvidencia(resolvingTicketId, formData);
+      toast.success('Ticket resuelto exitosamente', { id: 'resolve-ticket' });
+      setShowResolveModal(false);
+      fetchTickets();
+      if (selectedTicket && selectedTicket.id === resolvingTicketId) {
+        setSelectedTicket({...selectedTicket, estado: 'Resuelto'});
+      }
+    } catch (error) {
+      toast.error('Error al resolver ticket', { id: 'resolve-ticket' });
     }
   };
 
