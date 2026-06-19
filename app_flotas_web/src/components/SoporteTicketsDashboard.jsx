@@ -8,6 +8,7 @@ export function SoporteTicketsDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [showModal, setShowModal] = useState(false);
+  const [showExternalTechModal, setShowExternalTechModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [draggedTicketId, setDraggedTicketId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
@@ -195,7 +196,11 @@ export function SoporteTicketsDashboard() {
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                   <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #BFDBFE' }}>{ticket.placa || 'N/A'}</span>
-                  <span style={{ fontWeight: '700', color: '#374151', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.tipo_solicitud}</span>
+                  {ticket.tipo_solicitud === 'Técnico Externo' ? (
+                    <span style={{ backgroundColor: '#FEF08A', color: '#854D0E', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: '800', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', border: '1px solid #FDE047' }}>👷‍♂️ TÉCNICO EXTERNO</span>
+                  ) : (
+                    <span style={{ fontWeight: '700', color: '#374151', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.tipo_solicitud}</span>
+                  )}
                 </div>
                 
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>
@@ -235,12 +240,17 @@ export function SoporteTicketsDashboard() {
     <div style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#1F2937' }}>Mesa de Ayuda de Tickets 🎧</h2>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#1F2937' }}>Mesa de Ayuda de Tickets 🎟️</h2>
           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Gestión centralizada de incidentes y requerimientos tecnológicos.</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1.5rem', background: '#2563EB', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' }}>
-          <span>➕</span> Crear Nuevo Ticket
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button onClick={() => setShowExternalTechModal(true)} style={{ padding: '0.75rem 1.5rem', background: '#FEF08A', color: '#854D0E', border: '1px solid #FDE047', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+            <span>👷‍♂️</span> Técnicos Externos
+          </button>
+          <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1.5rem', background: '#2563EB', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' }}>
+            <span>➕ </span> Crear Nuevo Ticket
+          </button>
+        </div>
       </div>
 
       {/* Controles de Filtrado y Stats */}
@@ -323,6 +333,53 @@ export function SoporteTicketsDashboard() {
                 <button type="submit" style={{ padding: '0.75rem 1.5rem', backgroundColor: '#2563EB', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' }}>Guardar Ticket</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Historial de Técnicos Externos */}
+      {showExternalTechModal && (
+        <div onClick={() => setShowExternalTechModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: 'var(--card-bg)', width: '800px', maxWidth: '95%', maxHeight: '90vh', borderRadius: '1rem', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>👷‍♂️ Historial de Técnicos Externos</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>Tickets generados automáticamente en campo o creados manualmente para externos.</p>
+              </div>
+              <button onClick={() => setShowExternalTechModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}>&times;</button>
+            </div>
+            
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {tickets.filter(t => t.tipo_solicitud === 'Técnico Externo').length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
+                    <p>No hay solicitudes de técnicos externos.</p>
+                  </div>
+                ) : (
+                  tickets.filter(t => t.tipo_solicitud === 'Técnico Externo').map(ticket => (
+                    <div key={ticket.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #E5E7EB', borderRadius: '0.5rem', backgroundColor: ticket.estado === 'Resuelto' ? '#F0FDF4' : 'white' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <span style={{ fontWeight: '800', color: '#111827', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
+                          <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.1rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || 'N/A'}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{formatDate(ticket.fecha)}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#4B5563' }}>{ticket.descripcion}</p>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginLeft: '1rem' }}>
+                        <span style={{
+                          padding: '0.25rem 0.75rem', borderRadius: '1rem', fontWeight: '700', fontSize: '0.75rem',
+                          backgroundColor: ticket.estado === 'Pendiente' ? '#FEE2E2' : ticket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
+                          color: ticket.estado === 'Pendiente' ? '#991B1B' : ticket.estado === 'En Proceso' ? '#92400E' : '#065F46'
+                        }}>
+                          {ticket.estado}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

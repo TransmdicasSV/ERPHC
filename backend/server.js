@@ -770,9 +770,37 @@ app.put('/api/incidentes/:id', async (req, res) => {
   const { estado } = req.body;
   try {
     await pool.query('UPDATE incidentes_soporte SET estado = $1 WHERE id = $2', [estado, id]);
-    await logAction(req.user ? req.user.id : null, `ActualizÃ³ estado de incidente #${id}`, 'incidentes_soporte');
+    await logAction(req.user ? req.user.id : null, `Actualizó estado de incidente #${id}`, 'incidentes_soporte');
+
+    // Lógica de Técnico Externo -> Reparación Automática de Inspección
+    if (estado === 'Resuelto') {
+      const ticketResult = await pool.query('SELECT placa, tipo_solicitud FROM incidentes_soporte WHERE id = $1', [id]);
+      const ticket = ticketResult.rows[0];
+
+      if (ticket && ticket.tipo_solicitud === 'Técnico Externo' && ticket.placa) {
+        const ultimaInsp = await pool.query('SELECT * FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 1', [ticket.placa]);
+        
+        if (ultimaInsp.rows.length > 0) {
+          const insp = ultimaInsp.rows[0];
+          if (['Falta', 'Error'].includes(insp.tablet) || ['Falta', 'Error'].includes(insp.radio) || ['Falta', 'Error'].includes(insp.camaras)) {
+            
+            const newTablet = ['Falta', 'Error'].includes(insp.tablet) ? 'OK' : insp.tablet;
+            const newRadio = ['Falta', 'Error'].includes(insp.radio) ? 'OK' : insp.radio;
+            const newCamaras = ['Falta', 'Error'].includes(insp.camaras) ? 'OK' : insp.camaras;
+
+            await pool.query(
+              'INSERT INTO inspecciones_flota (placa, fecha, tablet, radio, camaras, observaciones) VALUES ($1, NOW(), $2, $3, $4, $5)',
+              [ticket.placa, newTablet, newRadio, newCamaras, 'Reparado por Soporte TI - Técnico Externo (TKT-' + id + ')']
+            );
+            await logAction(req.user ? req.user.id : null, `Generó inspección automática (Reparado) para ${ticket.placa}`, 'inspecciones_flota');
+          }
+        }
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error al actualizar incidente' });
   }
 });
