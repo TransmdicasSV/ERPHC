@@ -789,7 +789,7 @@ app.put('/api/incidentes/:id', async (req, res) => {
             const newCamaras = ['Falta', 'Error'].includes(insp.camaras) ? 'OK' : insp.camaras;
 
             await pool.query(
-              'INSERT INTO inspecciones_flota (placa, fecha, tablet, radio, camaras, observaciones) VALUES ($1, NOW(), $2, $3, $4, $5)',
+              'INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, observaciones) VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, $4, $5)',
               [ticket.placa, newTablet, newRadio, newCamaras, 'Reparado por Soporte TI - Técnico Externo (TKT-' + id + ')']
             );
             await logAction(req.user ? req.user.id : null, `Generó inspección automática (Reparado) para ${ticket.placa}`, 'inspecciones_flota');
