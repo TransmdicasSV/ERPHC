@@ -9,6 +9,8 @@ export function SoporteTicketsDashboard() {
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [showModal, setShowModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [draggedTicketId, setDraggedTicketId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
   const [formData, setFormData] = useState({
     placa: '',
     operador: '',
@@ -82,6 +84,43 @@ export function SoporteTicketsDashboard() {
     });
   };
 
+  const handleDragStart = (e, id) => {
+    e.dataTransfer.setData('ticketId', id);
+    // Usamos setTimeout para que la tarjeta no desaparezca mientras se arrastra (truco de Chrome)
+    setTimeout(() => setDraggedTicketId(id), 0);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTicketId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e, columnStatus) => {
+    e.preventDefault(); // Permite que se pueda soltar aquí
+    if (dragOverColumn !== columnStatus) {
+      setDragOverColumn(columnStatus);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverColumn(null);
+    }
+  };
+
+  const handleDrop = async (e, columnStatus) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    const id = e.dataTransfer.getData('ticketId');
+    if (id) {
+      const ticket = tickets.find(t => String(t.id) === String(id));
+      if (ticket && ticket.estado !== columnStatus) {
+        handleStatusChange(id, columnStatus);
+      }
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     let isoString = String(dateString);
@@ -104,7 +143,18 @@ export function SoporteTicketsDashboard() {
     const list = getFilteredList(ticketsList);
 
     return (
-      <div className="kanban-column" style={{ borderTop: `4px solid ${colorHex}` }}>
+      <div 
+        className="kanban-column" 
+        style={{ 
+          borderTop: `4px solid ${colorHex}`,
+          backgroundColor: dragOverColumn === status ? '#F3F4F6' : 'var(--card-bg)',
+          transition: 'background-color 0.2s ease',
+          minHeight: '200px'
+        }}
+        onDragOver={(e) => handleDragOver(e, status)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, status)}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>
             <span>{icon}</span> {title}
@@ -114,12 +164,30 @@ export function SoporteTicketsDashboard() {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {list.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', border: '2px dashed #E5E7EB' }}>
-              No hay tickets aquí
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', border: '2px dashed #E5E7EB', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Soltar aquí
             </div>
           ) : (
             list.map(ticket => (
-              <div key={ticket.id} onClick={() => setSelectedTicket(ticket)} style={{ backgroundColor: 'white', border: '1px solid #E5E7EB', borderRadius: '0.5rem', padding: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; }}>
+              <div 
+                key={ticket.id} 
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, ticket.id)}
+                onDragEnd={handleDragEnd}
+                onClick={() => setSelectedTicket(ticket)} 
+                style={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #E5E7EB', 
+                  borderRadius: '0.5rem', 
+                  padding: '1rem', 
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)', 
+                  cursor: 'grab', 
+                  opacity: draggedTicketId === ticket.id ? 0.4 : 1,
+                  transform: draggedTicketId === ticket.id ? 'scale(0.98)' : 'scale(1)',
+                  transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.2s' 
+                }} 
+                onMouseEnter={(e) => { if(draggedTicketId !== ticket.id) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)'; } }} 
+                onMouseLeave={(e) => { if(draggedTicketId !== ticket.id) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; } }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <span style={{ fontWeight: '800', color: '#111827', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>{formatDate(ticket.fecha).split(' ')[0]}</span>
