@@ -434,3 +434,30 @@ input:focus, select:focus, textarea:focus {
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+/* KANBAN BOARD STYLES */
+.kanban-container {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.kanban-column {
+  flex: 1;
+  min-width: 320px;
+  background-color: var(--card-bg);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 1023px) {
+  .kanban-container {
+    flex-direction: column;
+  }
+  .kanban-column {
+    width: 100%;
+  }
+}
