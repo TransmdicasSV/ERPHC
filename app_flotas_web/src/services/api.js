@@ -189,6 +189,7 @@ export const api = {  // ==========================================
     });
     if (!res.ok) throw new Error('Error al actualizar incidente');
     return res.json();
+  },
   updateIncidenteConEvidencia: async (id, formData) => {
     const token = localStorage.getItem('nexus_token');
     const res = await fetch(`${BASE_URL}/api/incidentes/${id}`, {
