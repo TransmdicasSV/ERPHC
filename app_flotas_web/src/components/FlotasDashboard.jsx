@@ -559,21 +559,18 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
 
                       {/* Tarjeta de Inspección o Soporte */}
                       <div className="card" style={{ flex: 1, padding: '1.25rem', cursor: 'pointer', border: isSoporte ? '2px solid #8B5CF6' : '1px solid var(--border-color)', backgroundColor: isSoporte ? '#F5F3FF' : 'var(--card-bg)' }} onClick={() => setSelectedInsp(insp)}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                           <div>
-                            <span style={{ fontSize: '0.85rem', color: isSoporte ? '#7C3AED' : 'var(--text-secondary)', fontWeight: 'bold' }}>{insp.fecha} {insp.hora}</span>
+                            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isSoporte ? '#7C3AED' : 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              📅 {insp.fecha}
+                            </h4>
+                            <span style={{ fontSize: '0.875rem', color: isSoporte ? '#7C3AED' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
                             {isSoporte && <span style={{ marginLeft: '1rem', padding: '0.2rem 0.5rem', backgroundColor: '#8B5CF6', color: 'white', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>Soporte Técnico</span>}
                           </div>
-                          
-                          {/* Botón Opciones (tres puntos) */}
-                          <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => setMenuOpenId(menuOpenId === insp.id ? null : insp.id)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>⋮</button>
-                            {menuOpenId === insp.id && (
-                              <div style={{ position: 'absolute', right: 0, top: '100%', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 10, minWidth: '150px' }}>
-                                <button onClick={() => { handleEdit(insp); setMenuOpenId(null); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'none', border: 'none', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', color: 'var(--text-primary)' }}>✏️ Editar</button>
-                                <button onClick={() => handleDelete(insp.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626' }}>🗑️ Eliminar</button>
-                              </div>
-                            )}
+                          <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
+                            <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
+                            <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
                           </div>
                         </div>
 
