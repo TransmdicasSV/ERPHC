@@ -796,17 +796,13 @@ app.put('/api/incidentes/:id', upload.single('evidencia'), async (req, res) => {
           const insp = ultimaInsp.rows[0];
           if (['Falta', 'Error'].includes(insp.tablet) || ['Falta', 'Error'].includes(insp.radio) || ['Falta', 'Error'].includes(insp.camaras)) {
             
-            const newTablet = ['Falta', 'Error'].includes(insp.tablet) ? 'OK' : insp.tablet;
-            const newRadio = ['Falta', 'Error'].includes(insp.radio) ? 'OK' : insp.radio;
-            const newCamaras = ['Falta', 'Error'].includes(insp.camaras) ? 'OK' : insp.camaras;
-
             const observacionFinal = resolucion_desc 
-              ? `Reparado por Soporte TI - Técnico Externo (TKT-${id}). Nota: ${resolucion_desc}` 
-              : `Reparado por Soporte TI - Técnico Externo (TKT-${id})`;
+              ? `Soporte Técnico Externo (TKT-${id}). Nota: ${resolucion_desc}` 
+              : `Soporte Técnico Externo (TKT-${id})`;
 
             await pool.query(
               'INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, observaciones, img_tablet) VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, $4, $5, $6)',
-              [ticket.placa, newTablet, newRadio, newCamaras, observacionFinal, evidenciaUrl || '']
+              [ticket.placa, 'SOPORTE', 'SOPORTE', 'SOPORTE', observacionFinal, evidenciaUrl || '']
             );
             await logAction(req.user ? req.user.id : null, `Generó inspección automática (Reparado) para ${ticket.placa}`, 'inspecciones_flota');
           }
