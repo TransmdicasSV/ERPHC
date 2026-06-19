@@ -78,7 +78,8 @@ export function SoporteTicketsDashboard() {
         setSelectedTicket({...selectedTicket, estado: 'Resuelto'});
       }
     } catch (error) {
-      toast.error('Error al resolver ticket', { id: 'resolve-ticket' });
+      console.error("Error Front-end al resolver ticket:", error);
+      toast.error(`Error al resolver ticket: ${error.message}`, { id: 'resolve-ticket' });
     }
   };
 
