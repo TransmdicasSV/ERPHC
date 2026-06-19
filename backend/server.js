@@ -784,27 +784,36 @@ app.put('/api/incidentes/:id', upload.single('evidencia'), async (req, res) => {
     await pool.query(updateQuery, updateParams);
     await logAction(req.user ? req.user.id : null, `Actualizó estado de incidente #${id}`, 'incidentes_soporte');
 
-    // Lógica de Técnico Externo -> Reparación Automática de Inspección
+    // Lógica de Soporte -> Reparación (Actualización de la última inspección)
     if (estado === 'Resuelto') {
-      const ticketResult = await pool.query('SELECT placa, tipo_solicitud FROM incidentes_soporte WHERE id = $1', [id]);
+      const ticketResult = await pool.query('SELECT placa, tipo_solicitud, descripcion FROM incidentes_soporte WHERE id = $1', [id]);
       const ticket = ticketResult.rows[0];
 
-      if (ticket && ticket.tipo_solicitud === 'Técnico Externo' && ticket.placa) {
+      if (ticket && ticket.placa) {
         const ultimaInsp = await pool.query('SELECT * FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 1', [ticket.placa]);
         
         if (ultimaInsp.rows.length > 0) {
           const insp = ultimaInsp.rows[0];
-          if (['Falta', 'Error'].includes(insp.tablet) || ['Falta', 'Error'].includes(insp.radio) || ['Falta', 'Error'].includes(insp.camaras)) {
-            
-            const observacionFinal = resolucion_desc 
-              ? `Soporte Técnico Externo (TKT-${id}). Nota: ${resolucion_desc}` 
-              : `Soporte Técnico Externo (TKT-${id})`;
+          let updated = false;
+          let newTablet = insp.tablet;
+          let newRadio = insp.radio;
+          let newCamaras = insp.camaras;
+
+          // Solo cambiar a OK lo que estaba explícitamente en Error o Falta o SOPORTE
+          if (['Falta', 'Error', 'SOPORTE'].includes(insp.tablet)) { newTablet = 'OK'; updated = true; }
+          if (['Falta', 'Error', 'SOPORTE'].includes(insp.radio)) { newRadio = 'OK'; updated = true; }
+          if (['Falta', 'Error', 'SOPORTE'].includes(insp.camaras)) { newCamaras = 'OK'; updated = true; }
+
+          if (updated) {
+            // Se le concatena un texto a las observaciones para saber que un ticket la reparó
+            const addObs = `[Reparado por TKT-${id}]`;
+            const observacionFinal = insp.observaciones ? `${insp.observaciones} ${addObs}` : addObs;
 
             await pool.query(
-              'INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, observaciones, img_tablet) VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, $4, $5, $6)',
-              [ticket.placa, 'SOPORTE', 'SOPORTE', 'SOPORTE', observacionFinal, evidenciaUrl || '']
+              'UPDATE inspecciones_flota SET tablet = $1, radio = $2, camaras = $3, observaciones = $4 WHERE id = $5',
+              [newTablet, newRadio, newCamaras, observacionFinal, insp.id]
             );
-            await logAction(req.user ? req.user.id : null, `Generó inspección automática (Reparado) para ${ticket.placa}`, 'inspecciones_flota');
+            await logAction(req.user ? req.user.id : null, `Reparó última inspección a OK para ${ticket.placa} (Ticket Resuelto)`, 'inspecciones_flota');
           }
         }
       }
