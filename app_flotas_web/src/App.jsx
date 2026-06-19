@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FlotasDashboard } from './components/FlotasDashboard';
 import { RadarDashboard } from './components/RadarDashboard';
 import { ResumenDashboard } from './components/ResumenDashboard';
-import { IncidentesDashboard } from './components/IncidentesDashboard';
 import { EntregasTIDashboard } from './components/EntregasTIDashboard';
 import { MantenimientoTecnico } from './components/MantenimientoTecnico';
 import { SoporteTicketsDashboard } from './components/SoporteTicketsDashboard';
@@ -198,11 +197,6 @@ function App() {
             {isSoporteOpen && (
               <div style={{ backgroundColor: '#111827', padding: '0.5rem 0' }}>
                 <button 
-                  onClick={() => setActiveTab('incidentes')}
-                  style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1.5rem 0.75rem 2.5rem', background: activeTab === 'incidentes' ? '#374151' : 'transparent', border: 'none', color: activeTab === 'incidentes' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}>
-                  ⚠️ Gestión Incidentes
-                </button>
-                <button 
                   onClick={() => setActiveTab('tickets')}
                   style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1.5rem 0.75rem 2.5rem', background: activeTab === 'tickets' ? '#374151' : 'transparent', border: 'none', color: activeTab === 'tickets' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}>
                   🎫 Tickets de Soporte
@@ -268,7 +262,6 @@ function App() {
         {activeTab === 'personal' && <DirectorioPersonal />}
         {activeTab === 'dashboard' && <FlotasDashboard />}
         {activeTab === 'radar' && <RadarDashboard navigate={setActiveTab} />}
-        {activeTab === 'incidentes' && <IncidentesDashboard />}
         {activeTab === 'entregas' && <EntregasTIDashboard vista="Entrega" />}
         {activeTab === 'devoluciones' && <EntregasTIDashboard vista="Devolución" />}
         {activeTab === 'tickets' && <SoporteTicketsDashboard />}
