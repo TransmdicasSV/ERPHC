@@ -7,6 +7,7 @@ export function SoporteTicketsDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
+  const [activeTab, setActiveTab] = useState('KANBAN'); // 'KANBAN' o 'HISTORIAL'
   const [showModal, setShowModal] = useState(false);
   const [showExternalTechModal, setShowExternalTechModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -291,42 +292,113 @@ export function SoporteTicketsDashboard() {
         </div>
       </div>
 
-      {/* Controles de Filtrado y Stats */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-        <input 
-          type="text" 
-          placeholder="🔍 Buscar placa o #TKT..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ flex: '1 1 250px', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', outline: 'none', fontSize: '0.9rem' }}
-        />
-        
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setStatusFilter('Todos')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Todos' ? '#1F2937' : '#E5E7EB', color: statusFilter === 'Todos' ? 'white' : '#374151', transition: 'all 0.2s' }}>
-            Todos ({tickets.length})
-          </button>
-          <button onClick={() => setStatusFilter('Pendiente')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Pendiente' ? '#DC2626' : '#FEE2E2', color: statusFilter === 'Pendiente' ? 'white' : '#991B1B', transition: 'all 0.2s' }}>
-            🔴 Pendientes ({pendientes.length})
-          </button>
-          <button onClick={() => setStatusFilter('En Proceso')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'En Proceso' ? '#D97706' : '#FEF3C7', color: statusFilter === 'En Proceso' ? 'white' : '#92400E', transition: 'all 0.2s' }}>
-            🟡 En Proceso ({enProceso.length})
-          </button>
-          <button onClick={() => setStatusFilter('Resuelto')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Resuelto' ? '#059669' : '#D1FAE5', color: statusFilter === 'Resuelto' ? 'white' : '#065F46', transition: 'all 0.2s' }}>
-            🟢 Resueltos ({resueltos.length})
-          </button>
-        </div>
-
-        <button onClick={fetchTickets} style={{ padding: '0.75rem', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '0.5rem', cursor: 'pointer', marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Recargar">
-          🔄
+      {/* Pestañas (Tabs) KANBAN vs HISTORIAL */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', marginBottom: '1.5rem', gap: '1rem' }}>
+        <button onClick={() => setActiveTab('KANBAN')} style={{ padding: '0.75rem 1.5rem', fontWeight: 'bold', fontSize: '1rem', background: 'none', border: 'none', borderBottom: activeTab === 'KANBAN' ? '3px solid #2563EB' : '3px solid transparent', color: activeTab === 'KANBAN' ? '#2563EB' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+          📋 Tablero Activo
+        </button>
+        <button onClick={() => setActiveTab('HISTORIAL')} style={{ padding: '0.75rem 1.5rem', fontWeight: 'bold', fontSize: '1rem', background: 'none', border: 'none', borderBottom: activeTab === 'HISTORIAL' ? '3px solid #10B981' : '3px solid transparent', color: activeTab === 'HISTORIAL' ? '#10B981' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+          📚 Historial de Trabajos Técnicos
         </button>
       </div>
 
-      {/* Tablero Kanban */}
-      <div className="kanban-container">
-        {renderKanbanColumn('Pendientes', 'Pendiente', pendientes, '#EF4444', '🔴')}
-        {renderKanbanColumn('En Proceso', 'En Proceso', enProceso, '#F59E0B', '🟡')}
-        {renderKanbanColumn('Resueltos', 'Resuelto', resueltos, '#10B981', '🟢')}
-      </div>
+      {activeTab === 'KANBAN' && (
+        <>
+          {/* Controles de Filtrado y Stats */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <input 
+              type="text" 
+              placeholder="🔍 Buscar placa o #TKT..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ flex: '1 1 250px', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', outline: 'none', fontSize: '0.9rem' }}
+            />
+            
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button onClick={() => setStatusFilter('Todos')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Todos' ? '#1F2937' : '#E5E7EB', color: statusFilter === 'Todos' ? 'white' : '#374151', transition: 'all 0.2s' }}>
+                Todos ({pendientes.length + enProceso.length})
+              </button>
+              <button onClick={() => setStatusFilter('Pendiente')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Pendiente' ? '#DC2626' : '#FEE2E2', color: statusFilter === 'Pendiente' ? 'white' : '#991B1B', transition: 'all 0.2s' }}>
+                🔴 Pendientes ({pendientes.length})
+              </button>
+              <button onClick={() => setStatusFilter('En Proceso')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'En Proceso' ? '#D97706' : '#FEF3C7', color: statusFilter === 'En Proceso' ? 'white' : '#92400E', transition: 'all 0.2s' }}>
+                🟡 En Proceso ({enProceso.length})
+              </button>
+            </div>
+
+            <button onClick={fetchTickets} style={{ padding: '0.75rem', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', borderRadius: '0.5rem', cursor: 'pointer', marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Recargar">
+              🔄
+            </button>
+          </div>
+
+          {/* Tablero Kanban */}
+          <div className="kanban-container" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+            {renderKanbanColumn('Pendientes', 'Pendiente', pendientes, '#EF4444', '🔴')}
+            {renderKanbanColumn('En Proceso', 'En Proceso', enProceso, '#F59E0B', '🟡')}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'HISTORIAL' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.3s ease-out' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+            <input 
+              type="text" 
+              placeholder="🔍 Buscar placa o #TKT en historial..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: '300px', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', outline: 'none', fontSize: '0.9rem' }}
+            />
+            <span style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Resueltos: {resueltos.length}</span>
+          </div>
+          
+          <div className="table-container" style={{ backgroundColor: 'var(--card-bg)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                <tr>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#4B5563', fontSize: '0.85rem' }}>TKT</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#4B5563', fontSize: '0.85rem' }}>Fecha</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#4B5563', fontSize: '0.85rem' }}>Placa</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#4B5563', fontSize: '0.85rem' }}>Técnico / Tipo</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#4B5563', fontSize: '0.85rem' }}>Problema / Solución</th>
+                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', color: '#4B5563', fontSize: '0.85rem' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getFilteredList(resueltos).length === 0 ? (
+                  <tr><td colSpan="6" style={{textAlign:'center', padding:'3rem', color:'var(--text-secondary)'}}>No hay tickets resueltos.</td></tr>
+                ) : (
+                  getFilteredList(resueltos).map(ticket => (
+                    <tr key={ticket.id} style={{ borderBottom: '1px solid #E5E7EB', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      <td style={{ padding: '1rem', fontWeight: 'bold', color: '#111827' }}>#{ticket.id}</td>
+                      <td style={{ padding: '1rem', color: '#4B5563', fontSize: '0.9rem' }}>{formatDate(ticket.fecha)}</td>
+                      <td style={{ padding: '1rem' }}><span className="badge" style={{backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem'}}>{ticket.placa || 'N/A'}</span></td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{fontWeight:'600', color: '#111827', fontSize: '0.9rem'}}>{ticket.tipo_solicitud}</div>
+                        <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>👤 {ticket.operador || 'S/N'}</div>
+                      </td>
+                      <td style={{ padding: '1rem', maxWidth: '300px' }}>
+                        <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={ticket.descripcion}><strong>Prob:</strong> {ticket.descripcion}</div>
+                        {ticket.resolucion_desc && <div style={{fontSize: '0.85rem', color: '#065F46', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={ticket.resolucion_desc}><strong>Sol:</strong> {ticket.resolucion_desc}</div>}
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                        {ticket.evidencia && (
+                          <button onClick={() => window.open(ticket.evidencia, '_blank')} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '0.3rem', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }} title="Ver Foto">
+                            📸
+                          </button>
+                        )}
+                        <button onClick={() => handleDelete(ticket.id)} style={{ padding: '0.4rem 0.6rem', backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Eliminar Permanente">
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Modal Nuevo Ticket */}
       {showModal && (

@@ -549,23 +549,21 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
                 <div style={{ position: 'absolute', left: '1.5rem', top: '1rem', bottom: '1rem', width: '2px', backgroundColor: '#E5E7EB', zIndex: 0 }}></div>
                 
                 {inspecciones.map((insp) => {
-                    const isSoporte = insp.tablet === 'SOPORTE';
                     return (
                     <div key={insp.id} style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
                       {/* Punto del Timeline */}
                       <div style={{ width: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                        <div style={{ width: '1.25rem', height: '1.25rem', borderRadius: '50%', backgroundColor: isSoporte ? '#8B5CF6' : 'var(--accent-color)', border: '3px solid var(--bg-color)', boxShadow: '0 0 0 2px #E5E7EB', marginTop: '1rem' }}></div>
+                        <div style={{ width: '1.25rem', height: '1.25rem', borderRadius: '50%', backgroundColor: 'var(--accent-color)', border: '3px solid var(--bg-color)', boxShadow: '0 0 0 2px #E5E7EB', marginTop: '1rem' }}></div>
                       </div>
 
-                      {/* Tarjeta de Inspección o Soporte */}
-                      <div className="card" style={{ flex: 1, padding: '1.25rem', cursor: 'pointer', border: isSoporte ? '2px solid #8B5CF6' : '1px solid var(--border-color)', backgroundColor: isSoporte ? '#F5F3FF' : 'var(--card-bg)' }} onClick={() => setSelectedInsp(insp)}>
+                      {/* Tarjeta de Inspección */}
+                      <div className="card" style={{ flex: 1, padding: '1.25rem', cursor: 'pointer', border: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)' }} onClick={() => setSelectedInsp(insp)}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                           <div>
-                            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isSoporte ? '#7C3AED' : 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               📅 {insp.fecha}
                             </h4>
-                            <span style={{ fontSize: '0.875rem', color: isSoporte ? '#7C3AED' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
-                            {isSoporte && <span style={{ marginLeft: '1rem', padding: '0.2rem 0.5rem', backgroundColor: '#8B5CF6', color: 'white', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>Soporte Técnico</span>}
+                            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
                           </div>
                           <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
                             <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
@@ -574,31 +572,20 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
                           </div>
                         </div>
 
-                        {isSoporte ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: '500' }}>{insp.observaciones}</p>
-                            {insp.img_tablet && (
-                              <div style={{ marginTop: '0.5rem' }}>
-                                <span style={{ fontSize: '0.75rem', color: '#7C3AED', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>📸 Ver Evidencia</span>
-                              </div>
-                            )}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📱 Tablet</span>
+                            {renderBadge(insp.tablet)}
                           </div>
-                        ) : (
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📱 Tablet</span>
-                              {renderBadge(insp.tablet)}
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📻 Radio Base</span>
-                              {renderBadge(insp.radio)}
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📹 Cámaras</span>
-                              {renderBadge(insp.camaras)}
-                            </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📻 Radio Base</span>
+                            {renderBadge(insp.radio)}
                           </div>
-                        )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📹 Cámaras</span>
+                            {renderBadge(insp.camaras)}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )})}
@@ -622,8 +609,6 @@ function InspectionDetailModal({ insp, placa, onBack }) {
     return `${BASE_API_URL}/uploads/${filename}`;
   };
 
-  const isSoporte = insp.tablet === 'SOPORTE';
-
   const renderBadge = (status) => {
     if (!status || status === 'N/A') return <span className="badge" style={{backgroundColor: '#E5E7EB', color: '#374151'}}>N/A</span>;
     if (status.toUpperCase() === 'OK') return <span className="badge badge-success">OK</span>;
@@ -639,34 +624,25 @@ function InspectionDetailModal({ insp, placa, onBack }) {
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <button onClick={onBack} style={{ background: 'none', border: '1px solid var(--border-color)', padding: '0.2rem 0.5rem', borderRadius: '0.3rem', cursor: 'pointer', marginRight: '1rem' }}>← Volver</button>
           <div style={{flex: 1}}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{isSoporte ? 'Detalle de Soporte Técnico' : 'Detalle de Inspección'}</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Detalle de Inspección</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Placa: {placa} | Fecha: {insp.fecha} {insp.hora}</p>
           </div>
         </div>
 
-        {!isSoporte ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-            <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-              <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Tablet {renderBadge(insp.tablet)}</h4>
-              {insp.img_tablet ? <img src={imgUrl(insp.img_tablet)} alt="Tablet" style={imageStyle} onClick={() => setZoomImage(imgUrl(insp.img_tablet))} /> : <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>Sin Imagen</div>}
-            </div>
-            <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-              <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Radio Base {renderBadge(insp.radio)}</h4>
-              {insp.img_radio ? <img src={imgUrl(insp.img_radio)} alt="Radio" style={imageStyle} onClick={() => setZoomImage(imgUrl(insp.img_radio))} /> : <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>Sin Imagen</div>}
-            </div>
-            <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-              <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Cámaras {renderBadge(insp.camaras)}</h4>
-              {insp.img_camaras ? <img src={imgUrl(insp.img_camaras)} alt="Cámaras" style={imageStyle} onClick={() => setZoomImage(imgUrl(insp.img_camaras))} /> : <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>Sin Imagen</div>}
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+          <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Tablet {renderBadge(insp.tablet)}</h4>
+            {insp.img_tablet ? <img src={imgUrl(insp.img_tablet)} alt="Tablet" style={imageStyle} onClick={() => setZoomImage(imgUrl(insp.img_tablet))} /> : <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>Sin Imagen</div>}
           </div>
-        ) : (
-          insp.img_tablet && (
-            <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-              <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Evidencia Fotográfica</h4>
-              <img src={imgUrl(insp.img_tablet)} alt="Evidencia" style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '0.25rem', cursor: 'zoom-in', border: '1px solid #ddd', transition: 'transform 0.2s', backgroundColor: '#F3F4F6' }} onClick={() => setZoomImage(imgUrl(insp.img_tablet))} />
-            </div>
-          )
-        )}
+          <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Radio Base {renderBadge(insp.radio)}</h4>
+            {insp.img_radio ? <img src={imgUrl(insp.img_radio)} alt="Radio" style={imageStyle} onClick={() => setZoomImage(imgUrl(insp.img_radio))} /> : <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>Sin Imagen</div>}
+          </div>
+          <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <h4 style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Cámaras {renderBadge(insp.camaras)}</h4>
+            {insp.img_camaras ? <img src={imgUrl(insp.img_camaras)} alt="Cámaras" style={imageStyle} onClick={() => setZoomImage(imgUrl(insp.img_camaras))} /> : <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', color: 'var(--text-secondary)' }}>Sin Imagen</div>}
+          </div>
+        </div>
 
         {insp.observaciones && (
           <div style={{ marginTop: '1.5rem', backgroundColor: '#FEF3C7', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #FDE68A' }}>
