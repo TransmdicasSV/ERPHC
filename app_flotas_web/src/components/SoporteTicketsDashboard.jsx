@@ -74,7 +74,7 @@ export function SoporteTicketsDashboard() {
       toast.success('Ticket resuelto exitosamente', { id: 'resolve-ticket' });
       setShowResolveModal(false);
       fetchTickets();
-      if (selectedTicket && selectedTicket.id === resolvingTicketId) {
+      if (selectedTicket && String(selectedTicket.id) === String(resolvingTicketId)) {
         setSelectedTicket({...selectedTicket, estado: 'Resuelto'});
       }
     } catch (error) {
