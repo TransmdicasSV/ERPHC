@@ -475,6 +475,7 @@ function ExportModal({ onClose }) {
 // ==========================================
 function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
   const [inspecciones, setInspecciones] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInsp, setSelectedInsp] = useState(null);
   const [visibleLimit, setVisibleLimit] = useState(10);
@@ -493,6 +494,15 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
         return db - da; // desc
       });
       setInspecciones(sorted);
+
+      // Fetch tickets para esta placa
+      try {
+        const allTickets = await api.getIncidentes();
+        const placaTickets = allTickets.filter(t => t.placa === placa).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+        setTickets(placaTickets);
+      } catch(err) {
+        console.error('Error al cargar tickets en historial:', err);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -542,65 +552,121 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
           </div>
         </div>
         
-        <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 0' }}>
-          {loading ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>Cargando historial...</p></div> : (
-            inspecciones.length === 0 ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>No hay inspecciones registradas.</p></div> : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
-                {/* Línea del Timeline */}
-                <div style={{ position: 'absolute', left: '1.5rem', top: '1rem', bottom: '1rem', width: '2px', backgroundColor: '#E5E7EB', zIndex: 0 }}></div>
-                
-                {inspecciones.slice(0, visibleLimit).map((insp) => {
-                    return (
-                    <div key={insp.id} style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
-                      {/* Punto del Timeline */}
-                      <div style={{ width: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                        <div style={{ width: '1.25rem', height: '1.25rem', borderRadius: '50%', backgroundColor: 'var(--accent-color)', border: '3px solid var(--bg-color)', boxShadow: '0 0 0 2px #E5E7EB', marginTop: '1rem' }}></div>
-                      </div>
-
-                      {/* Tarjeta de Inspección */}
-                      <div className="card" style={{ flex: 1, padding: '1.25rem', cursor: 'pointer', border: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)' }} onClick={() => setSelectedInsp(insp)}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                          <div>
-                            <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              📅 {insp.fecha}
-                            </h4>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
-                            <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
-                            <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📱 Tablet</span>
-                            {renderBadge(insp.tablet)}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📻 Radio Base</span>
-                            {renderBadge(insp.radio)}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📹 Cámaras</span>
-                            {renderBadge(insp.camaras)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )})}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', flex: 1, overflow: 'hidden' }}>
+          
+          {/* Columna Izquierda: Inspecciones Físicas */}
+          <div style={{ overflowY: 'auto', paddingRight: '1rem' }}>
+            <h4 style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 10, paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid #E5E7EB', color: 'var(--text-primary)' }}>📋 Inspecciones de Campo</h4>
+            {loading ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>Cargando historial...</p></div> : (
+              inspecciones.length === 0 ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>No hay inspecciones registradas.</p></div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
+                  {/* Línea del Timeline */}
+                  <div style={{ position: 'absolute', left: '1.5rem', top: '1rem', bottom: '1rem', width: '2px', backgroundColor: '#E5E7EB', zIndex: 0 }}></div>
                   
-                  {visibleLimit < inspecciones.length && (
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
-                      <button onClick={() => setVisibleLimit(prev => prev + 10)} style={{ padding: '0.75rem 2rem', backgroundColor: '#F3F4F6', color: '#4B5563', border: '1px solid #D1D5DB', borderRadius: '2rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}>
-                        ⬇️ Cargar Más Antiguos ({inspecciones.length - visibleLimit} restantes)
-                      </button>
+                  {inspecciones.slice(0, visibleLimit).map((insp) => {
+                      return (
+                      <div key={insp.id} style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
+                        {/* Punto del Timeline */}
+                        <div style={{ width: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <div style={{ width: '1.25rem', height: '1.25rem', borderRadius: '50%', backgroundColor: 'var(--accent-color)', border: '3px solid var(--bg-color)', boxShadow: '0 0 0 2px #E5E7EB', marginTop: '1rem' }}></div>
+                        </div>
+
+                        {/* Tarjeta de Inspección */}
+                        <div className="card" style={{ flex: 1, padding: '1.25rem', cursor: 'pointer', border: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)' }} onClick={() => setSelectedInsp(insp)}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                            <div>
+                              <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                📅 {insp.fecha}
+                              </h4>
+                              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
+                              <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
+                              <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📱 Tablet</span>
+                              {renderBadge(insp.tablet)}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📻 Radio Base</span>
+                              {renderBadge(insp.radio)}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📹 Cámaras</span>
+                              {renderBadge(insp.camaras)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )})}
+                    
+                    {visibleLimit < inspecciones.length && (
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
+                        <button onClick={() => setVisibleLimit(prev => prev + 10)} style={{ padding: '0.75rem 2rem', backgroundColor: '#F3F4F6', color: '#4B5563', border: '1px solid #D1D5DB', borderRadius: '2rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}>
+                          ⬇️ Cargar Más Antiguos ({inspecciones.length - visibleLimit} restantes)
+                        </button>
+                      </div>
+                    )}
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Columna Derecha: Trabajos Técnicos / Soporte TI */}
+          <div style={{ overflowY: 'auto', paddingRight: '1rem', borderLeft: '1px solid #E5E7EB', paddingLeft: '2rem' }}>
+            <h4 style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 10, paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid #E5E7EB', color: '#10B981' }}>🛠️ Historial de Reparaciones (Soporte TI)</h4>
+            {loading ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>Cargando tickets...</p></div> : (
+              tickets.length === 0 ? <div style={{textAlign:'center', padding:'3rem', color:'var(--text-secondary)', backgroundColor: '#F9FAFB', borderRadius: '0.5rem', border: '2px dashed #E5E7EB'}}><p>No hay tickets de soporte para este vehículo.</p></div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {tickets.map(ticket => (
+                    <div key={ticket.id} style={{ border: '1px solid #E5E7EB', borderRadius: '0.75rem', padding: '1rem', backgroundColor: ticket.estado === 'Resuelto' ? '#F0FDF4' : 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <span style={{ fontWeight: '800', color: '#111827', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
+                        <span style={{
+                          padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 'bold', fontSize: '0.7rem',
+                          backgroundColor: ticket.estado === 'Pendiente' ? '#FEE2E2' : ticket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
+                          color: ticket.estado === 'Pendiente' ? '#991B1B' : ticket.estado === 'En Proceso' ? '#92400E' : '#065F46'
+                        }}>
+                          {ticket.estado}
+                        </span>
+                      </div>
+                      
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span>📅 {ticket.fecha ? ticket.fecha.split('T')[0] : 'S/F'}</span>
+                        <span style={{ color: '#E5E7EB' }}>|</span>
+                        <span>👤 {ticket.operador || 'Sistema'}</span>
+                      </div>
+                      
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.tipo_solicitud}</span>
+                      </div>
+
+                      <div style={{ fontSize: '0.85rem', color: '#4B5563', backgroundColor: '#F9FAFB', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #E5E7EB', marginBottom: ticket.resolucion_desc ? '0.5rem' : '0' }}>
+                        <strong>Prob:</strong> {ticket.descripcion}
+                      </div>
+
+                      {ticket.resolucion_desc && (
+                        <div style={{ fontSize: '0.85rem', color: '#065F46', backgroundColor: '#D1FAE5', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #A7F3D0' }}>
+                          <strong>Solución:</strong> {ticket.resolucion_desc}
+                        </div>
+                      )}
+
+                      {ticket.evidencia && (
+                        <button onClick={() => window.open(ticket.evidencia, '_blank')} style={{ marginTop: '0.75rem', width: '100%', padding: '0.5rem', backgroundColor: 'white', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '0.3rem', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }} title="Ver Foto de Reparación">
+                          📸 Ver Evidencia
+                        </button>
+                      )}
                     </div>
-                  )}
-              </div>
-            )
-          )}
+                  ))}
+                </div>
+              )
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -678,6 +744,10 @@ function InspectionDetailModal({ insp, placa, onBack }) {
 function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
   const [placaInput, setPlacaInput] = useState(editInsp ? editInsp.placa : '');
   
+  // Custom Modal de Técnico
+  const [pendingTechRequest, setPendingTechRequest] = useState(null);
+  const [techDetailInput, setTechDetailInput] = useState('');
+
   // Encontrar vehículo si coincide exactamente
   const vehiculoSeleccionado = vehiculosExistentes.find(v => v.placa === placaInput.toUpperCase()) || (editInsp ? { placa: editInsp.placa, programa: editInsp.programa } : null);
   const programaAsociado = vehiculoSeleccionado ? vehiculoSeleccionado.programa : 'Esperando selección válida...';
@@ -760,36 +830,44 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
 
       // Lógica automática para solicitar Técnico Externo
       if (['Falta', 'Error'].includes(tabletStatus) || ['Falta', 'Error'].includes(radioStatus) || ['Falta', 'Error'].includes(camarasStatus)) {
-        const detalleAdicional = window.prompt('🚨 Se detectaron componentes con fallas en esta unidad.\n\n¿Desea solicitar un TÉCNICO EXTERNO?\nDe ser así, ingrese el detalle del error o trabajo requerido y presione Aceptar (o Cancelar para omitir):');
+        let fallas = [];
+        if (['Falta', 'Error'].includes(tabletStatus)) fallas.push('Tablet');
+        if (['Falta', 'Error'].includes(radioStatus)) fallas.push('Radio');
+        if (['Falta', 'Error'].includes(camarasStatus)) fallas.push('Cámaras');
         
-        if (detalleAdicional !== null) {
-          try {
-            let fallas = [];
-            if (['Falta', 'Error'].includes(tabletStatus)) fallas.push('Tablet');
-            if (['Falta', 'Error'].includes(radioStatus)) fallas.push('Radio');
-            if (['Falta', 'Error'].includes(camarasStatus)) fallas.push('Cámaras');
-
-            const textoDetalle = detalleAdicional.trim() !== '' ? `\n\nDetalle del requerimiento: ${detalleAdicional}` : '';
-
-            await api.createIncidente({
-              placa: placaInput.trim().toUpperCase(),
-              tipo_solicitud: 'Técnico Externo',
-              descripcion: `🔴 Reporte automático desde campo. Fallas detectadas: ${fallas.join(', ')}.${textoDetalle}\nObservaciones del inspector: ${observaciones}`,
-              operador: 'Sistema Inspecciones',
-              fecha: new Date().toISOString()
-            });
-            toast.success('✅ Ticket de Técnico Externo creado y derivado a Soporte TI.');
-          } catch (ticketError) {
-            toast.error('No se pudo crear el ticket para el técnico externo.');
-          }
-        }
+        setPendingTechRequest({ fallas });
+      } else {
+        onReload();
+        onClose();
       }
-
-      onReload();
-      onClose();
     } catch (error) {
       toast.error("Error al guardar la inspección: " + error.message, { id: 'save-inspeccion' });
     }
+  };
+
+  const handleTechConfirm = async () => {
+    try {
+      const textoDetalle = techDetailInput.trim() !== '' ? `\n\nDetalle del requerimiento: ${techDetailInput}` : '';
+      await api.createIncidente({
+        placa: placaInput.trim().toUpperCase(),
+        tipo_solicitud: 'Técnico Externo',
+        descripcion: `🔴 Reporte automático desde campo. Fallas detectadas: ${pendingTechRequest.fallas.join(', ')}.${textoDetalle}\nObservaciones del inspector: ${observaciones}`,
+        operador: 'Sistema Inspecciones',
+        fecha: new Date().toISOString()
+      });
+      toast.success('✅ Ticket de Técnico Externo creado y derivado a Soporte TI.');
+    } catch (ticketError) {
+      toast.error('No se pudo crear el ticket para el técnico externo.');
+    }
+    setPendingTechRequest(null);
+    onReload();
+    onClose();
+  };
+
+  const handleTechSkip = () => {
+    setPendingTechRequest(null);
+    onReload();
+    onClose();
   };
 
   return (
@@ -887,6 +965,39 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
             <button type="submit" style={{ padding: '0.5rem 1.5rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: '600' }}>Registrar Evidencias</button>
           </div>
         </form>
+
+        {/* Modal de Solicitud Técnico Externo (Intercept) */}
+        {pendingTechRequest && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
+            <div style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'scaleUp 0.2s ease-out' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🚨</div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#DC2626', margin: 0 }}>Fallas Detectadas</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem' }}>El vehículo presenta fallas o faltantes en: <br/><strong>{pendingTechRequest.fallas.join(', ')}</strong></p>
+              </div>
+              
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>Detalle del requerimiento para Soporte TI (Opcional):</label>
+                <textarea 
+                  value={techDetailInput}
+                  onChange={(e) => setTechDetailInput(e.target.value)}
+                  placeholder="Ej. La pantalla de la tablet está trizada y no enciende..."
+                  rows="4"
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', resize: 'vertical', fontSize: '0.9rem', outlineColor: 'var(--accent-color)' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button type="button" onClick={handleTechSkip} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#F3F4F6', color: '#4B5563', border: '1px solid #D1D5DB', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  Omitir Solicitud
+                </button>
+                <button type="button" onClick={handleTechConfirm} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(220, 38, 38, 0.2)' }}>
+                  Solicitar Técnico
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
