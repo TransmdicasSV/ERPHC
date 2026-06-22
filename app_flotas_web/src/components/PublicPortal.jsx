@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BASE_API_URL } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -7,11 +7,30 @@ export function PublicPortal({ onAdminClick }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const [stats, setStats] = useState({ totalFlota: 0, inspeccionesHoy: 0, ticker: [] });
+  const [recentSearches, setRecentSearches] = useState([]);
 
   // Estados del Formulario de Soporte
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportData, setSupportData] = useState({ placa: '', tipo_solicitud: 'Mantenimiento', descripcion: '', operador: '' });
   const [supportLoading, setSupportLoading] = useState(false);
+
+  useEffect(() => {
+    // Cargar historial de busquedas
+    const saved = localStorage.getItem('recentSearches');
+    if (saved) {
+      try { setRecentSearches(JSON.parse(saved)); } catch(e) {}
+    }
+
+    // Fetch Stats
+    fetch(`${BASE_API_URL}/api/public/stats`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setStats(data);
+      })
+      .catch(err => console.error('Error fetching public stats:', err));
+  }, []);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -29,11 +48,28 @@ export function PublicPortal({ onAdminClick }) {
       }
       const data = await res.json();
       setResult(data);
+
+      // Guardar en recientes
+      const upperPlaca = placa.toUpperCase();
+      let newRecent = [upperPlaca, ...recentSearches.filter(p => p !== upperPlaca)].slice(0, 5);
+      setRecentSearches(newRecent);
+      localStorage.setItem('recentSearches', JSON.stringify(newRecent));
+
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const executeSearch = (placaABuscar) => {
+    setPlaca(placaABuscar);
+    // Simular el submit del form
+    const pseudoEvent = { preventDefault: () => {} };
+    // Usar un timeout pequeño para que el estado se actualice antes del fetch (o pasarlo directo)
+    setTimeout(() => {
+      document.getElementById('btn-buscar-publico').click();
+    }, 50);
   };
 
   const submitSupportForm = async (e) => {
@@ -99,6 +135,14 @@ export function PublicPortal({ onAdminClick }) {
           90% { transform: translateY(-90vh) scale(1); opacity: 1; }
           100% { transform: translateY(-100vh) scale(0); opacity: 0; }
         }
+        @keyframes radar-pulse {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          100% { transform: scale(2.5); opacity: 0; }
+        }
+        @keyframes ticker {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
       `}</style>
     </div>
   );
@@ -114,11 +158,6 @@ export function PublicPortal({ onAdminClick }) {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
-            onClick={() => setShowSupportModal(true)}
-            style={{ backgroundColor: '#EF4444', color: 'white', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem' }}>
-            <span>🆘</span> Soporte TI
-          </button>
-          <button 
             onClick={onAdminClick}
             style={{ background: 'transparent', border: '1px solid #374151', color: '#9ca3af', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#6b7280' }}
@@ -131,27 +170,73 @@ export function PublicPortal({ onAdminClick }) {
 
       {/* ÁREA DE BÚSQUEDA */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem', zIndex: 10 }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: 'white', margin: '0 0 0.25rem 0', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>Consulta de Estado de Flota</h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'center', maxWidth: '600px' }}>
-          Ingrese la placa para verificar la certificación operativa.
+        
+        {/* LIVE STATS */}
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem', marginTop: '1rem' }}>
+          <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', padding: '1rem 1.5rem', borderRadius: '1rem', textAlign: 'center', color: 'white', minWidth: '150px' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Unidades Base</p>
+            <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#38bdf8' }}>{stats.totalFlota}</p>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', padding: '1rem 1.5rem', borderRadius: '1rem', textAlign: 'center', color: 'white', minWidth: '150px' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Inspecciones Hoy</p>
+            <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>{stats.inspeccionesHoy}</p>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', padding: '1rem 1.5rem', borderRadius: '1rem', textAlign: 'center', color: 'white', minWidth: '150px' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Sistema</p>
+            <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px' }}>
+              EN LÍNEA <span style={{ width: 10, height: 10, backgroundColor: '#10b981', borderRadius: '50%', marginLeft: 8, boxShadow: '0 0 10px #10b981' }}></span>
+            </p>
+          </div>
+        </div>
+
+        <h2 style={{ fontSize: '2rem', fontWeight: '900', color: 'white', margin: '0 0 0.25rem 0', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.5)', letterSpacing: '-0.5px' }}>Consulta de Estado de Flota</h2>
+        <p style={{ color: '#cbd5e1', fontSize: '1rem', marginBottom: '2rem', textAlign: 'center', maxWidth: '600px' }}>
+          Ingrese la placa de la unidad para verificar su certificación operativa.
         </p>
 
-        <form onSubmit={handleSearch} style={{ width: '100%', maxWidth: '400px', display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <input 
-            type="text" 
+        <div style={{ position: 'relative', width: '100%', maxWidth: '500px', marginBottom: '1.5rem' }}>
+          {/* Radar Animation Background */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%', pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, border: '2px solid rgba(56, 189, 248, 0.3)', borderRadius: '0.5rem', animation: 'radar-pulse 2s infinite' }}></div>
+          </div>
+          <form onSubmit={handleSearch} style={{ position: 'relative', width: '100%', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', zIndex: 2 }}>
+            <input 
+              type="text" 
             placeholder="Ej. ABC-123" 
             value={placa}
             onChange={(e) => setPlaca(e.target.value.toUpperCase())}
-            style={{ flex: '1 1 200px', padding: '0.75rem 1rem', fontSize: '1.1rem', borderRadius: '0.5rem', border: '2px solid #d1d5db', outline: 'none', textTransform: 'uppercase' }}
+            style={{ flex: '1 1 200px', padding: '0.75rem 1rem', fontSize: '1.1rem', borderRadius: '0.5rem', border: '2px solid #38bdf8', outline: 'none', textTransform: 'uppercase', backgroundColor: 'rgba(15, 23, 42, 0.8)', color: 'white', boxShadow: '0 0 15px rgba(56, 189, 248, 0.2)' }}
           />
           <button 
+            id="btn-buscar-publico"
             type="submit" 
             disabled={loading}
-            style={{ flex: '1 1 100px', padding: '0.75rem 1.5rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.3)' }}
+            style={{ flex: '1 1 120px', padding: '0.75rem 1.5rem', fontSize: '1rem', fontWeight: 'bold', backgroundColor: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '0.5rem', cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 0 15px rgba(56, 189, 248, 0.4)', transition: 'all 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             {loading ? 'Buscando...' : 'Consultar'}
           </button>
         </form>
+        </div>
+
+        {/* RECENT SEARCHES */}
+        {recentSearches.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>Consultas Recientes:</span>
+            {recentSearches.map((p, i) => (
+              <button 
+                key={i} 
+                onClick={() => executeSearch(p)}
+                style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '0.2rem 0.8rem', borderRadius: '1rem', fontSize: '0.85rem', cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* RESULTADOS */}
         {error && (
@@ -248,6 +333,35 @@ export function PublicPortal({ onAdminClick }) {
           </div>
         )}
       </main>
+
+      {/* TICKER MARQUEE */}
+      {stats.ticker && stats.ticker.length > 0 && (
+        <div style={{ width: '100%', overflow: 'hidden', backgroundColor: 'rgba(15, 23, 42, 0.8)', borderTop: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem 0', zIndex: 10, position: 'fixed', bottom: 0, left: 0 }}>
+          <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'ticker 30s linear infinite' }}>
+            {stats.ticker.map((t, idx) => (
+              <span key={idx} style={{ color: 'white', fontSize: '0.85rem', margin: '0 2rem', fontWeight: '500' }}>
+                {t.estado === 'APROBADO' ? '✅' : '⚠️'} <span style={{ color: '#94a3b8' }}>{t.hora}</span> - Placa: <strong style={{ color: t.estado === 'APROBADO' ? '#10b981' : '#f59e0b' }}>{t.placa}</strong> ({t.estado})
+              </span>
+            ))}
+            {/* Duplicate for seamless loop */}
+            {stats.ticker.map((t, idx) => (
+              <span key={`dup-${idx}`} style={{ color: 'white', fontSize: '0.85rem', margin: '0 2rem', fontWeight: '500' }}>
+                {t.estado === 'APROBADO' ? '✅' : '⚠️'} <span style={{ color: '#94a3b8' }}>{t.hora}</span> - Placa: <strong style={{ color: t.estado === 'APROBADO' ? '#10b981' : '#f59e0b' }}>{t.placa}</strong> ({t.estado})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING SOS BUTTON */}
+      <button 
+        onClick={() => setShowSupportModal(true)}
+        style={{ position: 'fixed', bottom: '3rem', right: '1.5rem', zIndex: 50, backgroundColor: '#EF4444', color: 'white', border: 'none', borderRadius: '3rem', padding: '1rem 1.5rem', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)', transition: 'transform 0.2s' }}
+        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05) translateY(-5px)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
+      >
+        <span style={{ fontSize: '1.5rem' }}>🚨</span> Reportar Falla en mi Unidad
+      </button>
 
       {/* MODAL DE SOPORTE */}
       {showSupportModal && (

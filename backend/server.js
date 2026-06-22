@@ -198,6 +198,38 @@ const verifyToken = (req, res, next) => {
 // ==========================================
 // ENDPOINTS PÃšBLICOS (PORTAL OPERADORES)
 // ==========================================
+
+app.get('/api/public/stats', async (req, res) => {
+  try {
+    const veh = await pool.query('SELECT COUNT(*) FROM vehiculos');
+    
+    const result = await pool.query('SELECT placa, fecha, hora, tablet, radio, camaras FROM inspecciones_flota ORDER BY id DESC LIMIT 500');
+    
+    const today1 = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayParts = today1.split('-');
+    const today2 = `${todayParts[2]}-${todayParts[1]}-${todayParts[0]}`; // DD-MM-YYYY
+    
+    let inspeccionesHoy = 0;
+    const ticker = [];
+    
+    result.rows.forEach(r => {
+      if (r.fecha === today1 || r.fecha === today2) inspeccionesHoy++;
+      if (ticker.length < 10) {
+        const isOk = (r.tablet === 'OK' || r.tablet === 'N/A') && (r.radio === 'OK' || r.radio === 'N/A') && (r.camaras === 'OK' || r.camaras === 'N/A');
+        ticker.push({ placa: r.placa, hora: r.hora, estado: isOk ? 'APROBADO' : 'OBSERVADO' });
+      }
+    });
+
+    res.json({
+      totalFlota: parseInt(veh.rows[0].count),
+      inspeccionesHoy,
+      ticker
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
 app.get('/api/public/consulta/:placa', async (req, res) => {
   const { placa } = req.params;
   try {
