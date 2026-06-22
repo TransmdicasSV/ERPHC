@@ -540,7 +540,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
-      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '90vw', maxWidth: '1200px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <div>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Historial de Inspecciones</h3>
