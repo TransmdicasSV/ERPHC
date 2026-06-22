@@ -226,12 +226,11 @@ app.get('/api/public/stats', async (req, res) => {
     });
 
     // Traer últimos trabajos de TI resueltos
-    const resolvedTIResult = await pool.query("SELECT id, tipo_solicitud, placa, fecha_cierre FROM incidentes_soporte WHERE estado IN ('Resuelto', 'Concluido') ORDER BY id DESC LIMIT 3");
+    const resolvedTIResult = await pool.query("SELECT id, tipo_solicitud, placa FROM incidentes_soporte WHERE estado IN ('Resuelto', 'Concluido') ORDER BY id DESC LIMIT 3");
     const trabajosTI = resolvedTIResult.rows.map(r => ({
       id: r.id,
       tipo: r.tipo_solicitud,
-      placa: r.placa,
-      fecha_cierre: r.fecha_cierre
+      placa: r.placa
     }));
 
     res.json({
