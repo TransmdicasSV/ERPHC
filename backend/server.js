@@ -215,7 +215,12 @@ app.get('/api/public/stats', async (req, res) => {
     result.rows.forEach(r => {
       if (r.fecha === today1 || r.fecha === today2) inspeccionesHoy++;
       if (ticker.length < 10) {
-        const isOk = (r.tablet === 'OK' || r.tablet === 'N/A') && (r.radio === 'OK' || r.radio === 'N/A') && (r.camaras === 'OK' || r.camaras === 'N/A');
+        const isOkOrNa = (val) => {
+          if (!val) return false;
+          const upper = val.trim().toUpperCase();
+          return upper === 'OK' || upper === 'N/A' || upper === 'NO APLICA';
+        };
+        const isOk = isOkOrNa(r.tablet) && isOkOrNa(r.radio) && isOkOrNa(r.camaras);
         ticker.push({ placa: r.placa, hora: r.hora, estado: isOk ? 'APROBADO' : 'OBSERVADO' });
       }
     });
@@ -238,7 +243,12 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
     
     if (!insp) return res.status(404).json({ error: 'Unidad no encontrada' });
 
-    const estado_general = (insp.tablet === 'OK' && insp.radio === 'OK' && insp.camaras === 'OK') ? 'APROBADO' : 'OBSERVADO';
+    const isOkOrNaStr = (val) => {
+      if (!val) return false;
+      const upper = val.trim().toUpperCase();
+      return upper === 'OK' || upper === 'N/A' || upper === 'NO APLICA';
+    };
+    const estado_general = (isOkOrNaStr(insp.tablet) && isOkOrNaStr(insp.radio) && isOkOrNaStr(insp.camaras)) ? 'APROBADO' : 'OBSERVADO';
 
     // Buscar el Ãºltimo incidente de soporte registrado para esta placa
     const incidenteResult = await pool.query("SELECT * FROM incidentes_soporte WHERE placa = $1 ORDER BY id DESC LIMIT 1", [placa]);
@@ -439,9 +449,10 @@ app.get('/vehiculos/', async (req, res) => {
         const r = v.radio.trim().toUpperCase();
         const c = v.camaras.trim().toUpperCase();
 
-        const isOkOrNa = (val) => val === 'OK' || val === 'N/A';
+        const isOkOrNa = (val) => val === 'OK' || val === 'N/A' || val === 'NO APLICA';
+        const isNa = (val) => val === 'N/A' || val === 'NO APLICA';
 
-        if (t === 'N/A' && r === 'N/A' && c === 'N/A') estado = 'N/A';
+        if (isNa(t) && isNa(r) && isNa(c)) estado = 'N/A';
         else if (isOkOrNa(t) && isOkOrNa(r) && isOkOrNa(c)) estado = 'Operativa';
         else estado = 'Observada';
       }
@@ -1155,12 +1166,17 @@ app.get('/stats/charts', async (req, res) => {
     const salud = await pool.query(`
       SELECT 
         SUM(CASE 
-          WHEN UPPER(TRIM(tablet)) = 'ERROR' OR UPPER(TRIM(radio)) = 'ERROR' OR UPPER(TRIM(camaras)) = 'ERROR' THEN 0
-          WHEN UPPER(TRIM(tablet)) = 'FALTA REVISION' OR UPPER(TRIM(radio)) = 'FALTA REVISION' OR UPPER(TRIM(camaras)) = 'FALTA REVISION' THEN 0
-          WHEN (UPPER(TRIM(tablet)) = 'NO APLICA' OR UPPER(TRIM(radio)) = 'NO APLICA' OR UPPER(TRIM(camaras)) = 'NO APLICA') AND (observaciones IS NULL OR TRIM(observaciones) = '') THEN 0
-          ELSE 1 
+          WHEN (UPPER(TRIM(COALESCE(tablet, ''))) IN ('OK', 'N/A', 'NO APLICA')) 
+           AND (UPPER(TRIM(COALESCE(radio, ''))) IN ('OK', 'N/A', 'NO APLICA')) 
+           AND (UPPER(TRIM(COALESCE(camaras, ''))) IN ('OK', 'N/A', 'NO APLICA')) 
+          THEN 1 ELSE 0 
         END) as aprobados,
-        SUM(CASE WHEN UPPER(TRIM(tablet)) = 'ERROR' OR UPPER(TRIM(radio)) = 'ERROR' OR UPPER(TRIM(camaras)) = 'ERROR' THEN 1 ELSE 0 END) as observados
+        SUM(CASE 
+          WHEN (UPPER(TRIM(COALESCE(tablet, ''))) NOT IN ('OK', 'N/A', 'NO APLICA'))
+            OR (UPPER(TRIM(COALESCE(radio, ''))) NOT IN ('OK', 'N/A', 'NO APLICA'))
+            OR (UPPER(TRIM(COALESCE(camaras, ''))) NOT IN ('OK', 'N/A', 'NO APLICA'))
+          THEN 1 ELSE 0 
+        END) as observados
       FROM inspecciones_flota
     `);
 
