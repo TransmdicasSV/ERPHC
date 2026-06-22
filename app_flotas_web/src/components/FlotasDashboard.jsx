@@ -201,6 +201,12 @@ export function FlotasDashboard() {
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando datos...</div>;
 
+  // Calculo de KPIs
+  const totalVehiculos = vehiculos.length;
+  const operativas = vehiculos.filter(v => v.estado === 'Operativa').length;
+  const observadas = vehiculos.filter(v => v.estado === 'Observada').length;
+  const faltaRevision = vehiculos.filter(v => v.estado === 'Falta de revisión' || v.estado === 'N/A').length;
+
   return (
     <div>
       {/* HEADER Y ACCIONES */}
@@ -220,6 +226,26 @@ export function FlotasDashboard() {
             style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
             + Nueva Inspección
           </button>
+        </div>
+      </div>
+
+      {/* TARJETAS DE RESUMEN (KPIs) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #3B82F6' }}>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Total Flota</p>
+          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{totalVehiculos}</p>
+        </div>
+        <div className="card" onClick={() => setFiltroEstado('Operativa')} style={{ padding: '1.25rem', borderLeft: '4px solid #10B981', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='none'}>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>✅ Operativas</p>
+          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#10B981' }}>{operativas}</p>
+        </div>
+        <div className="card" onClick={() => setFiltroEstado('Observada')} style={{ padding: '1.25rem', borderLeft: '4px solid #EF4444', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='none'}>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>🚨 Observadas</p>
+          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#EF4444' }}>{observadas}</p>
+        </div>
+        <div className="card" onClick={() => setFiltroEstado('Falta de revisión')} style={{ padding: '1.25rem', borderLeft: '4px solid #F59E0B', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='none'}>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>⚠️ Falta Revisión</p>
+          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#F59E0B' }}>{faltaRevision}</p>
         </div>
       </div>
 
@@ -291,6 +317,7 @@ export function FlotasDashboard() {
                   <th>Placa</th>
                   <th>Operación</th>
                   <th>Estado</th>
+                  <th>Componentes</th>
                   <th 
                     style={{ cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => {
@@ -325,18 +352,45 @@ export function FlotasDashboard() {
                           {v.estado}
                         </span>
                       </td>
+                      <td>
+                        {v.tablet || v.radio || v.camaras ? (
+                          <div style={{ display: 'flex', gap: '0.3rem' }}>
+                            <span title={`Tablet: ${v.tablet}`} style={{ opacity: v.tablet==='N/A' ? 0.3 : 1, filter: v.tablet==='Error' || v.tablet==='Falta' ? 'drop-shadow(0 0 2px red)' : 'none' }}>{v.tablet==='Error' || v.tablet==='Falta' ? '🔴' : '📱'}</span>
+                            <span title={`Radio: ${v.radio}`} style={{ opacity: v.radio==='N/A' ? 0.3 : 1, filter: v.radio==='Error' || v.radio==='Falta' ? 'drop-shadow(0 0 2px red)' : 'none' }}>{v.radio==='Error' || v.radio==='Falta' ? '🔴' : '📻'}</span>
+                            <span title={`Cámaras: ${v.camaras}`} style={{ opacity: v.camaras==='N/A' ? 0.3 : 1, filter: v.camaras==='Error' || v.camaras==='Falta' ? 'drop-shadow(0 0 2px red)' : 'none' }}>{v.camaras==='Error' || v.camaras==='Falta' ? '🔴' : '📹'}</span>
+                          </div>
+                        ) : <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>Sin datos</span>}
+                      </td>
                       <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
                         {(() => {
                           const f = v.fecha;
-                          if (!f || f === '--/--/----' || f.trim() === '') return 'Sin registro';
+                          if (!f || f === '--/--/----' || f.trim() === '') return <span style={{ color: '#EF4444' }}>⚠️ Sin registro</span>;
+                          
+                          let formattedDate = f;
+                          let dateObj = null;
+
                           if (f.includes('-')) {
                             const p = f.split('-');
                             if (p.length === 3) {
-                              if (p[0].length === 4) return `${p[2]}-${p[1]}-${p[0]}`; // YYYY-MM-DD -> DD-MM-YYYY
-                              return f; // Already DD-MM-YYYY
+                              if (p[0].length === 4) {
+                                formattedDate = `${p[2]}-${p[1]}-${p[0]}`; // YYYY-MM-DD -> DD-MM-YYYY
+                                dateObj = new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
+                              } else {
+                                dateObj = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+                              }
                             }
                           }
-                          return f;
+
+                          // Calcular dias
+                          if (dateObj) {
+                            const diffTime = Math.abs(new Date() - dateObj);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays > 7) {
+                              return <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{formattedDate} <span title={`Hace ${diffDays} días`}>⚠️ Vencida</span></span>;
+                            }
+                          }
+
+                          return formattedDate;
                         })()}
                       </td>
                       <td style={{textAlign: 'right'}}>
