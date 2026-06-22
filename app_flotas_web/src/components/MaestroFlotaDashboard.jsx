@@ -8,6 +8,8 @@ export function MaestroFlotaDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [editItem, setEditItem] = useState(null); // Item being edited
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const loadData = async () => {
     try {
@@ -117,6 +119,7 @@ export function MaestroFlotaDashboard() {
                       <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Marca / Modelo</th>
                       <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Año</th>
                       <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Semirremolque Asignado</th>
+                      <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Acciones</th>
                     </>
                   ) : (
                     <>
@@ -125,6 +128,7 @@ export function MaestroFlotaDashboard() {
                       <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Marca / Modelo</th>
                       <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Chasis</th>
                       <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Capacidad</th>
+                      <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Acciones</th>
                     </>
                   )}
                 </tr>
@@ -151,6 +155,16 @@ export function MaestroFlotaDashboard() {
                           <span style={{ color: 'var(--text-secondary)' }}>Sin SR</span>
                         )}
                       </td>
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'tracto', data: t }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                        <button onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          if(window.confirm(`¿Seguro que deseas eliminar el tracto ${t.placa}?`)) {
+                            try { await api.deleteVehiculo(t.placa); loadData(); }
+                            catch (err) { alert(err.message); }
+                          }
+                        }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                      </td>
                     </tr>
                   ))
                 ) : (
@@ -165,6 +179,16 @@ export function MaestroFlotaDashboard() {
                       <td style={{ padding: '1rem' }}>{s.marca || '-'} {s.modelo ? `/ ${s.modelo}` : ''}</td>
                       <td style={{ padding: '1rem' }}>{s.chasis || '-'}</td>
                       <td style={{ padding: '1rem' }}>{s.capacidad ? `${s.capacidad} GL` : '-'}</td>
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'sr', data: s }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                        <button onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          if(window.confirm(`¿Seguro que deseas eliminar el semirremolque ${s.placa_sr}?`)) {
+                            try { await api.deleteSemirremolque(s.placa_sr); loadData(); }
+                            catch (err) { alert(err.message); }
+                          }
+                        }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -176,7 +200,7 @@ export function MaestroFlotaDashboard() {
 
       {/* Modal Lateral (Drawer) de Detalles */}
       {selectedItem && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '450px', maxWidth: '100vw', backgroundColor: 'var(--bg-primary)', borderLeft: '1px solid var(--border-color)', boxShadow: '-10px 0 25px rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', flexDirection: 'column', animation: 'slideIn 0.3s ease-out' }}>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '450px', maxWidth: '100vw', backgroundColor: 'var(--card-bg)', borderLeft: '1px solid var(--border-color)', boxShadow: '-10px 0 25px rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', flexDirection: 'column', animation: 'slideIn 0.3s ease-out' }}>
           <style>
             {`
               @keyframes slideIn {
@@ -247,9 +271,97 @@ export function MaestroFlotaDashboard() {
 function DetailBox({ label, value, full }) {
   if (!value) return null;
   return (
-    <div style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #374151', gridColumn: full ? 'span 2' : 'span 1' }}>
-      <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.25rem', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ color: 'white', fontWeight: '500', wordBreak: 'break-word' }}>{value}</div>
+    <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', gridColumn: full ? 'span 2' : 'span 1' }}>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ color: 'var(--text-primary)', fontWeight: '500', wordBreak: 'break-word' }}>{value}</div>
+    </div>
+  );
+}
+
+function EditModal({ item, onClose, onSaved }) {
+  const [formData, setFormData] = useState({ ...item.data });
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (item.type === 'tracto') {
+        await api.updateVehiculo(formData.placa, formData);
+      } else {
+        await api.updateSemirremolque(formData.placa_sr, formData);
+      }
+      onSaved();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isTracto = item.type === 'tracto';
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
+      <div style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '700px', maxHeight: '90vh', borderRadius: '1rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Editar {isTracto ? 'Tracto' : 'Semirremolque'} - {isTracto ? formData.placa : formData.placa_sr}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
+          <form id="edit-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {isTracto ? (
+              <>
+                <Field label="Operación" name="operacion" value={formData.operacion} onChange={handleChange} />
+                <Field label="Cliente" name="cliente" value={formData.cliente} onChange={handleChange} />
+                <Field label="VIN" name="vin" value={formData.vin} onChange={handleChange} />
+                <Field label="Marca" name="marca" value={formData.marca} onChange={handleChange} />
+                <Field label="Modelo" name="modelo" value={formData.modelo} onChange={handleChange} />
+                <Field label="Año" name="anio" value={formData.anio} onChange={handleChange} />
+                <Field label="Color" name="color" value={formData.color} onChange={handleChange} />
+                <Field label="Peso (TON)" name="peso_ton" value={formData.peso_ton} onChange={handleChange} />
+                <Field label="Potencia" name="potencia" value={formData.potencia} onChange={handleChange} />
+                <Field label="Cilindros" name="cilindros" value={formData.cilindros} onChange={handleChange} />
+                <Field label="Cilindrada" name="cilindrada" value={formData.cilindrada} onChange={handleChange} />
+                <Field label="Torque" name="torque" value={formData.torque} onChange={handleChange} />
+                <Field label="Cambios" name="cambios" value={formData.cambios} onChange={handleChange} />
+                <Field label="Transmisión" name="transmision" value={formData.transmision} onChange={handleChange} />
+                <Field label="Suspensión Delantera" name="suspension_del" value={formData.suspension_del} onChange={handleChange} />
+                <Field label="Suspensión Posterior" name="suspension_post" value={formData.suspension_post} onChange={handleChange} />
+                <Field label="Placa SR Asignado" name="placa_sr" value={formData.placa_sr} onChange={handleChange} />
+              </>
+            ) : (
+              <>
+                <Field label="Tipo" name="tipo" value={formData.tipo} onChange={handleChange} />
+                <Field label="Marca" name="marca" value={formData.marca} onChange={handleChange} />
+                <Field label="Modelo" name="modelo" value={formData.modelo} onChange={handleChange} />
+                <Field label="Chasis" name="chasis" value={formData.chasis} onChange={handleChange} />
+                <Field label="Capacidad" name="capacidad" value={formData.capacidad} onChange={handleChange} />
+                <Field label="Compartimientos" name="compartimientos" value={formData.compartimientos} onChange={handleChange} />
+                <Field label="Diámetro Interior" name="diametro_interior" value={formData.diametro_interior} onChange={handleChange} />
+                <Field label="Frecuencia P." name="frecuencia_p" value={formData.frecuencia_p} onChange={handleChange} />
+              </>
+            )}
+          </form>
+        </div>
+        <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+          <button onClick={onClose} type="button" style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancelar</button>
+          <button form="edit-form" type="submit" disabled={saving} style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+            {saving ? 'Guardando...' : 'Guardar Cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, name, value, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{label}</label>
+      <input type="text" name={name} value={value || ''} onChange={onChange} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
     </div>
   );
 }

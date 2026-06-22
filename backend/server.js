@@ -959,30 +959,83 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
   }
 });
 
-// Actualizar VehÃ­culo (Programa)
-app.put('/vehiculos/:placa', async (req, res) => {
+// Actualizar Vehículo Completo (Tracto)
+app.put('/vehiculos/:placa', requireAdmin, async (req, res) => {
   const { placa } = req.params;
-  const { programa } = req.body;
+  const data = req.body;
   try {
-    const result = await pool.query('UPDATE vehiculos SET operacion = $1 WHERE placa = $2 RETURNING *', [programa, placa]);
-    await logAction(req.user ? req.user.id : null, `Actualizó programa de ${placa}`, 'vehiculos');
+    const query = `
+      UPDATE vehiculos SET 
+        operacion=$1, cliente=$2, vin=$3, marca=$4, modelo=$5, anio=$6, color=$7, 
+        peso_ton=$8, potencia=$9, cilindros=$10, cilindrada=$11, torque=$12, 
+        cambios=$13, transmision=$14, suspension_del=$15, suspension_post=$16, placa_sr=$17
+      WHERE placa = $18 RETURNING *
+    `;
+    const values = [
+      data.operacion, data.cliente, data.vin, data.marca, data.modelo, data.anio, data.color,
+      data.peso_ton, data.potencia, data.cilindros, data.cilindrada, data.torque,
+      data.cambios, data.transmision, data.suspension_del, data.suspension_post, data.placa_sr,
+      placa
+    ];
+    const result = await pool.query(query, values);
+    await logAction(req.user ? req.user.id : null, `Actualizó datos técnicos del tracto ${placa}`, 'vehiculos');
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar vehiculo' });
   }
 });
 
-// Eliminar VehÃ­culo (Protegido por Foreign Key constraint por defecto)
+// Eliminar Vehículo (Protegido por Foreign Key constraint por defecto)
 app.delete('/vehiculos/:placa', requireAdmin, async (req, res) => {
   const { placa } = req.params;
   try {
     await pool.query('DELETE FROM vehiculos WHERE placa = $1', [placa]);
-    await logAction(req.user ? req.user.id : null, `EliminÃ³ el vehÃ­culo ${placa}`, 'vehiculos');
-    res.json({ message: 'VehÃ­culo eliminado' });
+    await logAction(req.user ? req.user.id : null, `Eliminó el vehículo ${placa}`, 'vehiculos');
+    res.json({ message: 'Vehículo eliminado' });
   } catch (err) {
-    // CÃ³digo de error de PostgreSQL para Foreign Key Violation es 23503
+    // Código de error de PostgreSQL para Foreign Key Violation es 23503
     if (err.code === '23503') {
       res.status(400).json({ error: 'No se puede eliminar porque tiene historial de inspecciones. Elimine el historial primero.' });
+    } else {
+      res.status(500).json({ error: 'Error interno al eliminar' });
+    }
+  }
+});
+
+// Actualizar Semirremolque
+app.put('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
+  const { placa_sr } = req.params;
+  const data = req.body;
+  try {
+    const query = `
+      UPDATE semirremolques SET 
+        tipo=$1, marca=$2, modelo=$3, chasis=$4, capacidad=$5, 
+        compartimientos=$6, diametro_interior=$7, frecuencia_p=$8
+      WHERE placa_sr = $9 RETURNING *
+    `;
+    const values = [
+      data.tipo, data.marca, data.modelo, data.chasis, data.capacidad,
+      data.compartimientos, data.diametro_interior, data.frecuencia_p,
+      placa_sr
+    ];
+    const result = await pool.query(query, values);
+    await logAction(req.user ? req.user.id : null, `Actualizó semirremolque ${placa_sr}`, 'semirremolques');
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al actualizar semirremolque' });
+  }
+});
+
+// Eliminar Semirremolque
+app.delete('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
+  const { placa_sr } = req.params;
+  try {
+    await pool.query('DELETE FROM semirremolques WHERE placa_sr = $1', [placa_sr]);
+    await logAction(req.user ? req.user.id : null, `Eliminó el semirremolque ${placa_sr}`, 'semirremolques');
+    res.json({ message: 'Semirremolque eliminado' });
+  } catch (err) {
+    if (err.code === '23503') {
+      res.status(400).json({ error: 'No se puede eliminar porque está asociado a un vehículo o inspección.' });
     } else {
       res.status(500).json({ error: 'Error interno al eliminar' });
     }
