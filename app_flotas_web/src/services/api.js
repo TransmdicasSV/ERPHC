@@ -1,3 +1,5 @@
+import { toast } from 'react-hot-toast';
+
 // Si estamos en desarrollo usa localhost, si es producción usa Render
 export const BASE_API_URL = import.meta.env.DEV 
   ? `http://${window.location.hostname}:8000` 
@@ -20,17 +22,35 @@ const fetchWithAuth = async (url, options = {}) => {
 
   const newOptions = { ...options, headers };
   
-  const response = await fetch(url, newOptions);
-  
-  // Solo forzar logout en 401 (Token inválido/expirado). 
-  // 403 significa acceso denegado (ej. no es admin), no debe cerrar sesión.
-  if (response.status === 401) {
-    localStorage.removeItem('nexus_token');
-    localStorage.removeItem('nexus_user');
-    window.location.reload();
+  try {
+    const response = await fetch(url, newOptions);
+    
+    // Solo forzar logout en 401 (Token inválido/expirado). 
+    // 403 significa acceso denegado (ej. no es admin), no debe cerrar sesión.
+    if (response.status === 401) {
+      localStorage.removeItem('nexus_token');
+      localStorage.removeItem('nexus_user');
+      window.location.reload();
+      return response;
+    }
+    
+    // Interceptar cualquier error HTTP y mostrarlo como Toast automáticamente
+    if (!response.ok) {
+      try {
+        const errData = await response.clone().json();
+        const errorMsg = errData.error || errData.message || `Error HTTP: ${response.status}`;
+        toast.error(`Error del Servidor: ${errorMsg}`);
+      } catch (e) {
+        toast.error(`Error del Servidor (${response.status}): Ocurrió un problema.`);
+      }
+    }
+    
+    return response;
+  } catch (error) {
+    // Errores de red (ej. servidor caído, sin internet)
+    toast.error(`Error de Conexión: ${error.message}`);
+    throw error;
   }
-  
-  return response;
 };
 
 export const api = {  // ==========================================
