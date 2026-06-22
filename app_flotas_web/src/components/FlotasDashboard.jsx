@@ -477,6 +477,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
   const [inspecciones, setInspecciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInsp, setSelectedInsp] = useState(null);
+  const [visibleLimit, setVisibleLimit] = useState(10);
 
   useEffect(() => {
     fetchHistory();
@@ -548,7 +549,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
                 {/* Línea del Timeline */}
                 <div style={{ position: 'absolute', left: '1.5rem', top: '1rem', bottom: '1rem', width: '2px', backgroundColor: '#E5E7EB', zIndex: 0 }}></div>
                 
-                {inspecciones.map((insp) => {
+                {inspecciones.slice(0, visibleLimit).map((insp) => {
                     return (
                     <div key={insp.id} style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
                       {/* Punto del Timeline */}
@@ -589,6 +590,14 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
                       </div>
                     </div>
                   )})}
+                  
+                  {visibleLimit < inspecciones.length && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
+                      <button onClick={() => setVisibleLimit(prev => prev + 10)} style={{ padding: '0.75rem 2rem', backgroundColor: '#F3F4F6', color: '#4B5563', border: '1px solid #D1D5DB', borderRadius: '2rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}>
+                        ⬇️ Cargar Más Antiguos ({inspecciones.length - visibleLimit} restantes)
+                      </button>
+                    </div>
+                  )}
               </div>
             )
           )}
