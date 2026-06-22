@@ -49,7 +49,7 @@ export const api = {  // ==========================================
   },
   
   updateVehiculo: async (placa, data) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/api/vehiculos/${placa}`, {
+    const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -59,7 +59,7 @@ export const api = {  // ==========================================
   },
   
   deleteVehiculo: async (placa) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/api/vehiculos/${placa}`, { method: 'DELETE' });
+    const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, { method: 'DELETE' });
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.error || 'Error al eliminar vehiculo');
@@ -68,7 +68,7 @@ export const api = {  // ==========================================
   },
 
   updateSemirremolque: async (placa_sr, data) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/api/semirremolques/${placa_sr}`, {
+    const response = await fetchWithAuth(`${BASE_API_URL}/semirremolques/${placa_sr}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -78,7 +78,7 @@ export const api = {  // ==========================================
   },
 
   deleteSemirremolque: async (placa_sr) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/api/semirremolques/${placa_sr}`, { method: 'DELETE' });
+    const response = await fetchWithAuth(`${BASE_API_URL}/semirremolques/${placa_sr}`, { method: 'DELETE' });
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.error || 'Error al eliminar semirremolque');
