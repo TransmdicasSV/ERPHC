@@ -518,24 +518,7 @@ app.post('/vehiculos/', async (req, res) => {
   }
 });
 
-// Editar datos estÃ¡ticos de VehÃ­culo
-app.put('/vehiculos/:placa', async (req, res) => {
-  const { placa } = req.params;
-  const { programa, tipo_vehiculo, marca_tracto, modelo_tracto, anio_fabricacion, operacion, cliente } = req.body;
-  const opFinal = operacion || programa;
-  try {
-    const result = await pool.query(
-      `UPDATE vehiculos 
-       SET operacion = $1, tipo_vehiculo = $2, marca = $3, modelo = $4, anio = $5, cliente = $6 
-       WHERE placa = $7 RETURNING *`,
-      [opFinal, tipo_vehiculo, marca_tracto, modelo_tracto, anio_fabricacion, cliente, placa]
-    );
-    await logAction(req.user ? req.user.id : null, `EditÃ³ el vehÃ­culo ${placa}`, 'vehiculos');
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar vehiculo' });
-  }
-});
+
 
 // ==========================================
 // ENDPOINTS: MANTENIMIENTO TÃ‰CNICO Y EXCEL
@@ -981,7 +964,8 @@ app.put('/vehiculos/:placa', requireAdmin, async (req, res) => {
     await logAction(req.user ? req.user.id : null, `Actualizó datos técnicos del tracto ${placa}`, 'vehiculos');
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar vehiculo' });
+    console.error('Error PUT /vehiculos:', err);
+    res.status(500).json({ error: `Error DB: ${err.message}` });
   }
 });
 
@@ -1022,7 +1006,8 @@ app.put('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
     await logAction(req.user ? req.user.id : null, `Actualizó semirremolque ${placa_sr}`, 'semirremolques');
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar semirremolque' });
+    console.error('Error PUT /semirremolques:', err);
+    res.status(500).json({ error: `Error DB: ${err.message}` });
   }
 });
 
