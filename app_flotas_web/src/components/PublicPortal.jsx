@@ -7,8 +7,9 @@ export function PublicPortal({ onAdminClick }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showResultModal, setShowResultModal] = useState(false);
   
-  const [stats, setStats] = useState({ totalFlota: 0, inspeccionesHoy: 0, ticker: [] });
+  const [stats, setStats] = useState({ totalFlota: 0, inspeccionesHoy: 0, ticker: [], trabajosTI: [] });
   const [recentSearches, setRecentSearches] = useState([]);
 
   // Estados del Formulario de Soporte
@@ -48,6 +49,7 @@ export function PublicPortal({ onAdminClick }) {
       }
       const data = await res.json();
       setResult(data);
+      setShowResultModal(true);
 
       // Guardar en recientes
       const upperPlaca = placa.toUpperCase();
@@ -142,6 +144,12 @@ export function PublicPortal({ onAdminClick }) {
         @keyframes ticker {
           0% { transform: translateX(100%); }
           100% { transform: translateX(-100%); }
+        }
+        @media print {
+          body * { visibility: hidden; }
+          #carnet-digital, #carnet-digital * { visibility: visible; }
+          #carnet-digital { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
+          .no-print { display: none !important; }
         }
       `}</style>
     </div>
@@ -238,98 +246,53 @@ export function PublicPortal({ onAdminClick }) {
           </div>
         )}
 
-        {/* RESULTADOS */}
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '1rem 2rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid #fca5a5' }}>
-            ⚠️ {error}
-          </div>
-        )}
-
-        {result && (
-          <div style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '600px', borderRadius: '1rem', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-            {/* Cabecera del Resultado */}
-            <div style={{ backgroundColor: result.estado_general === 'APROBADO' ? '#059669' : '#dc2626', color: 'white', padding: '1.5rem', textAlign: 'center' }}>
-              <h3 style={{ fontSize: '2rem', margin: 0, fontWeight: 'bold' }}>{result.placa}</h3>
-              <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
-                ESTADO: {result.estado_general}
-              </p>
-            </div>
-
-            {/* Detalles */}
-            <div style={{ padding: '1rem 1.5rem' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '1rem', textAlign: 'center', margin: '0 0 1rem 0' }}>
-                Última inspección: <strong>{result.fecha} {result.hora}</strong>
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
-                <div style={{ textAlign: 'center', padding: '0.5rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem' }}>
-                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#374151', fontSize: '0.8rem' }}>Cámaras</p>
-                  <span style={{ color: result.camaras === 'OK' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.85rem' }}>{result.camaras}</span>
-                </div>
-                <div style={{ textAlign: 'center', padding: '0.5rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem' }}>
-                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#374151', fontSize: '0.8rem' }}>Radio</p>
-                  <span style={{ color: result.radio === 'OK' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.85rem' }}>{result.radio}</span>
-                </div>
-                <div style={{ textAlign: 'center', padding: '0.5rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem' }}>
-                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#374151', fontSize: '0.8rem' }}>Tablet</p>
-                  <span style={{ color: result.tablet === 'OK' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.85rem' }}>{result.tablet}</span>
-                </div>
+        {/* PANELES INTERACTIVOS (Pizarra y Soporte en Acción) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', width: '100%', maxWidth: '800px', marginTop: '1rem', paddingBottom: '4rem' }}>
+          
+          {/* Panel A: Pizarra de Avisos */}
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.5rem', color: 'white', backdropFilter: 'blur(5px)' }}>
+            <h3 style={{ fontSize: '1.2rem', margin: '0 0 1rem 0', color: '#fcd34d', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>📋</span> Pizarra de Operaciones
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem', borderLeft: '4px solid #38bdf8' }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Hoy</p>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.95rem' }}>Mantenimiento preventivo en ruta Sur. Manejen con precaución.</p>
               </div>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem', borderLeft: '4px solid #10b981' }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Aviso General</p>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.95rem' }}>El uso de cámara y radio es obligatorio antes de iniciar ruta.</p>
+              </div>
+            </div>
+          </div>
 
-              {/* Evidencias Fotográficas */}
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.25rem' }}>Evidencia Fotográfica</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem' }}>
-                {result.fotos.map((foto, idx) => (
-                  foto.url ? (
-                    <div key={idx} style={{ textAlign: 'center' }}>
-                      <a href={foto.url} target="_blank" rel="noreferrer">
-                        <img src={foto.url} alt={foto.tipo} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid #d1d5db' }} />
-                      </a>
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>{foto.tipo}</p>
+          {/* Panel B: Soporte en Acción */}
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.5rem', color: 'white', backdropFilter: 'blur(5px)' }}>
+            <h3 style={{ fontSize: '1.2rem', margin: '0 0 1rem 0', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>🔧</span> Trabajos de Soporte Recientes
+            </h3>
+            {stats.trabajosTI && stats.trabajosTI.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {stats.trabajosTI.map(tkt => (
+                  <div key={tkt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                    <div>
+                      <strong style={{ color: '#10b981' }}>{tkt.placa}</strong>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#cbd5e1' }}>{tkt.tipo}</p>
                     </div>
-                  ) : (
-                    <div key={idx} style={{ textAlign: 'center', height: '80px', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '0.7rem', border: '1px dashed #d1d5db' }}>
-                      Sin Foto
-                    </div>
-                  )
+                    <span style={{ backgroundColor: '#064e3b', color: '#34d399', fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontWeight: 'bold' }}>✓ Resuelto</span>
+                  </div>
                 ))}
               </div>
+            ) : (
+              <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', marginTop: '2rem' }}>No hay tickets recientes.</p>
+            )}
+          </div>
+        </div>
 
-              {/* Estado de Incidente Pendiente/Resuelto */}
-              {result.incidente_pendiente && (
-                <div style={{ 
-                  marginTop: '1rem', 
-                  backgroundColor: result.incidente_pendiente.estado === 'Resuelto' || result.incidente_pendiente.estado === 'Concluido' ? '#ecfdf5' : '#eff6ff', 
-                  padding: '0.75rem', 
-                  borderRadius: '0.5rem', 
-                  border: `1px solid ${result.incidente_pendiente.estado === 'Resuelto' || result.incidente_pendiente.estado === 'Concluido' ? '#a7f3d0' : '#bfdbfe'}`, 
-                  color: result.incidente_pendiente.estado === 'Resuelto' || result.incidente_pendiente.estado === 'Concluido' ? '#065f46' : '#1e3a8a', 
-                  fontSize: '0.8rem', 
-                  textAlign: 'center' 
-                }}>
-                  <strong style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem' }}>
-                    {result.incidente_pendiente.estado === 'Resuelto' || result.incidente_pendiente.estado === 'Concluido' ? '✅' : '🔧'} Ticket #TKT-{result.incidente_pendiente.id} - {result.incidente_pendiente.tipo_solicitud}
-                  </strong>
-                  Estado: <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{result.incidente_pendiente.estado}</span>
-                  <p style={{ margin: '0.25rem 0 0 0', fontStyle: 'italic', color: result.incidente_pendiente.estado === 'Resuelto' || result.incidente_pendiente.estado === 'Concluido' ? '#059669' : '#3b82f6' }}>{result.incidente_pendiente.descripcion}</p>
-                </div>
-              )}
-
-              {/* Botón Global de Mantenimiento */}
-              <div style={{ marginTop: '1rem', backgroundColor: '#fffbeb', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                {result.estado_general !== 'APROBADO' && (
-                  <>
-                    <strong>⚠️ Atención Requerida:</strong> 
-                    Su unidad tiene observaciones tecnológicas.
-                  </>
-                )}
-                <button 
-                  onClick={() => { setSupportData({...supportData, placa: result.placa}); setShowSupportModal(true); }}
-                  style={{ marginTop: '0.25rem', backgroundColor: '#F59E0B', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Solicitar Mantenimiento o Soporte
-                </button>
-              </div>
-            </div>
+        {/* MODAL RESULTADOS (Carnet Digital) */}
+        {error && (
+          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '1rem 2rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid #fca5a5', marginTop: '1rem' }}>
+            ⚠️ {error}
           </div>
         )}
       </main>
@@ -362,6 +325,101 @@ export function PublicPortal({ onAdminClick }) {
       >
         <span style={{ fontSize: '1.5rem' }}>🚨</span> Reportar Falla en mi Unidad
       </button>
+
+      {/* MODAL RESULTADO (CARNET DIGITAL) */}
+      {showResultModal && result && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
+          <div id="carnet-digital" style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '500px', borderRadius: '1.5rem', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', overflow: 'hidden', border: '2px solid #38bdf8', animation: 'blob 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards', position: 'relative' }}>
+            
+            {/* Cerrar modal */}
+            <button className="no-print" onClick={() => setShowResultModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>X</button>
+
+            {/* Cabecera del Carnet */}
+            <div style={{ backgroundColor: result.estado_general === 'APROBADO' ? '#059669' : '#dc2626', color: 'white', padding: '2rem 1.5rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '1rem', left: '1rem', fontSize: '0.7rem', opacity: 0.8, letterSpacing: '2px', fontFamily: 'monospace' }}>JDCALI OMNI O.S.</div>
+              <h3 style={{ fontSize: '2.5rem', margin: 0, fontWeight: '900', letterSpacing: '2px', textShadow: '0 2px 5px rgba(0,0,0,0.3)' }}>{result.placa}</h3>
+              <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: '800', textTransform: 'uppercase', background: 'rgba(0,0,0,0.2)', display: 'inline-block', padding: '0.2rem 1rem', borderRadius: '2rem' }}>
+                ESTADO: {result.estado_general}
+              </p>
+            </div>
+
+            <div style={{ padding: '1.5rem' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Última Inspección</p>
+                  <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{result.fecha} {result.hora}</p>
+                </div>
+                {/* QR Mockup */}
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://jdcali.com/flota/${result.placa}&color=0f172a&bgcolor=ffffff`} alt="QR" style={{ borderRadius: '0.5rem', border: '2px solid #e2e8f0', padding: '2px' }} />
+              </div>
+
+              {/* Componentes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Cámaras</p>
+                  <span style={{ color: result.camaras === 'OK' || result.camaras === 'NO APLICA' || result.camaras === 'N/A' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.camaras}</span>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Radio</p>
+                  <span style={{ color: result.radio === 'OK' || result.radio === 'NO APLICA' || result.radio === 'N/A' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.radio}</span>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase' }}>Tablet</p>
+                  <span style={{ color: result.tablet === 'OK' || result.tablet === 'NO APLICA' || result.tablet === 'N/A' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.tablet}</span>
+                </div>
+              </div>
+
+              {/* TIMELINE */}
+              {result.timeline && result.timeline.length > 0 && (
+                <div style={{ marginBottom: '1.5rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', margin: '0 0 0.75rem 0', textTransform: 'uppercase' }}>Historial Reciente</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {result.timeline.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#334155' }}>
+                        <span style={{ color: item.estado === 'APROBADO' ? '#10b981' : '#ef4444', fontSize: '1rem' }}>{item.estado === 'APROBADO' ? '🟢' : '🔴'}</span>
+                        <strong>{item.fecha}</strong> ({item.hora}) - {item.estado}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Evidencias Fotográficas */}
+              <h4 className="no-print" style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase' }}>Evidencia Fotográfica</h4>
+              <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                {result.fotos.map((foto, idx) => (
+                  foto.url ? (
+                    <div key={idx} style={{ textAlign: 'center' }}>
+                      <a href={foto.url} target="_blank" rel="noreferrer">
+                        <img src={foto.url} alt={foto.tipo} style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                      </a>
+                    </div>
+                  ) : (
+                    <div key={idx} style={{ textAlign: 'center', height: '70px', backgroundColor: '#f1f5f9', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.7rem', border: '1px dashed #cbd5e1' }}>
+                      Sin Foto
+                    </div>
+                  )
+                ))}
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="no-print" style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  onClick={() => window.print()}
+                  style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+                  <span>🖨️</span> Imprimir
+                </button>
+                <button 
+                  onClick={() => { setShowResultModal(false); setSupportData({...supportData, placa: result.placa}); setShowSupportModal(true); }}
+                  style={{ flex: 2, backgroundColor: '#38bdf8', color: '#0f172a', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+                  <span>🔧</span> Solicitar Soporte
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE SOPORTE */}
       {showSupportModal && (
