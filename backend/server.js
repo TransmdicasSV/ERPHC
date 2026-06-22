@@ -225,10 +225,20 @@ app.get('/api/public/stats', async (req, res) => {
       }
     });
 
+    // Traer últimos trabajos de TI resueltos
+    const resolvedTIResult = await pool.query("SELECT id, tipo_solicitud, placa, fecha_cierre FROM incidentes_soporte WHERE estado IN ('Resuelto', 'Concluido') ORDER BY id DESC LIMIT 3");
+    const trabajosTI = resolvedTIResult.rows.map(r => ({
+      id: r.id,
+      tipo: r.tipo_solicitud,
+      placa: r.placa,
+      fecha_cierre: r.fecha_cierre
+    }));
+
     res.json({
       totalFlota: parseInt(veh.rows[0].count),
       inspeccionesHoy,
-      ticker
+      ticker,
+      trabajosTI
     });
   } catch (err) {
     console.error(err);
@@ -250,7 +260,15 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
     };
     const estado_general = (isOkOrNaStr(insp.tablet) && isOkOrNaStr(insp.radio) && isOkOrNaStr(insp.camaras)) ? 'APROBADO' : 'OBSERVADO';
 
-    // Buscar el Ãºltimo incidente de soporte registrado para esta placa
+    // Timeline: Últimas 3 inspecciones
+    const timelineResult = await pool.query('SELECT fecha, hora, tablet, radio, camaras FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 3', [placa]);
+    const timeline = timelineResult.rows.map(t => ({
+      fecha: t.fecha,
+      hora: t.hora,
+      estado: (isOkOrNaStr(t.tablet) && isOkOrNaStr(t.radio) && isOkOrNaStr(t.camaras)) ? 'APROBADO' : 'OBSERVADO'
+    }));
+
+    // Buscar el último incidente de soporte registrado para esta placa
     const incidenteResult = await pool.query("SELECT * FROM incidentes_soporte WHERE placa = $1 ORDER BY id DESC LIMIT 1", [placa]);
     const incidente_pendiente = incidenteResult.rows[0] || null;
 
@@ -262,7 +280,8 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
       radio: insp.radio,
       camaras: insp.camaras,
       estado_general,
-      incidente_pendiente,
+      incidente_pendiente: incidente_pendiente,
+      timeline: timeline,
       fotos: [
         { tipo: 'Tablet', url: insp.img_tablet ? (insp.img_tablet.startsWith('http') ? insp.img_tablet : `http://localhost:8000/uploads/${insp.img_tablet}`) : null },
         { tipo: 'Radio', url: insp.img_radio ? (insp.img_radio.startsWith('http') ? insp.img_radio : `http://localhost:8000/uploads/${insp.img_radio}`) : null },
