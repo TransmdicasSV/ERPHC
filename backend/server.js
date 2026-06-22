@@ -805,8 +805,9 @@ app.put('/api/incidentes/:id', upload.single('evidencia'), async (req, res) => {
           if (['Falta', 'Error', 'SOPORTE'].includes(insp.camaras)) { newCamaras = 'OK'; updated = true; }
 
           if (updated) {
-            // Se le concatena un texto a las observaciones para saber que un ticket la reparó
-            const addObs = `[Reparado por TKT-${id}]`;
+            // Se le concatena un texto a las observaciones para saber que un ticket la reparó y el detalle
+            const detalle = resolucion_desc ? `: ${resolucion_desc}` : '';
+            const addObs = `[Reparado por TKT-${id}${detalle}]`;
             const observacionFinal = insp.observaciones ? `${insp.observaciones} ${addObs}` : addObs;
 
             await pool.query(
