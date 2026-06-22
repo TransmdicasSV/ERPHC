@@ -760,17 +760,21 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
 
       // Lógica automática para solicitar Técnico Externo
       if (['Falta', 'Error'].includes(tabletStatus) || ['Falta', 'Error'].includes(radioStatus) || ['Falta', 'Error'].includes(camarasStatus)) {
-        if (window.confirm('🚨 Se detectaron componentes con fallas o faltantes en esta unidad.\n\n¿Desea solicitar automáticamente un TÉCNICO EXTERNO a la mesa de ayuda?')) {
+        const detalleAdicional = window.prompt('🚨 Se detectaron componentes con fallas en esta unidad.\n\n¿Desea solicitar un TÉCNICO EXTERNO?\nDe ser así, ingrese el detalle del error o trabajo requerido y presione Aceptar (o Cancelar para omitir):');
+        
+        if (detalleAdicional !== null) {
           try {
             let fallas = [];
             if (['Falta', 'Error'].includes(tabletStatus)) fallas.push('Tablet');
             if (['Falta', 'Error'].includes(radioStatus)) fallas.push('Radio');
             if (['Falta', 'Error'].includes(camarasStatus)) fallas.push('Cámaras');
 
+            const textoDetalle = detalleAdicional.trim() !== '' ? `\n\nDetalle del requerimiento: ${detalleAdicional}` : '';
+
             await api.createIncidente({
               placa: placaInput.trim().toUpperCase(),
               tipo_solicitud: 'Técnico Externo',
-              descripcion: `🔴 Reporte automático desde campo. Fallas detectadas: ${fallas.join(', ')}.\nObservaciones del inspector: ${observaciones}`,
+              descripcion: `🔴 Reporte automático desde campo. Fallas detectadas: ${fallas.join(', ')}.${textoDetalle}\nObservaciones del inspector: ${observaciones}`,
               operador: 'Sistema Inspecciones',
               fecha: new Date().toISOString()
             });
