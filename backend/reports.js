@@ -18,7 +18,7 @@ const formatDMY = (dateObj) => {
 };
 
 // ==========================================
-// GENERADOR DE PDF (BEAUTIFIED)
+// GENERADOR DE PDF (PROFESIONAL)
 // ==========================================
 export const generatePDF = async (pool, filtro, valor, res) => {
   try {
@@ -47,23 +47,27 @@ export const generatePDF = async (pool, filtro, valor, res) => {
     const result = await pool.query(query, params);
     const inspecciones = result.rows;
 
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
     
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Reporte_Flotas.pdf`);
     doc.pipe(res);
 
-    // ================= HEADER CORPORATIVO =================
-    doc.rect(0, 0, doc.page.width, 100).fill('#1E3A8A'); // Azul oscuro corporativo
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(24).text('REPORTE DE INSPECCIONES', 0, 35, { align: 'center' });
-    
     let subtitle = 'Todas las unidades';
-    if (filtro === 'placa') subtitle = `Placa: ${valor}`;
-    if (filtro === 'programa') subtitle = `Programa: ${valor}`;
-    
-    doc.fontSize(12).font('Helvetica').text(subtitle, 0, 65, { align: 'center' });
-    doc.fillColor('#000000'); // Reset a negro
-    doc.moveDown(4);
+    if (filtro === 'placa') subtitle = `Filtro: Placa ${valor}`;
+    if (filtro === 'programa') subtitle = `Filtro: Programa ${valor}`;
+
+    // Dibujar Cabecera en una página
+    const drawHeader = (pageNum) => {
+      doc.rect(0, 0, doc.page.width, 80).fill('#0F172A'); // Slate 900
+      doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(20).text('REPORTE DE INSPECCIONES TI', 40, 25, { align: 'left' });
+      doc.fontSize(10).font('Helvetica').text(subtitle, 40, 50, { align: 'left' });
+      doc.fontSize(10).font('Helvetica').text(`Generado: ${formatDMY(new Date())}`, 0, 50, { align: 'right', width: doc.page.width - 40 });
+      doc.fillColor('#000000');
+      doc.y = 100;
+    };
+
+    drawHeader(1);
 
     if (inspecciones.length === 0) {
       doc.fontSize(14).text('No hay inspecciones registradas para este filtro.', { align: 'center' });
@@ -71,87 +75,114 @@ export const generatePDF = async (pool, filtro, valor, res) => {
       return;
     }
 
-    doc.fontSize(12).font('Helvetica-Bold').text(`Total de Registros: ${inspecciones.length}`, { align: 'left' });
-    doc.moveDown(2);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#374151').text(`Total de Registros: ${inspecciones.length}`, 40, doc.y);
+    doc.moveDown(1.5);
+
+    // Helpers de dibujo
+    const drawBadge = (text, x, y) => {
+      const isOK = ['OK', 'N/A', 'NO APLICA'].includes(text.toUpperCase());
+      const bgColor = isOK ? '#DEF7EC' : '#FDE8E8'; // Verde suave o Rojo suave
+      const textColor = isOK ? '#03543F' : '#9B1C1C'; // Verde oscuro o Rojo oscuro
+      
+      doc.rect(x, y - 2, 80, 16).fill(bgColor);
+      doc.fillColor(textColor).fontSize(8).font('Helvetica-Bold').text(text.toUpperCase(), x, y + 2, { width: 80, align: 'center' });
+      doc.fillColor('#000000'); // reset
+    };
+
+    const checkPageBreak = (neededSpace) => {
+      if (doc.y + neededSpace > doc.page.height - 60) {
+        doc.addPage();
+        drawHeader();
+        return true;
+      }
+      return false;
+    };
 
     // ================= CUERPO =================
     for (let i = 0; i < inspecciones.length; i++) {
       const insp = inspecciones[i];
-      
-      // Caja contenedora (fondo gris suave)
       const startY = doc.y;
-      doc.rect(40, startY, doc.page.width - 80, 25).fill('#F3F4F6');
       
-      // Título de la inspección
-      doc.fillColor('#1F2937').fontSize(12).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}  |  Placa: ${insp.placa}`, 50, startY + 7);
+      // Estimar altura de la tarjeta
+      let cardHeight = 110; 
+      const imagesToRender = [];
+      if (insp.img_tablet && fs.existsSync(path.join(__dirname, 'uploads', insp.img_tablet))) imagesToRender.push({ label: 'Tablet', path: path.join(__dirname, 'uploads', insp.img_tablet) });
+      if (insp.img_radio && fs.existsSync(path.join(__dirname, 'uploads', insp.img_radio))) imagesToRender.push({ label: 'Radio Base', path: path.join(__dirname, 'uploads', insp.img_radio) });
+      if (insp.img_camaras && fs.existsSync(path.join(__dirname, 'uploads', insp.img_camaras))) imagesToRender.push({ label: 'Cámaras', path: path.join(__dirname, 'uploads', insp.img_camaras) });
       
-      // Fecha a la derecha
-      doc.fontSize(10).font('Helvetica').text(`${formatDMY(insp.fecha)} ${insp.hora}`, 40, startY + 7, { align: 'right', width: doc.page.width - 90 });
-      doc.fillColor('#000000');
-      doc.y = startY + 35; // Mover debajo de la barra
+      if (imagesToRender.length > 0) cardHeight += 160; // Espacio extra para fotos
 
-      // Datos de estado
-      doc.fontSize(10).font('Helvetica-Bold').text(`Programa: `, 50, doc.y, { continued: true }).font('Helvetica').text(`${insp.programa}`);
-      doc.moveDown(0.5);
-      doc.font('Helvetica-Bold').text(`Estado Equipos: `, 50, doc.y, { continued: true }).font('Helvetica').text(`Tablet [${insp.tablet}] | Radio [${insp.radio}] | Cámaras [${insp.camaras}]`);
-      doc.moveDown(1);
+      // Calcular altura extra por observaciones
+      const obsText = insp.observaciones ? insp.observaciones.trim() : 'Ninguna';
+      const obsHeight = doc.heightOfString(`Observaciones: ${obsText}`, { width: doc.page.width - 100, fontSize: 9 });
+      cardHeight += obsHeight;
+
+      checkPageBreak(cardHeight + 20);
+      const cardY = doc.y;
+
+      // Dibujar fondo de tarjeta
+      doc.rect(40, cardY, doc.page.width - 80, cardHeight).fill('#F8FAFC').lineWidth(1).strokeColor('#E2E8F0').stroke();
+      
+      // Cabecera de la tarjeta
+      doc.rect(40, cardY, doc.page.width - 80, 25).fill('#F1F5F9');
+      doc.fillColor('#0F172A').fontSize(11).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}   |   Placa: ${insp.placa}`, 50, cardY + 7);
+      doc.fontSize(9).font('Helvetica').text(`${formatDMY(insp.fecha)} ${insp.hora}`, 40, cardY + 7, { align: 'right', width: doc.page.width - 90 });
+      
+      doc.fillColor('#334155');
+      let currentY = cardY + 35;
+      
+      // Fila 1: Programa
+      doc.fontSize(9).font('Helvetica-Bold').text('Programa:', 50, currentY, { continued: true }).font('Helvetica').text(` ${insp.programa || 'Sin Operación'}`);
+      currentY += 20;
+
+      // Fila 2: Estados
+      doc.font('Helvetica-Bold').text('Equipos:', 50, currentY);
+      doc.font('Helvetica').text('Tablet:', 120, currentY); drawBadge(insp.tablet || 'S/D', 160, currentY);
+      doc.font('Helvetica').text('Radio:', 250, currentY); drawBadge(insp.radio || 'S/D', 290, currentY);
+      doc.font('Helvetica').text('Cámaras:', 380, currentY); drawBadge(insp.camaras || 'S/D', 430, currentY);
+      currentY += 25;
+
+      // Fila 3: Observaciones
+      doc.font('Helvetica-Bold').fillColor('#1E293B').text('Observaciones:', 50, currentY);
+      doc.font('Helvetica').fillColor('#475569').text(obsText, 130, currentY, { width: doc.page.width - 180 });
+      currentY += obsHeight + 15;
 
       // Renderizar Imágenes
-      const imagesToRender = [];
-      if (insp.img_tablet && fs.existsSync(path.join(__dirname, 'uploads', insp.img_tablet))) {
-        imagesToRender.push({ label: 'Tablet', path: path.join(__dirname, 'uploads', insp.img_tablet) });
-      }
-      if (insp.img_radio && fs.existsSync(path.join(__dirname, 'uploads', insp.img_radio))) {
-        imagesToRender.push({ label: 'Radio Base', path: path.join(__dirname, 'uploads', insp.img_radio) });
-      }
-      if (insp.img_camaras && fs.existsSync(path.join(__dirname, 'uploads', insp.img_camaras))) {
-        imagesToRender.push({ label: 'Cámaras', path: path.join(__dirname, 'uploads', insp.img_camaras) });
-      }
-
-      let xOffset = 50;
-      let maxImgHeight = 0;
-
-      imagesToRender.forEach(img => {
-        // Prevenir desborde de página por imagen
-        if (doc.y > 650) {
-          doc.addPage();
-          doc.rect(0, 0, doc.page.width, 40).fill('#1E3A8A'); // Header miniatura en nueva pág
-          doc.fillColor('#FFFFFF').fontSize(12).text('REPORTE DE INSPECCIONES (Continuación)', 0, 15, { align: 'center' });
-          doc.fillColor('#000000');
-          doc.y = 60;
-        }
-
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#6B7280').text(img.label, xOffset, doc.y);
-        try {
-          doc.image(img.path, xOffset, doc.y + 10, { width: 140, height: 100, fit: [140, 100] });
-          maxImgHeight = 100;
-        } catch(e) {
-          doc.text('(Img no disponible)', xOffset, doc.y + 10);
-        }
-        xOffset += 160;
-      });
-
       if (imagesToRender.length > 0) {
-        doc.y += maxImgHeight + 25; // Espacio post imágenes
+        let imgX = 50;
+        imagesToRender.forEach(img => {
+          // Borde de la foto
+          doc.rect(imgX, currentY, 150, 110).fill('#FFFFFF').strokeColor('#CBD5E1').lineWidth(1).stroke();
+          
+          try {
+            // fit centra la imagen gracias a align y valign
+            doc.image(img.path, imgX + 2, currentY + 2, { width: 146, height: 106, fit: [146, 106], align: 'center', valign: 'center' });
+          } catch(e) {
+            doc.fillColor('#94A3B8').fontSize(8).text('(Imagen no disponible)', imgX, currentY + 50, { width: 150, align: 'center' });
+          }
+          
+          // Etiqueta debajo
+          doc.fillColor('#64748B').fontSize(8).font('Helvetica-Bold').text(img.label.toUpperCase(), imgX, currentY + 115, { width: 150, align: 'center' });
+          imgX += 160;
+        });
+        currentY += 140;
       }
 
-      doc.moveDown(1.5);
-      
-      // Si la próxima tarjeta no cabe, saltamos de página
-      if (doc.y > 700) {
-        doc.addPage();
-        doc.rect(0, 0, doc.page.width, 40).fill('#1E3A8A');
-        doc.fillColor('#FFFFFF').fontSize(12).text('REPORTE DE INSPECCIONES (Continuación)', 0, 15, { align: 'center' });
-        doc.fillColor('#000000');
-        doc.y = 60;
-      }
+      doc.y = cardY + cardHeight + 15; // Mover al final de la tarjeta
+    }
+
+    // Dibujar numeración de páginas en el pie
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      doc.fillColor('#9CA3AF').fontSize(8).font('Helvetica').text(`Página ${i + 1} de ${range.count}`, 0, doc.page.height - 30, { align: 'center' });
     }
 
     doc.end();
 
   } catch (error) {
     console.error('Error generando PDF', error);
-    if (!res.headersSent) res.status(500).send('Error interno');
+    if (!res.headersSent) res.status(500).json({ error: `Error generando PDF: ${error.message}` });
   }
 };
 
