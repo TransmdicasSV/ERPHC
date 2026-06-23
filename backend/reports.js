@@ -7,12 +7,20 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper para optimizar URLs de Cloudinary al vuelo (redimensionado y compresión)
+const optimizeCloudinaryUrl = (url) => {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  // Inyecta parámetros para pedir una imagen pequeña y optimizada a Cloudinary
+  return url.replace('/upload/', '/upload/w_300,h_220,c_fit,q_auto,f_jpeg/');
+};
+
 // Helper para obtener buffer de imagen (Remoto o Local)
 const fetchImage = async (urlOrFileName) => {
   if (!urlOrFileName) return null;
   if (urlOrFileName.startsWith('http')) {
     try {
-      const response = await fetch(urlOrFileName);
+      const optimizedUrl = optimizeCloudinaryUrl(urlOrFileName);
+      const response = await fetch(optimizedUrl);
       if (!response.ok) return null;
       const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
