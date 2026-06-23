@@ -7,6 +7,25 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper para obtener buffer de imagen (Remoto o Local)
+const fetchImage = async (urlOrFileName) => {
+  if (!urlOrFileName) return null;
+  if (urlOrFileName.startsWith('http')) {
+    try {
+      const response = await fetch(urlOrFileName);
+      if (!response.ok) return null;
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    } catch (e) {
+      return null;
+    }
+  } else {
+    const localPath = path.join(__dirname, 'uploads', urlOrFileName);
+    if (fs.existsSync(localPath)) return localPath;
+    return null;
+  }
+};
+
 // Helper para formatear fechas a DD-MM-YYYY
 const formatDMY = (dateObj) => {
   if (!dateObj) return '';
@@ -106,9 +125,15 @@ export const generatePDF = async (pool, filtro, valor, res) => {
       // Estimar altura de la tarjeta
       let cardHeight = 110; 
       const imagesToRender = [];
-      if (insp.img_tablet && fs.existsSync(path.join(__dirname, 'uploads', insp.img_tablet))) imagesToRender.push({ label: 'Tablet', path: path.join(__dirname, 'uploads', insp.img_tablet) });
-      if (insp.img_radio && fs.existsSync(path.join(__dirname, 'uploads', insp.img_radio))) imagesToRender.push({ label: 'Radio Base', path: path.join(__dirname, 'uploads', insp.img_radio) });
-      if (insp.img_camaras && fs.existsSync(path.join(__dirname, 'uploads', insp.img_camaras))) imagesToRender.push({ label: 'Cámaras', path: path.join(__dirname, 'uploads', insp.img_camaras) });
+      
+      const tabletImg = await fetchImage(insp.img_tablet);
+      if (tabletImg) imagesToRender.push({ label: 'Tablet', data: tabletImg });
+      
+      const radioImg = await fetchImage(insp.img_radio);
+      if (radioImg) imagesToRender.push({ label: 'Radio Base', data: radioImg });
+      
+      const camarasImg = await fetchImage(insp.img_camaras);
+      if (camarasImg) imagesToRender.push({ label: 'Cámaras', data: camarasImg });
       
       if (imagesToRender.length > 0) cardHeight += 160; // Espacio extra para fotos
 
@@ -156,9 +181,9 @@ export const generatePDF = async (pool, filtro, valor, res) => {
           
           try {
             // fit centra la imagen gracias a align y valign
-            doc.image(img.path, imgX + 2, currentY + 2, { width: 146, height: 106, fit: [146, 106], align: 'center', valign: 'center' });
+            doc.image(img.data, imgX + 2, currentY + 2, { width: 146, height: 106, fit: [146, 106], align: 'center', valign: 'center' });
           } catch(e) {
-            doc.fillColor('#94A3B8').fontSize(8).text('(Imagen no disponible)', imgX, currentY + 50, { width: 150, align: 'center' });
+            doc.fillColor('#94A3B8').fontSize(8).text('(Error de Formato)', imgX, currentY + 50, { width: 150, align: 'center' });
           }
           
           // Etiqueta debajo
