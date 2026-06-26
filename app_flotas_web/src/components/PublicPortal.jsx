@@ -2,8 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { BASE_API_URL } from '../services/api';
 import toast from 'react-hot-toast';
 
+const TICKET_CATEGORIES = {
+  "Equipos en Cabina (Mantenimiento)": [
+    "Falla en Tablet (Piloto/Copiloto)",
+    "Cambio/Reposición de Pulsera de Fatiga",
+    "Falla en Radio Base / Intercomunicador",
+    "Problemas con Cámaras (Internas/Externas)"
+  ],
+  "Apoyo Técnico - TELCOM (Instalaciones)": [
+    "Instalación de Radio Base nueva",
+    "Instalación de circuito de Cámaras",
+    "Desinstalación / Retiro de equipos"
+  ],
+  "Sistemas de Terceros (Software/Sensores)": [
+    "Tracklog: Instalación/Actualización App Copiloto",
+    "Mix Telematics: Soporte/Revisión ADAS"
+  ],
+  "Otros": ["Otro requerimiento técnico"]
+};
+
 export function PublicPortal({ onAdminClick }) {
   const [placa, setPlaca] = useState('');
+  const [placasDisponibles, setPlacasDisponibles] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,7 +34,14 @@ export function PublicPortal({ onAdminClick }) {
 
   // Estados del Formulario de Soporte
   const [showSupportModal, setShowSupportModal] = useState(false);
-  const [supportData, setSupportData] = useState({ placa: '', tipo_solicitud: 'Mantenimiento', descripcion: '', operador: '' });
+  const [supportData, setSupportData] = useState({ 
+    placa: '', 
+    categoria: 'Equipos en Cabina (Mantenimiento)',
+    tipo_solicitud: 'Falla en Tablet (Piloto/Copiloto)', 
+    prioridad: 'Media',
+    descripcion: '', 
+    operador: '' 
+  });
   const [supportLoading, setSupportLoading] = useState(false);
 
   useEffect(() => {
@@ -31,6 +58,14 @@ export function PublicPortal({ onAdminClick }) {
         if (!data.error) setStats(data);
       })
       .catch(err => console.error('Error fetching public stats:', err));
+      
+    // Fetch Placas disponibles para el buscador
+    fetch(`${BASE_API_URL}/api/public/placas`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setPlacasDisponibles(data);
+      })
+      .catch(err => console.error('Error fetching placas:', err));
   }, []);
 
   const handleSearch = async (e) => {
@@ -86,7 +121,14 @@ export function PublicPortal({ onAdminClick }) {
       if (res.ok) {
         toast.success("Solicitud enviada correctamente a Base Zero.", { id: 'support-ticket' });
         setShowSupportModal(false);
-        setSupportData({ placa: '', tipo_solicitud: 'Mantenimiento', descripcion: '', operador: '' });
+        setSupportData({ 
+          placa: '', 
+          categoria: 'Equipos en Cabina (Mantenimiento)',
+          tipo_solicitud: 'Falla en Tablet (Piloto/Copiloto)', 
+          prioridad: 'Media',
+          descripcion: '', 
+          operador: '' 
+        });
       } else {
         toast.error("Error al enviar solicitud.", { id: 'support-ticket' });
       }
@@ -97,45 +139,28 @@ export function PublicPortal({ onAdminClick }) {
     }
   };
 
-  const ParticlesBackground = () => (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, overflow: 'hidden', pointerEvents: 'none', backgroundColor: '#020617' }}>
-      {/* Sci-Fi glowing blobs */}
-      <div style={{ position: 'absolute', top: '-20%', left: '-10%', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(56,189,248,0.1) 0%, rgba(2,6,23,0) 60%)', borderRadius: '50%', animation: 'blob 15s infinite alternate' }} />
-      <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '70vw', height: '70vw', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, rgba(2,6,23,0) 60%)', borderRadius: '50%', animation: 'blob 20s infinite alternate-reverse' }} />
+  const DynamicTruckBackground = () => (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0, overflow: 'hidden', pointerEvents: 'none', backgroundColor: '#020617' }}>
+      {/* Panning Background Image */}
+      <div style={{ 
+        position: 'absolute', top: '-5%', left: '-5%', width: '110vw', height: '110vh', 
+        backgroundImage: 'url(/bg-trucks.png)', backgroundSize: 'cover', backgroundPosition: 'center',
+        animation: 'bg-pan 30s linear infinite alternate', opacity: 0.7
+      }} />
+      {/* Overlay Oscuro para legibilidad */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, rgba(2,6,23,0.6) 0%, rgba(2,6,23,0.95) 100%)' }} />
       
-      {/* Matrix Grid */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '40px 40px', perspective: '1000px', transform: 'rotateX(60deg) scale(2.5) translateY(-50%)', transformOrigin: 'top center', opacity: 0.6 }} />
-
-      {/* Cyber Particles */}
-      {[...Array(120)].map((_, i) => {
-        const colors = ['#38bdf8', '#8b5cf6', '#a78bfa', '#f8fafc', '#60a5fa'];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        return (
-          <div key={i} style={{
-            position: 'absolute',
-            width: `${Math.random() * 4 + 1}px`,
-            height: `${Math.random() * 4 + 1}px`,
-            backgroundColor: color,
-            boxShadow: `0 0 10px 2px ${color}`,
-            borderRadius: '50%',
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
-            animation: `float-particle ${Math.random() * 15 + 8}s linear infinite`,
-            animationDelay: `-${Math.random() * 20}s`
-          }} />
-        );
-      })}
+      {/* Glowing accents */}
+      <div style={{ position: 'absolute', top: '10%', left: '10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(56,189,248,0.05) 0%, rgba(2,6,23,0) 60%)', borderRadius: '50%', animation: 'blob 15s infinite alternate' }} />
       <style>{`
+        @keyframes bg-pan {
+          0% { transform: translate(0, 0) scale(1); }
+          100% { transform: translate(-2vw, -1vh) scale(1.05); }
+        }
         @keyframes blob {
           0% { transform: translate(0, 0) scale(1); }
           50% { transform: translate(30px, -50px) scale(1.1); }
           100% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        @keyframes float-particle {
-          0% { transform: translateY(0) scale(0); opacity: 0; }
-          10% { transform: translateY(-10vh) scale(1); opacity: 1; }
-          90% { transform: translateY(-90vh) scale(1); opacity: 1; }
-          100% { transform: translateY(-100vh) scale(0); opacity: 0; }
         }
         @keyframes radar-pulse {
           0% { transform: scale(0.8); opacity: 0.8; }
@@ -156,20 +181,23 @@ export function PublicPortal({ onAdminClick }) {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative' }}>
-      <ParticlesBackground />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative', overflowY: 'auto', overflowX: 'hidden' }}>
+      <DynamicTruckBackground />
       {/* HEADER PÚBLICO */}
-      <header style={{ backgroundcolor: 'var(--text-primary)', padding: '0.75rem 1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '32px', height: '32px', backgroundColor: '#3b82f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>J</div>
-          <h1 style={{ color: 'white', margin: 0, fontSize: '1.1rem', letterSpacing: '1px' }}>JDCALI <span style={{ color: '#60a5fa' }}>OMNI O.S. 👑</span></h1>
+      <header style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 10, gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '900', fontSize: '1.4rem', boxShadow: '0 0 15px rgba(56, 189, 248, 0.4)' }}>J</div>
+          <div>
+            <h1 style={{ color: 'white', margin: 0, fontSize: '1.2rem', letterSpacing: '1px', fontWeight: '800' }}>JDCALI <span style={{ color: '#38bdf8' }}>OMNI O.S.</span></h1>
+            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.75rem', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>Sistema de Control de Flotas / HSE-TI</p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
             onClick={onAdminClick}
-            style={{ background: 'transparent', border: '1px solid #374151', color: '#9ca3af', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#6b7280' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.borderColor = '#374151' }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.3s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)'; e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(56, 189, 248, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
             <span>🔒</span> Acceso Corporativo
           </button>
@@ -210,12 +238,18 @@ export function PublicPortal({ onAdminClick }) {
           <form onSubmit={handleSearch} style={{ position: 'relative', width: '100%', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', zIndex: 2 }}>
             <input 
               type="text" 
-            placeholder="Ej. ABC-123" 
-            value={placa}
-            onChange={(e) => setPlaca(e.target.value.toUpperCase())}
-            style={{ flex: '1 1 200px', padding: '0.75rem 1rem', fontSize: '1.1rem', borderRadius: '0.5rem', border: '2px solid #38bdf8', outline: 'none', textTransform: 'uppercase', backgroundColor: 'rgba(15, 23, 42, 0.8)', color: 'white', boxShadow: '0 0 15px rgba(56, 189, 248, 0.2)' }}
-          />
-          <button 
+              list="placas-list"
+              placeholder="Ej. ABC-123" 
+              value={placa}
+              onChange={(e) => setPlaca(e.target.value.toUpperCase())}
+              style={{ flex: '1 1 200px', padding: '0.75rem 1rem', fontSize: '1.1rem', borderRadius: '0.5rem', border: '2px solid #38bdf8', outline: 'none', textTransform: 'uppercase', backgroundColor: 'rgba(15, 23, 42, 0.8)', color: 'white', boxShadow: '0 0 15px rgba(56, 189, 248, 0.2)' }}
+            />
+            <datalist id="placas-list">
+              {placasDisponibles.map((p, idx) => (
+                <option key={idx} value={p} />
+              ))}
+            </datalist>
+            <button 
             id="btn-buscar-publico"
             type="submit" 
             disabled={loading}
@@ -385,6 +419,24 @@ export function PublicPortal({ onAdminClick }) {
                 </div>
               )}
 
+              {/* TICKET ACTIVO */}
+              {result.incidente_pendiente && result.incidente_pendiente.estado !== 'Resuelto' && (
+                <div style={{ marginBottom: '1.5rem', backgroundColor: '#FFFBEB', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #FDE68A' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#B45309', margin: 0, textTransform: 'uppercase' }}>
+                      Ticket de Soporte Activo
+                    </h4>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem', color: '#92400E' }}>
+                    <div><strong>Estado:</strong> <span style={{ backgroundColor: '#FDE68A', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>{result.incidente_pendiente.estado}</span></div>
+                    <div><strong>Requerimiento:</strong> {result.incidente_pendiente.tipo_solicitud}</div>
+                    <div><strong>Registrado el:</strong> {String(result.incidente_pendiente.fecha).split('T')[0]}</div>
+                    <div style={{ marginTop: '0.25rem', fontStyle: 'italic', color: '#78350F' }}>"{result.incidente_pendiente.descripcion}"</div>
+                  </div>
+                </div>
+              )}
+
               {/* Evidencias Fotográficas */}
               <h4 className="no-print" style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase' }}>Evidencia Fotográfica</h4>
               <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -432,16 +484,45 @@ export function PublicPortal({ onAdminClick }) {
                 <input required type="text" value={supportData.placa} onChange={e=>setSupportData({...supportData, placa: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db', textTransform: 'uppercase' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Tipo de Solicitud</label>
-                <select value={supportData.tipo_solicitud} onChange={e=>setSupportData({...supportData, tipo_solicitud: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}>
-                  <option>Mantenimiento</option>
-                  <option>Trabajo con Tracklog</option>
-                  <option>Trabajo con Telcom</option>
-                  <option>Descarga de Videos</option>
-                  <option>Reporte de Falla (Cámara/Radio/Tablet)</option>
-                  <option>Trabajos Extras (Instalaciones)</option>
-                  <option>Otro</option>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Categoría Principal</label>
+                <select 
+                  value={supportData.categoria} 
+                  onChange={e => {
+                    const newCat = e.target.value;
+                    setSupportData({ ...supportData, categoria: newCat, tipo_solicitud: TICKET_CATEGORIES[newCat][0] });
+                  }} 
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}
+                >
+                  {Object.keys(TICKET_CATEGORIES).map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
                 </select>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Requerimiento Específico</label>
+                  <select 
+                    value={supportData.tipo_solicitud} 
+                    onChange={e => setSupportData({...supportData, tipo_solicitud: e.target.value})} 
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}
+                  >
+                    {TICKET_CATEGORIES[supportData.categoria]?.map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Prioridad</label>
+                  <select 
+                    value={supportData.prioridad} 
+                    onChange={e => setSupportData({...supportData, prioridad: e.target.value})} 
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="Baja">Baja</option>
+                    <option value="Media">Media</option>
+                    <option value="Alta">Alta</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Descripción / Detalles</label>
