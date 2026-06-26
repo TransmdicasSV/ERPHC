@@ -144,8 +144,9 @@ app.post('/api/auth/login', async (req, res) => {
     if (!validPassword) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
     
     const userRol = user.rol || 'tecnico';
+    const userPermisos = user.permisos || {};
     const token = jwt.sign({ id: user.id, username: user.username, rol: userRol }, JWT_SECRET, { expiresIn: '8h' });
-    res.json({ token, user: { username: user.username, rol: userRol } });
+    res.json({ token, user: { id: user.id, username: user.username, rol: userRol, permisos: userPermisos } });
   } catch (err) {
     res.status(500).json({ error: 'Error del servidor' });
   }
@@ -191,6 +192,70 @@ const verifyToken = (req, res, next) => {
     }
     next();
   };
+// ==========================================
+// ENDPOINTS GESTIÓN DE USUARIOS
+// ==========================================
+
+app.get('/api/usuarios', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, username, rol, estado, permisos, created_at FROM usuarios ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener usuarios' });
+  }
+});
+
+app.post('/api/usuarios', verifyToken, requireAdmin, async (req, res) => {
+  const { username, password, rol, permisos, estado } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  try {
+    const existing = await pool.query('SELECT id FROM usuarios WHERE username = $1', [username]);
+    if (existing.rows.length > 0) return res.status(400).json({ error: 'El usuario ya existe' });
+    
+    const hash = bcrypt.hashSync(password, 10);
+    const result = await pool.query(
+      'INSERT INTO usuarios (username, password_hash, rol, permisos, estado) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [username, hash, rol || 'operaciones', permisos || {}, estado || 'activo']
+    );
+    await logAction(req.user.id, `Usuario creado: ${username}`, 'usuarios');
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear usuario' });
+  }
+});
+
+app.put('/api/usuarios/:id', verifyToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { rol, permisos, estado, password } = req.body;
+  try {
+    if (password) {
+      const hash = bcrypt.hashSync(password, 10);
+      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, password_hash=$4 WHERE id=$5', [rol, permisos, estado, hash, id]);
+    } else {
+      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3 WHERE id=$4', [rol, permisos, estado, id]);
+    }
+    await logAction(req.user.id, `Usuario modificado ID: ${id}`, 'usuarios');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al modificar usuario' });
+  }
+});
+
+app.delete('/api/usuarios/:id', verifyToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (parseInt(id) === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
+  try {
+    await pool.query('DELETE FROM usuarios WHERE id=$1', [id]);
+    await logAction(req.user.id, `Usuario eliminado ID: ${id}`, 'usuarios');
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar usuario' });
+  }
+});
 
 //
 //
@@ -295,11 +360,11 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
 
 // Crear Incidente (Desde Portal Público)
 app.post('/api/incidentes_soporte', async (req, res) => {
-  const { placa, tipo_solicitud, descripcion, operador } = req.body;
+  const { placa, tipo_solicitud, descripcion, operador, categoria, prioridad } = req.body;
   try {
     await pool.query(
-      'INSERT INTO incidentes_soporte (placa, tipo_solicitud, descripcion, operador) VALUES ($1, $2, $3, $4)',
-      [placa, tipo_solicitud, descripcion, operador]
+      'INSERT INTO incidentes_soporte (placa, tipo_solicitud, descripcion, operador, categoria, prioridad) VALUES ($1, $2, $3, $4, $5, $6)',
+      [placa, tipo_solicitud, descripcion, operador, categoria || 'General', prioridad || 'Media']
     );
     await logAction(null, `Solicitud de soporte para ${placa}`, 'incidentes_soporte');
     res.json({ success: true });

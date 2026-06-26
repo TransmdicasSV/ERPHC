@@ -233,13 +233,17 @@ export function SoporteTicketsDashboard() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>{formatDate(ticket.fecha).split(' ')[0]}</span>
                 </div>
                 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #BFDBFE' }}>{ticket.placa || 'N/A'}</span>
-                  {ticket.tipo_solicitud === 'Técnico Externo' ? (
-                    <span style={{ backgroundColor: '#FEF08A', color: '#854D0E', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: '800', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', border: '1px solid #FDE047' }}>👷‍♂️ TÉCNICO EXTERNO</span>
-                  ) : (
-                    <span style={{ fontWeight: '700', color: '#374151', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.tipo_solicitud}</span>
+                  {ticket.prioridad && (
+                    <span style={{ backgroundColor: ticket.prioridad === 'Alta' ? '#FEE2E2' : ticket.prioridad === 'Media' ? '#FEF3C7' : '#E0E7FF', color: ticket.prioridad === 'Alta' ? '#991B1B' : ticket.prioridad === 'Media' ? '#92400E' : '#3730A3', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: '800', fontSize: '0.7rem' }}>🔥 {ticket.prioridad}</span>
                   )}
+                  {ticket.categoria && (
+                    <span style={{ backgroundColor: '#F3F4F6', color: '#4B5563', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: '700', fontSize: '0.7rem' }}>{ticket.categoria}</span>
+                  )}
+                </div>
+                <div style={{ fontWeight: '700', color: '#1F2937', fontSize: '0.9rem', marginBottom: '0.5rem', lineHeight: '1.2' }}>
+                  {ticket.tipo_solicitud === 'Técnico Externo' ? '👷‍♂️ TÉCNICO EXTERNO' : ticket.tipo_solicitud}
                 </div>
                 
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>

@@ -272,10 +272,10 @@ export function RadarDashboard({ navigate }) {
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Modo Satélite">
               <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                attribution="&copy; Google Maps"
                 maxZoom={22}
-                maxNativeZoom={19}
+                maxNativeZoom={20}
               />
             </LayersControl.BaseLayer>
           </LayersControl>
@@ -476,36 +476,22 @@ export function RadarDashboard({ navigate }) {
       </div>
 
       {/* SECCIÓN INFERIOR: PANEL DE CONTROL Y CONSOLA */}
-      <div style={{ height: '280px', display: 'flex', gap: '1rem', flexShrink: 0 }}>
+      <div style={{ height: '160px', display: 'flex', gap: '1rem', flexShrink: 0 }}>
         
         {/* PANEL DE MANDO E INFO */}
-        <div style={{ width: '300px', backgroundColor: '#0a0a0a', border: '1px solid #1f1f1f', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', color: '#00f3ff', padding: '1rem', fontFamily: 'Consolas, monospace', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', borderBottom: '1px solid #1f1f1f', paddingBottom: '0.5rem' }}>C.O.R.E. RADAR v4.0</h2>
+        <div style={{ width: '220px', backgroundColor: '#0a0a0a', border: '1px solid #1f1f1f', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', color: '#00f3ff', padding: '1rem', fontFamily: 'Consolas, monospace', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.5rem', borderBottom: '1px solid #1f1f1f', paddingBottom: '0.5rem', textAlign: 'center' }}>OMNI RADAR</h2>
           
-          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#111', padding: '0.5rem', borderRadius: '0.3rem', border: '1px solid #222' }}>
-            <span style={{color: '#888', fontSize: '0.85rem'}}>PRÓXIMO BARRIDO:</span>
-            <span style={{color: isScanning ? '#00ff00' : '#ffb300', fontWeight: 'bold', fontSize: '1.2rem'}}>{isScanning ? '---' : timeStr}</span>
-          </div>
-          
-          <button onClick={forceScan} disabled={isScanning} style={{ width: '100%', padding: '0.6rem', backgroundColor: isScanning ? '#333' : '#0a0a0a', color: isScanning ? '#555' : '#ff003c', border: `1px solid ${isScanning ? '#333' : '#ff003c'}`, cursor: isScanning ? 'not-allowed' : 'pointer', fontWeight: 'bold', marginBottom: '1rem', transition: 'all 0.2s' }}
-            onMouseEnter={(e)=>{if(!isScanning){e.target.style.backgroundColor='#ff003c'; e.target.style.color='black'}}}
-            onMouseLeave={(e)=>{if(!isScanning){e.target.style.backgroundColor='#0a0a0a'; e.target.style.color='#ff003c'}}}
-          >
-            {isScanning ? '[ ESCANEANDO... ]' : '[ OVERRIDE: SCAN ]'}
-          </button>
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <h3 style={{ fontSize: '0.9rem', color: '#00f3ff', marginBottom: '0.5rem' }}>&gt; PENDIENTES ({dbState.pendientes.length})</h3>
-            <div style={{ backgroundColor: '#000000', border: '1px solid #1f1f1f', padding: '0.5rem', flex: 1, overflowY: 'auto', color: '#888', fontSize: '0.8rem' }}>
-              {dbState.pendientes.length === 0 ? '[!] 0 Targets Encontrados' : dbState.pendientes.map(t => <div key={t}>[ ] {t}</div>)}
-            </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#111', padding: '0.5rem', borderRadius: '0.3rem', border: '1px solid #222' }}>
+            <span style={{color: '#888', fontSize: '0.75rem'}}>PRÓXIMO BARRIDO:</span>
+            <span style={{color: isScanning ? '#00ff00' : '#ffb300', fontWeight: 'bold', fontSize: '1.5rem', marginTop: '0.5rem'}}>{isScanning ? '---' : timeStr}</span>
           </div>
         </div>
 
         {/* CONSOLA HACKER */}
-        <div style={{ flex: 1, backgroundColor: '#0a0a0a', border: '1px solid #1f1f1f', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', color: '#00f3ff', padding: '1rem', fontFamily: 'Consolas, monospace', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
-          <h3 style={{ fontSize: '1rem', color: '#00f3ff', marginBottom: '0.5rem', flexShrink: 0 }}>&gt; TERMINAL LOG:</h3>
-          <div style={{ backgroundColor: '#050505', border: '1px solid #1f1f1f', padding: '0.5rem', flex: 1, overflowY: 'auto', fontSize: '0.85rem' }}>
+        <div style={{ flex: 1, backgroundColor: '#0a0a0a', border: '1px solid #1f1f1f', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', color: '#00f3ff', padding: '0.75rem', fontFamily: 'Consolas, monospace', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
+          <h3 style={{ fontSize: '0.85rem', color: '#00f3ff', marginBottom: '0.5rem', flexShrink: 0 }}>&gt; TERMINAL LOG:</h3>
+          <div style={{ backgroundColor: '#050505', border: '1px solid #1f1f1f', padding: '0.5rem', flex: 1, overflowY: 'auto', fontSize: '0.7rem' }}>
             {logs.map((log, i) => {
               let color = '#aaaaaa';
               if (log.type === 'error') color = '#ff003c';
@@ -513,7 +499,7 @@ export function RadarDashboard({ navigate }) {
               if (log.type === 'system') color = '#00f3ff';
               if (log.type === 'info_gps') color = '#ffffff';
 
-              return <div key={i} style={{ color, marginBottom: '4px' }}>{log.text}</div>;
+              return <div key={i} style={{ color, marginBottom: '2px' }}>{log.text}</div>;
             })}
             <div ref={logsEndRef} />
           </div>
