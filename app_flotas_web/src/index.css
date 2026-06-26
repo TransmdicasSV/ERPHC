@@ -315,8 +315,14 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   flex-direction: column;
   border-right: 1px solid #1F2937;
-  transition: transform 0.3s ease;
+  transition: width 0.3s ease, transform 0.3s ease;
   z-index: 999;
+}
+
+.sidebar-container nav button, .sidebar-container nav div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 .main-content-admin {

@@ -594,22 +594,22 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
-      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '90vw', maxWidth: '1200px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{ width: '95vw', maxWidth: '1200px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out', padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Historial de Inspecciones</h3>
-            <p style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '1.1rem' }}>Vehículo: {placa}</p>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', margin: 0 }}>Historial de Inspecciones</h3>
+            <p style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '1rem', margin: '0.2rem 0 0 0' }}>Vehículo: {placa}</p>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <button onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${placa}`, '_blank')} style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>⬇ PDF Directo</button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.8rem', color: '#6B7280' }}>&times;</button>
+            <button onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${placa}`, '_blank')} style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>⬇ PDF Directo</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: '#6B7280' }}>&times;</button>
           </div>
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '2rem', flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
           
           {/* Columna Izquierda: Inspecciones Físicas */}
-          <div style={{ overflowY: 'auto', paddingRight: '1rem' }}>
+          <div>
             <h4 style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 10, paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid #E5E7EB', color: 'var(--text-primary)' }}>📋 Inspecciones de Campo</h4>
             {loading ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>Cargando historial...</p></div> : (
               inspecciones.length === 0 ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>No hay inspecciones registradas.</p></div> : (
@@ -672,7 +672,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
           </div>
 
           {/* Columna Derecha: Trabajos Técnicos / Soporte TI */}
-          <div style={{ overflowY: 'auto', paddingRight: '1rem', borderLeft: '1px solid #E5E7EB', paddingLeft: '2rem' }}>
+          <div style={{ paddingLeft: '1rem', borderLeft: '1px solid #E5E7EB' }}>
             <h4 style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 10, paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid #E5E7EB', color: '#10B981' }}>🛠️ Historial de Reparaciones (Soporte TI)</h4>
             {loading ? <div style={{textAlign:'center', padding:'2rem', color:'var(--text-secondary)'}}><p>Cargando tickets...</p></div> : (
               tickets.length === 0 ? <div style={{textAlign:'center', padding:'3rem', color:'var(--text-secondary)', backgroundColor: '#F9FAFB', borderRadius: '0.5rem', border: '2px dashed #E5E7EB'}}><p>No hay tickets de soporte para este vehículo.</p></div> : (
