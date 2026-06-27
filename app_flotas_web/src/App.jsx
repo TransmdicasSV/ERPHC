@@ -16,7 +16,8 @@ import './index.css';
 
 function App() {
   const [viewMode, setViewMode] = useState('public'); // 'public', 'login', 'admin'
-  const [activeTab, setActiveTabState] = useState(localStorage.getItem('jdcali_tab') || 'resumen');
+  const [activeTab, setActiveTabState] = useState('resumen');
+  const [isAppLoading, setIsAppLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
   const [isSoporteOpen, setIsSoporteOpen] = useState(false);
@@ -35,6 +36,9 @@ function App() {
     if (user) {
       setViewMode('admin');
     }
+    // Pantalla de carga artificial de 1.5s
+    const timer = setTimeout(() => setIsAppLoading(false), 1500);
+    return () => clearTimeout(timer);
   }, [user]);
 
   useEffect(() => {
@@ -66,6 +70,29 @@ function App() {
     return user?.permisos?.[modulo]?.ver === true;
   };
 
+  if (isAppLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0f172a', color: 'white', alignItems: 'center', justifyContent: 'center' }}>
+        <style>
+          {`
+            @keyframes pulse-ring {
+              0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+              70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+              100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+            }
+          `}
+        </style>
+        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse-ring 1.5s infinite cubic-bezier(0.66, 0, 0, 1)' }}>
+          <span style={{ fontSize: '2.5rem' }}>👑</span>
+        </div>
+        <h2 style={{ margin: '1.5rem 0 0.5rem 0', fontWeight: 'bold', letterSpacing: '2px', background: 'linear-gradient(90deg, #3B82F6, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          JDCALI OMNI O.S.
+        </h2>
+        <p style={{ color: '#9CA3AF', fontSize: '0.95rem', margin: 0, letterSpacing: '1px' }}>Iniciando sistema central...</p>
+      </div>
+    );
+  }
+
   if (!user && viewMode === 'public') {
     return (
       <>
@@ -79,7 +106,11 @@ function App() {
     return (
       <>
         <Toaster position="bottom-right" />
-        <Login onLoginSuccess={(u) => { setUser(u); setViewMode('admin'); }} />
+        <Login onLoginSuccess={(u) => { 
+          setUser(u); 
+          setViewMode('admin'); 
+          setActiveTab('resumen');
+        }} />
       </>
     );
   }
@@ -285,7 +316,7 @@ function App() {
           )}
 
           {/* NUEVO MODULO: GESTION DE USUARIOS */}
-          {hasAccess('usuarios') && (
+          {isAdmin && (
             <button 
               onClick={() => setActiveTab('usuarios')}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'flex-start', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: activeTab === 'usuarios' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'usuarios' ? '#FBBF24' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', marginTop: '1rem', borderTop: '1px solid #1F2937' }}>
@@ -346,10 +377,10 @@ function App() {
           {activeTab === 'radar' && hasAccess('radar') && <RadarDashboard navigate={setActiveTab} permisos={isAdmin ? {editar:true} : user?.permisos?.radar} />}
           {activeTab === 'entregas' && hasAccess('entregas') && <EntregasTIDashboard vista="Entrega" permisos={isAdmin ? {editar:true} : user?.permisos?.entregas} />}
           {activeTab === 'devoluciones' && hasAccess('devoluciones') && <EntregasTIDashboard vista="Devolución" permisos={isAdmin ? {editar:true} : user?.permisos?.devoluciones} />}
-          {activeTab === 'tickets' && hasAccess('tickets') && <SoporteTicketsDashboard permisos={isAdmin ? {editar:true} : user?.permisos?.tickets} />}
+          {activeTab === 'tickets' && hasAccess('tickets') && <SoporteTicketsDashboard permisos={isAdmin ? {editar:true} : user?.permisos?.tickets} usuario={user} />}
           {activeTab === 'mantenimiento' && hasAccess('mantenimiento') && <MantenimientoTecnico permisos={isAdmin ? {editar:true} : user?.permisos?.mantenimiento} />}
           {activeTab === 'reportes' && hasAccess('reportes') && <ReportesDashboard permisos={isAdmin ? {editar:true} : user?.permisos?.reportes} />}
-          {activeTab === 'usuarios' && hasAccess('usuarios') && <GestionUsuariosDashboard />}
+          {activeTab === 'usuarios' && isAdmin && <GestionUsuariosDashboard />}
         </main>
       </div>
     </div>

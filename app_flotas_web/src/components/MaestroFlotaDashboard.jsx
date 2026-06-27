@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
-export function MaestroFlotaDashboard() {
+export function MaestroFlotaDashboard({ permisos }) {
   const [activeTab, setActiveTab] = useState('tractos'); // tractos | semirremolques
   const [tractos, setTractos] = useState([]);
   const [semirremolques, setSemirremolques] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState(null);
   const [editItem, setEditItem] = useState(null); // Item being edited
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -60,7 +61,7 @@ export function MaestroFlotaDashboard() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
         <button
-          onClick={() => setActiveTab('tractos')}
+          onClick={() => { setActiveTab('tractos'); setCurrentPage(1); }}
           style={{
             padding: '1rem 2rem',
             background: 'none',
@@ -76,7 +77,7 @@ export function MaestroFlotaDashboard() {
           Tractos ({tractos.length})
         </button>
         <button
-          onClick={() => setActiveTab('semirremolques')}
+          onClick={() => { setActiveTab('semirremolques'); setCurrentPage(1); }}
           style={{
             padding: '1rem 2rem',
             background: 'none',
@@ -98,7 +99,7 @@ export function MaestroFlotaDashboard() {
           type="text" 
           placeholder="Buscar por placa, marca, cliente..." 
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
         />
       </div>
@@ -134,67 +135,116 @@ export function MaestroFlotaDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {activeTab === 'tractos' ? (
-                  filteredTractos.map((t, i) => (
-                    <tr 
-                      key={t.placa} 
-                      onClick={() => setSelectedItem({ type: 'tracto', data: t })}
-                      style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-hover)', cursor: 'pointer', transition: 'background 0.2s' }}
-                    >
-                      <td style={{ padding: '1rem', fontWeight: 'bold' }}>{t.placa}</td>
-                      <td style={{ padding: '1rem' }}>{t.operacion || '-'}</td>
-                      <td style={{ padding: '1rem' }}>{t.cliente || '-'}</td>
-                      <td style={{ padding: '1rem' }}>{t.marca || '-'} {t.modelo ? `/ ${t.modelo}` : ''}</td>
-                      <td style={{ padding: '1rem' }}>{t.anio || '-'}</td>
-                      <td style={{ padding: '1rem' }}>
-                        {t.placa_sr ? (
-                          <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem' }}>
-                            {t.placa_sr}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-secondary)' }}>Sin SR</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '1rem', textAlign: 'center' }}>
-                        <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'tracto', data: t }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
-                        <button onClick={async (e) => { 
-                          e.stopPropagation(); 
-                          if(window.confirm(`¿Seguro que deseas eliminar el tracto ${t.placa}?`)) {
-                            try { await api.deleteVehiculo(t.placa); loadData(); }
-                            catch (err) { alert(err.message); }
-                          }
-                        }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  filteredSR.map((s, i) => (
-                    <tr 
-                      key={s.placa_sr} 
-                      onClick={() => setSelectedItem({ type: 'sr', data: s })}
-                      style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-hover)', cursor: 'pointer', transition: 'background 0.2s' }}
-                    >
-                      <td style={{ padding: '1rem', fontWeight: 'bold' }}>{s.placa_sr}</td>
-                      <td style={{ padding: '1rem' }}>{s.tipo || '-'}</td>
-                      <td style={{ padding: '1rem' }}>{s.marca || '-'} {s.modelo ? `/ ${s.modelo}` : ''}</td>
-                      <td style={{ padding: '1rem' }}>{s.chasis || '-'}</td>
-                      <td style={{ padding: '1rem' }}>{s.capacidad ? `${s.capacidad} GL` : '-'}</td>
-                      <td style={{ padding: '1rem', textAlign: 'center' }}>
-                        <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'sr', data: s }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
-                        <button onClick={async (e) => { 
-                          e.stopPropagation(); 
-                          if(window.confirm(`¿Seguro que deseas eliminar el semirremolque ${s.placa_sr}?`)) {
-                            try { await api.deleteSemirremolque(s.placa_sr); loadData(); }
-                            catch (err) { alert(err.message); }
-                          }
-                        }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                {(() => {
+                  const itemsPerPage = 8;
+                  const targetList = activeTab === 'tractos' ? filteredTractos : filteredSR;
+                  const indexOfLastItem = currentPage * itemsPerPage;
+                  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                  const currentItems = targetList.slice(indexOfFirstItem, indexOfLastItem);
+                  
+                  if (activeTab === 'tractos') {
+                    return currentItems.map((t, i) => (
+                      <tr 
+                        key={t.placa} 
+                        onClick={() => setSelectedItem({ type: 'tracto', data: t })}
+                        style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-hover)', cursor: 'pointer', transition: 'background 0.2s' }}
+                      >
+                        <td style={{ padding: '1rem', fontWeight: 'bold' }}>{t.placa}</td>
+                        <td style={{ padding: '1rem' }}>{t.operacion || '-'}</td>
+                        <td style={{ padding: '1rem' }}>{t.cliente || '-'}</td>
+                        <td style={{ padding: '1rem' }}>{t.marca || '-'} {t.modelo ? `/ ${t.modelo}` : ''}</td>
+                        <td style={{ padding: '1rem' }}>{t.anio || '-'}</td>
+                        <td style={{ padding: '1rem' }}>
+                          {t.placa_sr ? (
+                            <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.875rem' }}>
+                              {t.placa_sr}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-secondary)' }}>Sin SR</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                          {(!permisos || permisos.editar !== false) && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'tracto', data: t }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                              <button onClick={async (e) => { 
+                                e.stopPropagation(); 
+                                if(window.confirm(`¿Seguro que deseas eliminar el tracto ${t.placa}?`)) {
+                                  try { await api.deleteVehiculo(t.placa); loadData(); }
+                                  catch (err) { alert(err.message); }
+                                }
+                              }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  } else {
+                    return currentItems.map((s, i) => (
+                      <tr 
+                        key={s.placa_sr} 
+                        onClick={() => setSelectedItem({ type: 'sr', data: s })}
+                        style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-hover)', cursor: 'pointer', transition: 'background 0.2s' }}
+                      >
+                        <td style={{ padding: '1rem', fontWeight: 'bold' }}>{s.placa_sr}</td>
+                        <td style={{ padding: '1rem' }}>{s.tipo || '-'}</td>
+                        <td style={{ padding: '1rem' }}>{s.marca || '-'} {s.modelo ? `/ ${s.modelo}` : ''}</td>
+                        <td style={{ padding: '1rem' }}>{s.chasis || '-'}</td>
+                        <td style={{ padding: '1rem' }}>{s.capacidad ? `${s.capacidad} GL` : '-'}</td>
+                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                          {(!permisos || permisos.editar !== false) && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'sr', data: s }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                              <button onClick={async (e) => { 
+                                e.stopPropagation(); 
+                                if(window.confirm(`¿Seguro que deseas eliminar el semirremolque ${s.placa_sr}?`)) {
+                                  try { await api.deleteSemirremolque(s.placa_sr); loadData(); }
+                                  catch (err) { alert(err.message); }
+                                }
+                              }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  }
+                })()}
               </tbody>
             </table>
           </div>
+
+          {/* Controles de Paginación */}
+          {(() => {
+            const itemsPerPage = 8;
+            const targetList = activeTab === 'tractos' ? filteredTractos : filteredSR;
+            const totalPages = Math.ceil(targetList.length / itemsPerPage);
+            const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
+            const indexOfLastItem = Math.min(currentPage * itemsPerPage, targetList.length);
+            
+            return (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  Mostrando {targetList.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {targetList.length} registros
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(prev => prev - 1)} 
+                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Anterior
+                  </button>
+                  <button 
+                    disabled={currentPage >= totalPages} 
+                    onClick={() => setCurrentPage(prev => prev + 1)} 
+                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

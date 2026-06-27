@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
 
-export function MantenimientoTecnico() {
+export function MantenimientoTecnico({ permisos }) {
   const [mantenimientos, setMantenimientos] = useState([]);
   const [vehiculos, setVehiculos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,11 +99,13 @@ export function MantenimientoTecnico() {
           <p style={{ color: 'var(--text-secondary)' }}>Gestión profunda de DVR, ADAS, Sensores y Cámaras</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <button 
-            onClick={() => setShowModal(true)}
-            style={{ padding: '0.5rem 1rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500' }}>
-            + Registrar Mantenimiento
-          </button>
+          {(!permisos || permisos.editar !== false) && (
+            <button 
+              onClick={() => setShowModal(true)}
+              style={{ padding: '0.5rem 1rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500' }}>
+              + Registrar Mantenimiento
+            </button>
+          )}
           <button 
             onClick={handleDownloadExcel}
             style={{ padding: '0.5rem 1rem', background: '#10B981', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

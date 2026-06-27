@@ -19,11 +19,11 @@ const TEMPLATES = {
   operaciones: {
     resumen: { ver: true, editar: false },
     maestros: { ver: true, editar: false },
-    dashboard: { ver: false, editar: false },
+    dashboard: { ver: true, editar: false },
     radar: { ver: true, editar: false },
-    tickets: { ver: false, editar: false },
-    entregas: { ver: false, editar: false },
-    devoluciones: { ver: false, editar: false },
+    tickets: { ver: true, editar: false },
+    entregas: { ver: true, editar: false },
+    devoluciones: { ver: true, editar: false },
     mantenimiento: { ver: false, editar: false },
     reportes: { ver: true, editar: false },
     usuarios: { ver: false, editar: false }
@@ -39,6 +39,7 @@ export function GestionUsuariosDashboard() {
   const [usuarios, setUsuarios] = useState([]);
   const [personal, setPersonal] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
@@ -138,18 +139,20 @@ export function GestionUsuariosDashboard() {
   const togglePermiso = (modulo, tipo) => {
     setFormData(prev => {
       const perms = { ...prev.permisos };
-      if (!perms[modulo]) perms[modulo] = { ver: false, editar: false };
-      perms[modulo][tipo] = !perms[modulo][tipo];
+      const current = perms[modulo] ? { ...perms[modulo] } : { ver: false, editar: false };
+      
+      current[tipo] = !current[tipo];
       
       // Si se quita "ver", también quitar "editar"
-      if (tipo === 'ver' && !perms[modulo].ver) {
-        perms[modulo].editar = false;
+      if (tipo === 'ver' && !current.ver) {
+        current.editar = false;
       }
       // Si se da "editar", también dar "ver"
-      if (tipo === 'editar' && perms[modulo].editar) {
-        perms[modulo].ver = true;
+      if (tipo === 'editar' && current.editar) {
+        current.ver = true;
       }
       
+      perms[modulo] = current;
       return { ...prev, permisos: perms };
     });
   };
@@ -227,36 +230,74 @@ export function GestionUsuariosDashboard() {
           <tbody>
             {loading ? (
               <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</td></tr>
-            ) : usuarios.map(u => {
-              const activeModules = u.permisos ? Object.entries(u.permisos).filter(([k,v]) => v?.ver).length : 0;
-              return (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '1rem', fontWeight: 'bold' }}>{u.username}</td>
-                  <td style={{ padding: '1rem', textTransform: 'capitalize' }}>
-                    <span style={{ 
-                      padding: '0.25rem 0.75rem', 
-                      borderRadius: '1rem', 
-                      fontSize: '0.75rem', 
-                      fontWeight: 'bold',
-                      backgroundColor: u.rol === 'admin' ? '#DC2626' : u.rol === 'operaciones' ? '#3B82F6' : u.rol === 'supervisor' ? '#8B5CF6' : '#10B981' 
-                    }}>
-                      {u.rol}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>{activeModules} módulos</td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <span style={{ color: u.estado === 'activo' ? '#10B981' : '#EF4444' }}>●</span> {u.estado}
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid #374151', color: '#9CA3AF', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
-                    <button onClick={() => handleDelete(u.id)} style={{ background: 'transparent', border: '1px solid #EF4444', color: '#EF4444', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer' }}>🗑️</button>
-                  </td>
-                </tr>
-              )
-            })}
+            ) : (() => {
+              const itemsPerPage = 8;
+              const indexOfLastItem = currentPage * itemsPerPage;
+              const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+              const currentItems = usuarios.slice(indexOfFirstItem, indexOfLastItem);
+              
+              return currentItems.map(u => {
+                const activeModules = u.permisos ? Object.entries(u.permisos).filter(([k,v]) => v?.ver).length : 0;
+                return (
+                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '1rem', fontWeight: 'bold' }}>{u.username}</td>
+                    <td style={{ padding: '1rem', textTransform: 'capitalize' }}>
+                      <span style={{ 
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '1rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 'bold',
+                        backgroundColor: u.rol === 'admin' ? '#DC2626' : u.rol === 'operaciones' ? '#3B82F6' : u.rol === 'supervisor' ? '#8B5CF6' : '#10B981' 
+                      }}>
+                        {u.rol}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>{activeModules} módulos</td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <span style={{ color: u.estado === 'activo' ? '#10B981' : '#EF4444' }}>●</span> {u.estado}
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid #374151', color: '#9CA3AF', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                      <button onClick={() => handleDelete(u.id)} style={{ background: 'transparent', border: '1px solid #EF4444', color: '#EF4444', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer' }}>🗑️</button>
+                    </td>
+                  </tr>
+                )
+              });
+            })()}
           </tbody>
         </table>
       </div>
+
+      {!loading && usuarios.length > 0 && (() => {
+        const itemsPerPage = 8;
+        const totalPages = Math.ceil(usuarios.length / itemsPerPage);
+        const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
+        const indexOfLastItem = Math.min(currentPage * itemsPerPage, usuarios.length);
+        
+        return (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              Mostrando {usuarios.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {usuarios.length} registros
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(prev => prev - 1)} 
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Anterior
+              </button>
+              <button 
+                disabled={currentPage >= totalPages} 
+                onClick={() => setCurrentPage(prev => prev + 1)} 
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {modalOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>

@@ -6,7 +6,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 // Configurar el worker de PDF.js
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export function EntregasTIDashboard({ vista }) {
+export function EntregasTIDashboard({ vista, permisos }) {
   const [entregas, setEntregas] = useState([]);
   const [personalList, setPersonalList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,8 +23,11 @@ export function EntregasTIDashboard({ vista }) {
   });
   const [actaFile, setActaFile] = useState(null);
   const [docUrlViewer, setDocUrlViewer] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
   const fileInputRef = useRef(null);
+
+  const itemsPerPage = 8;
 
   const loadData = async () => {
     try {
@@ -266,24 +269,28 @@ export function EntregasTIDashboard({ vista }) {
             style={{ backgroundColor: '#f59e0b', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
             📥 Exportar Excel
           </button>
-          <button 
-            onClick={openCreateModal}
-            style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-            {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
-          </button>
-          <input 
-            type="file" 
-            accept=".xlsx, .xls" 
-            style={{ display: 'none' }} 
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-          />
-          <button 
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()} 
-            style={{ backgroundColor: '#10B981', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: uploading ? 'wait' : 'pointer', fontWeight: '600' }}>
-            {uploading ? '⏳ Subiendo...' : '📄 Cargar Excel'}
-          </button>
+          {(!permisos || permisos.editar !== false) && (
+            <>
+              <button 
+                onClick={openCreateModal}
+                style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+                {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
+              </button>
+              <input 
+                type="file" 
+                accept=".xlsx, .xls" 
+                style={{ display: 'none' }} 
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+              />
+              <button 
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()} 
+                style={{ backgroundColor: '#10B981', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: uploading ? 'wait' : 'pointer', fontWeight: '600' }}>
+                {uploading ? '⏳ Subiendo...' : '📄 Cargar Excel'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -294,7 +301,7 @@ export function EntregasTIDashboard({ vista }) {
             type="text" 
             placeholder="Buscar por Nombre, DNI o Equipo..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', outline: 'none' }}
           />
         </div>
@@ -325,7 +332,13 @@ export function EntregasTIDashboard({ vista }) {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map(item => (
+              {(() => {
+                const itemsPerPage = 8;
+                const indexOfLastItem = currentPage * itemsPerPage;
+                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+                
+                return currentItems.map(item => (
                 <tr key={item.id}>
                   <td>
                     {item.fecha ? (() => {
@@ -372,27 +385,62 @@ export function EntregasTIDashboard({ vista }) {
                           📄
                         </button>
                       )}
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
-                        style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
-                        title="Editar"
-                      >
-                        ✏️
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
-                        title="Eliminar"
-                      >
-                        🗑️
-                      </button>
+                      {(!permisos || permisos.editar !== false) && (
+                        <>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
+                            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(item.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))})()}
             </tbody>
           </table>
         )}
+        
+        {!loading && filteredData.length > 0 && (() => {
+          const itemsPerPage = 8;
+          const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+          const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
+          const indexOfLastItem = Math.min(currentPage * itemsPerPage, filteredData.length);
+          
+          return (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                Mostrando {filteredData.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {filteredData.length} registros
+              </span>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  disabled={currentPage === 1} 
+                  onClick={() => setCurrentPage(prev => prev - 1)} 
+                  style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  Anterior
+                </button>
+                <button 
+                  disabled={currentPage >= totalPages} 
+                  onClick={() => setCurrentPage(prev => prev + 1)} 
+                  style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* MODAL DE DETALLE */}
