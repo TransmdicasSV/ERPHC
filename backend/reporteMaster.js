@@ -65,8 +65,10 @@ export const generateMasterReport = async (pool, startDate, endDate) => {
         query += " AND v.operacion ILIKE '%Primax%'";
       } else if (operationFilter === 'Quellaveco') {
         query += " AND v.operacion ILIKE '%Quellaveco%'";
+      } else if (operationFilter === 'GLP') {
+        query += " AND v.operacion ILIKE '%GLP%'";
       } else if (operationFilter === 'Industrias') {
-        query += " AND v.operacion ILIKE '%Industrias%'";
+        query += " AND v.operacion ILIKE '%Industria%'";
       }
     }
     
@@ -332,12 +334,12 @@ export const generateMasterReport = async (pool, startDate, endDate) => {
   // ==============================================
   // 6. GLP
   // ==============================================
-  workbook.addWorksheet('GLP');
+  await createOperationSheet('GLP', 'GLP');
 
   // ==============================================
   // 7. AAQ
   // ==============================================
-  await createOperationSheet('AAQ', 'Quellaveco');
+  workbook.addWorksheet('AAQ');
 
   // ==============================================
   // 8. IND
