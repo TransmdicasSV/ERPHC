@@ -435,7 +435,7 @@ export function FlotasDashboard({ permisos }) {
       </div>
 
       {showInspectionModal && <InspectionModal onClose={() => {setShowInspectionModal(false); setEditInspData(null);}} onReload={loadData} vehiculosExistentes={vehiculos} editInsp={editInspData} />}
-      {historyPlaca && <HistoryModal placa={historyPlaca} onClose={() => setHistoryPlaca(null)} onEdit={(insp) => { setEditInspData(insp); setShowInspectionModal(true); }} refreshTrigger={refreshTrigger} />}
+      {historyPlaca && <HistoryModal placa={historyPlaca} onClose={() => setHistoryPlaca(null)} onEdit={(insp) => { setEditInspData(insp); setShowInspectionModal(true); }} refreshTrigger={refreshTrigger} permisos={permisos} />}
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
     </div>
   );
@@ -529,7 +529,7 @@ function ExportModal({ onClose }) {
 // ==========================================
 // MODAL DE HISTORIAL
 // ==========================================
-function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
+function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
   const [inspecciones, setInspecciones] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
