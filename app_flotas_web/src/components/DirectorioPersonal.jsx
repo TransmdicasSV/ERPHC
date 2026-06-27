@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 
-export function DirectorioPersonal() {
+export function DirectorioPersonal({ permisos }) {
   const [personal, setPersonal] = useState([]);
   const [inventarioTI, setInventarioTI] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [showModal, setShowModal] = useState(false);
   const [editingPersonal, setEditingPersonal] = useState(null);
@@ -117,14 +118,16 @@ export function DirectorioPersonal() {
             Gestión centralizada de colaboradores de la empresa.
           </p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          style={{ padding: '0.75rem 1.5rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#059669'}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#10b981'}
-        >
-          + Añadir Personal
-        </button>
+        {(!permisos || permisos.editar !== false) && (
+          <button 
+            onClick={() => handleOpenModal()}
+            style={{ padding: '0.75rem 1.5rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#059669'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#10b981'}
+          >
+            + Añadir Personal
+          </button>
+        )}
       </div>
 
       {/* Buscador */}
@@ -133,7 +136,11 @@ export function DirectorioPersonal() {
           type="text" 
           placeholder="Buscar por nombre, DNI, cargo o área..." 
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1); // Reset page on search
+          }}
           style={{ width: '100%', padding: '1rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '1rem' }}
         />
       </div>
@@ -156,7 +163,13 @@ export function DirectorioPersonal() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPersonal.map((p, i) => (
+                {(() => {
+                  const itemsPerPage = 8;
+                  const indexOfLastItem = currentPage * itemsPerPage;
+                  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                  const currentItems = filteredPersonal.slice(indexOfFirstItem, indexOfLastItem);
+                  
+                  return currentItems.map((p, i) => (
                   <tr 
                     key={p.id} 
                     onClick={() => setSelectedItem(p)}
@@ -180,23 +193,28 @@ export function DirectorioPersonal() {
                       </span>
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleOpenModal(p); }}
-                        style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '1rem' }}
-                        title="Editar"
-                      >
-                        ✏️
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                        title="Eliminar"
-                      >
-                        🗑️
-                      </button>
+                      {(!permisos || permisos.editar !== false) && (
+                        <>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleOpenModal(p); }}
+                            style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '1rem' }}
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
-                ))}
+                ));
+              })()}
                 {filteredPersonal.length === 0 && (
                   <tr>
                     <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -207,6 +225,38 @@ export function DirectorioPersonal() {
               </tbody>
             </table>
           </div>
+          
+          {/* Controles de Paginación */}
+          {(() => {
+            const itemsPerPage = 8;
+            const totalPages = Math.ceil(filteredPersonal.length / itemsPerPage);
+            const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
+            const indexOfLastItem = Math.min(currentPage * itemsPerPage, filteredPersonal.length);
+            
+            return (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  Mostrando {filteredPersonal.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {filteredPersonal.length} registros
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(prev => prev - 1)} 
+                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Anterior
+                  </button>
+                  <button 
+                    disabled={currentPage >= totalPages} 
+                    onClick={() => setCurrentPage(prev => prev + 1)} 
+                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
       </div>

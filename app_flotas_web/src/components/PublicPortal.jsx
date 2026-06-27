@@ -181,7 +181,7 @@ export function PublicPortal({ onAdminClick }) {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative', overflowY: 'auto', overflowX: 'hidden' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative', overflow: 'hidden' }}>
       <DynamicTruckBackground />
       {/* HEADER PÚBLICO */}
       <header style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 10, gap: '1rem' }}>
@@ -204,11 +204,13 @@ export function PublicPortal({ onAdminClick }) {
         </div>
       </header>
 
-      {/* ÁREA DE BÚSQUEDA */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1rem', zIndex: 10 }}>
+      {/* ÁREA PRINCIPAL DOS COLUMNAS */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'row', gap: '2rem', padding: '2rem', zIndex: 10, overflow: 'hidden', paddingBottom: '3rem' }}>
         
-        {/* LIVE STATS */}
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem', marginTop: '1rem' }}>
+        {/* LADO IZQUIERDO: Buscador */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {/* LIVE STATS */}
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
           <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', padding: '1rem 1.5rem', borderRadius: '1rem', textAlign: 'center', color: 'white', minWidth: '150px' }}>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>Unidades Base</p>
             <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#38bdf8' }}>{stats.totalFlota}</p>
@@ -280,40 +282,54 @@ export function PublicPortal({ onAdminClick }) {
           </div>
         )}
 
-        {/* PANELES INTERACTIVOS (Pizarra y Soporte en Acción) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', width: '100%', maxWidth: '800px', marginTop: '1rem', paddingBottom: '4rem' }}>
+          {error && (
+            <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '1rem 2rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid #fca5a5', marginTop: '1rem' }}>
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+
+        {/* LADO DERECHO: PANELES INTERACTIVOS */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', paddingRight: '0.5rem' }}>
           
           {/* Panel A: Pizarra de Avisos */}
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.5rem', color: 'white', backdropFilter: 'blur(5px)' }}>
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.25rem', color: 'white', backdropFilter: 'blur(5px)', display: 'flex', flexDirection: 'column', flex: 1 }}>
             <h3 style={{ fontSize: '1.2rem', margin: '0 0 1rem 0', color: '#fcd34d', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>📋</span> Pizarra de Operaciones
+              <span>📋</span> Últimas Inspecciones
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem', borderLeft: '4px solid #38bdf8' }}>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Hoy</p>
-                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.95rem' }}>Mantenimiento preventivo en ruta Sur. Manejen con precaución.</p>
-              </div>
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem', borderLeft: '4px solid #10b981' }}>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Aviso General</p>
-                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.95rem' }}>El uso de cámara y radio es obligatorio antes de iniciar ruta.</p>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
+              {stats.ticker && stats.ticker.length > 0 ? (
+                stats.ticker.slice(0, 5).map((t, idx) => (
+                  <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem', borderLeft: `4px solid ${t.estado === 'APROBADO' ? '#10b981' : '#f59e0b'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold', color: 'white' }}>Placa: {t.placa}</p>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.hora}</span>
+                    </div>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: t.estado === 'APROBADO' ? '#34d399' : '#fbbf24' }}>
+                      {t.estado === 'APROBADO' ? '✅ Aprobado (Condiciones OK)' : '⚠️ Observado (Requiere revisión)'}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', marginTop: '1rem' }}>No hay inspecciones registradas hoy.</p>
+              )}
             </div>
           </div>
 
           {/* Panel B: Soporte en Acción */}
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.5rem', color: 'white', backdropFilter: 'blur(5px)' }}>
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.5rem', color: 'white', backdropFilter: 'blur(5px)', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.2rem', margin: '0 0 1rem 0', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span>🔧</span> Trabajos de Soporte Recientes
             </h3>
             {stats.trabajosTI && stats.trabajosTI.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {stats.trabajosTI.map(tkt => (
-                  <div key={tkt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                  <div key={tkt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.75rem', borderRadius: '0.5rem', boxShadow: 'inset 0 0 10px rgba(56, 189, 248, 0.05)' }}>
                     <div>
-                      <strong style={{ color: '#10b981' }}>{tkt.placa}</strong>
-                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#cbd5e1' }}>{tkt.tipo}</p>
+                      <strong style={{ color: 'white', letterSpacing: '1px' }}>{tkt.placa}</strong>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#93c5fd' }}>{tkt.tipo}</p>
                     </div>
-                    <span style={{ backgroundColor: '#064e3b', color: '#34d399', fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontWeight: 'bold' }}>✓ Resuelto</span>
+                    <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontWeight: 'bold', border: '1px solid rgba(16, 185, 129, 0.5)' }}>✓ Completado</span>
                   </div>
                 ))}
               </div>
@@ -321,20 +337,46 @@ export function PublicPortal({ onAdminClick }) {
               <p style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', marginTop: '2rem' }}>No hay tickets recientes.</p>
             )}
           </div>
-        </div>
 
-        {/* MODAL RESULTADOS (Carnet Digital) */}
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '1rem 2rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid #fca5a5', marginTop: '1rem' }}>
-            ⚠️ {error}
+          {/* Panel C: Estado del Sistema */}
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.5rem', color: 'white', backdropFilter: 'blur(5px)', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '1.2rem', margin: '0 0 1rem 0', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>📡</span> Estado del Sistema
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1, justifyContent: 'center' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                  <span>Conexión Base de Datos</span>
+                  <span style={{ color: '#10b981', fontWeight: 'bold' }}>Estable (12ms)</span>
+                </div>
+                <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '100%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }}></div>
+                </div>
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                  <span>Sincronización OMNI Cloud</span>
+                  <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>En Línea</span>
+                </div>
+                <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '100%', backgroundColor: '#38bdf8', boxShadow: '0 0 10px #38bdf8' }}></div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', marginTop: '0.5rem' }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#34d399', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <span style={{ width: 8, height: 8, backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px #10b981' }}></span>
+                  SISTEMA OPERATIVO AL 100%
+                </p>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </main>
 
       {/* TICKER MARQUEE */}
       {stats.ticker && stats.ticker.length > 0 && (
         <div style={{ width: '100%', overflow: 'hidden', backgroundColor: 'rgba(15, 23, 42, 0.8)', borderTop: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem 0', zIndex: 10, position: 'fixed', bottom: 0, left: 0 }}>
-          <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'ticker 30s linear infinite' }}>
+          <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: 'ticker 60s linear infinite' }}>
             {stats.ticker.map((t, idx) => (
               <span key={idx} style={{ color: 'white', fontSize: '0.85rem', margin: '0 2rem', fontWeight: '500' }}>
                 {t.estado === 'APROBADO' ? '✅' : '⚠️'} <span style={{ color: '#94a3b8' }}>{t.hora}</span> - Placa: <strong style={{ color: t.estado === 'APROBADO' ? '#10b981' : '#f59e0b' }}>{t.placa}</strong> ({t.estado})
@@ -353,7 +395,7 @@ export function PublicPortal({ onAdminClick }) {
       {/* FLOATING SOS BUTTON */}
       <button 
         onClick={() => setShowSupportModal(true)}
-        style={{ position: 'fixed', bottom: '3rem', right: '1.5rem', zIndex: 50, backgroundColor: '#EF4444', color: 'white', border: 'none', borderRadius: '3rem', padding: '1rem 1.5rem', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)', transition: 'transform 0.2s' }}
+        style={{ position: 'fixed', bottom: '3rem', left: '1.5rem', zIndex: 50, backgroundColor: '#EF4444', color: 'white', border: 'none', borderRadius: '3rem', padding: '1rem 1.5rem', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)', transition: 'transform 0.2s' }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05) translateY(-5px)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
       >

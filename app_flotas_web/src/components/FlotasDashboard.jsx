@@ -91,7 +91,7 @@ function MobileCameraInput({ label, onSelect, preview, setPreview }) {
 
 const ITEMS_PER_PAGE = 8;
 
-export function FlotasDashboard() {
+export function FlotasDashboard({ permisos }) {
   const [vehiculos, setVehiculos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -221,11 +221,13 @@ export function FlotasDashboard() {
             style={{ backgroundColor: '#1E3A8A', color: 'white', border: 'none', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
             ⬇ Exportar
           </button>
-          <button 
-            onClick={() => setShowInspectionModal(true)}
-            style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
-            + Nueva Inspección
-          </button>
+          {(!permisos || permisos.editar !== false) && (
+            <button 
+              onClick={() => setShowInspectionModal(true)}
+              style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
+              + Nueva Inspección
+            </button>
+          )}
         </div>
       </div>
 
@@ -636,8 +638,12 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger }) {
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
                               <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
-                              <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
-                              <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
+                              {(!permisos || permisos.editar !== false) && (
+                                <>
+                                  <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
+                                  <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
+                                </>
+                              )}
                             </div>
                           </div>
 
