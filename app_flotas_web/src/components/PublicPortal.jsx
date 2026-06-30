@@ -183,6 +183,8 @@ export function PublicPortal({ onAdminClick }) {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', position: 'relative', overflow: 'hidden' }}>
       <DynamicTruckBackground />
+      {/* BANDA FIESTAS PATRIAS */}
+      <div style={{ width: '100%', height: '5px', background: 'linear-gradient(90deg, #dc2626 0%, #dc2626 33.3%, #ffffff 33.3%, #ffffff 66.6%, #dc2626 66.6%, #dc2626 100%)', zIndex: 20 }}></div>
       {/* HEADER PÚBLICO */}
       <header style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '1rem 1.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', zIndex: 10, gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -192,6 +194,17 @@ export function PublicPortal({ onAdminClick }) {
             <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.75rem', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>Sistema de Control de Flotas / HSE-TI</p>
           </div>
         </div>
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(220, 38, 38, 0.4)', padding: '0.4rem 1.5rem', borderRadius: '20px', backdropFilter: 'blur(5px)', boxShadow: '0 4px 10px rgba(220, 38, 38, 0.1)' }} className="fiestas-patrias-badge">
+          <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.5))' }}>🇵🇪</span>
+          <span style={{ color: 'white', fontWeight: 'bold', letterSpacing: '0.5px', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>¡Felices Fiestas Patrias!</span>
+          <span style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.5))' }}>🇵🇪</span>
+          <style>{`
+            @media (max-width: 768px) {
+              .fiestas-patrias-badge { display: none !important; }
+            }
+          `}</style>
+        </div>
+        {/* EN MÓVILES MOSTRAMOS EL TEXTO DEBAJO DEL HEADER O INTEGRADO */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
             onClick={onAdminClick}
@@ -203,6 +216,16 @@ export function PublicPortal({ onAdminClick }) {
           </button>
         </div>
       </header>
+      
+      {/* MENSAJE MÓVIL FIESTAS PATRIAS */}
+      <div className="mobile-fiestas-patrias" style={{ display: 'none', width: '100%', background: 'linear-gradient(90deg, rgba(220,38,38,0.8) 0%, rgba(255,255,255,0.1) 50%, rgba(220,38,38,0.8) 100%)', padding: '0.4rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(5px)', zIndex: 9 }}>
+        <span style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>🇵🇪 ¡Felices Fiestas Patrias Perú! 🇵🇪</span>
+        <style>{`
+          @media (max-width: 768px) {
+            .mobile-fiestas-patrias { display: block !important; }
+          }
+        `}</style>
+      </div>
 
       {/* ÁREA PRINCIPAL DOS COLUMNAS */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'row', gap: '2rem', padding: '2rem', zIndex: 10, overflow: 'hidden', paddingBottom: '3rem' }}>

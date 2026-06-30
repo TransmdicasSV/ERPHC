@@ -134,7 +134,7 @@ function App() {
       )}
 
       {/* SIDEBAR CORPORATIVO */}
-      <aside className={`sidebar-container ${isSidebarOpen ? 'open' : ''} ${isDesktopCollapsed ? 'collapsed' : ''}`} style={{ width: isDesktopCollapsed ? '70px' : '260px', transition: 'width 0.3s ease', position: 'relative', overflowX: 'hidden' }}>
+      <aside className={`sidebar-container ${isSidebarOpen ? 'open' : ''} ${isDesktopCollapsed ? 'collapsed' : ''}`} style={{ width: isDesktopCollapsed ? '70px' : '260px', transition: 'width 0.3s ease', overflowX: 'hidden' }}>
         
         {/* CABECERA SIDEBAR */}
         <div style={{ padding: isDesktopCollapsed ? '1.25rem 0' : '1.25rem 1rem', borderBottom: '1px solid #1F2937', display: 'flex', flexDirection: isDesktopCollapsed ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: isDesktopCollapsed ? '1rem' : '0', transition: 'padding 0.3s' }}>
@@ -330,7 +330,7 @@ function App() {
       </aside>
 
       {/* ÁREA DERECHA: NAVBAR + CONTENIDO */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div className="main-area-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         
         {/* TOP NAVBAR (Gestión de Perfil y Preferencias) */}
         <header style={{ height: '64px', backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 2rem', gap: '1.5rem', flexShrink: 0, boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 10 }}>
@@ -369,7 +369,7 @@ function App() {
         </header>
 
         {/* CONTENIDO PRINCIPAL */}
-        <main className="main-content-admin" style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'var(--bg-color)', margin: 0, width: '100%' }}>
+        <main className="main-content-admin" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-color)', margin: 0 }}>
           {activeTab === 'resumen' && hasAccess('resumen') && <ResumenDashboard permisos={isAdmin ? {editar:true} : user?.permisos?.resumen} />}
           {activeTab === 'maestro' && hasAccess('maestros') && <MaestroFlotaDashboard permisos={isAdmin ? {editar:true} : user?.permisos?.maestros} />}
           {activeTab === 'personal' && hasAccess('maestros') && <DirectorioPersonal permisos={isAdmin ? {editar:true} : user?.permisos?.maestros} />}

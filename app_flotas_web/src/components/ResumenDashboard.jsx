@@ -266,7 +266,7 @@ export function ResumenDashboard() {
             </div>
           </div>
           <div style={{ width: '100%', height: 350 }}>
-            <ResponsiveContainer>
+            <ResponsiveContainer width="99%" minWidth={1}>
               <AreaChart data={data.trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorInsp" x1="0" y1="0" x2="0" y2="1">
@@ -291,8 +291,8 @@ export function ResumenDashboard() {
           <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '1.5rem', padding: '2rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
             <div className="neon-glow" style={{ background: porcentajeSalud > 80 ? 'var(--green-text)' : 'var(--red-text)', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '200px', height: '200px', opacity: 0.1 }}></div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 2rem 0', color: 'var(--text-primary)', alignSelf: 'flex-start' }}>Índice de Salud Global</h3>
-            <div style={{ width: '100%', height: 280, position: 'relative' }}>
-              <ResponsiveContainer>
+            <div style={{ width: '100%', height: 280, position: 'relative', minWidth: 0 }}>
+              <ResponsiveContainer width="99%" minWidth={1}>
                 <PieChart>
                   <Pie dataKey="value" startAngle={180} endAngle={0} data={[{value: porcentajeSalud}, {value: 100 - porcentajeSalud}]} cx="50%" cy="80%" innerRadius="65%" outerRadius="90%" stroke="none">
                     <Cell fill={porcentajeSalud > 80 ? 'var(--green-text)' : (porcentajeSalud > 50 ? 'var(--yellow-text)' : 'var(--red-text)')} />
@@ -308,8 +308,8 @@ export function ResumenDashboard() {
           </div>
           <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '1.5rem', padding: '2rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-color)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '2rem', color: 'var(--text-primary)' }}>Distribución Operativa</h3>
-            <div style={{ width: '100%', height: 320 }}>
-              <ResponsiveContainer>
+            <div style={{ width: '100%', height: 320, minWidth: 0 }}>
+              <ResponsiveContainer width="99%" minWidth={1}>
                 <BarChart data={data.programasBarras} margin={{ top: 20, right: 30, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-primary)', fontWeight: '600', fontSize: 12}} dy={10} />
@@ -326,8 +326,8 @@ export function ResumenDashboard() {
         </div>
         <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '1.5rem', padding: '2rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-color)' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '2rem', color: 'var(--text-primary)' }}>Análisis de Incidencias</h3>
-          <div style={{ width: '100%', height: 320 }}>
-            <ResponsiveContainer>
+          <div style={{ width: '100%', height: 320, minWidth: 0 }}>
+            <ResponsiveContainer width="99%" minWidth={1}>
               <BarChart data={data.fallos} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--chart-grid)" />
                 <XAxis type="number" hide />
@@ -349,8 +349,8 @@ export function ResumenDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
           <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '1.5rem', padding: '2rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-color)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 2rem 0', color: 'var(--text-primary)' }}>Soporte TI (Tickets)</h3>
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer>
+            <div style={{ width: '100%', height: 280, minWidth: 0 }}>
+              <ResponsiveContainer width="99%" minWidth={1}>
                 <PieChart>
                   <Pie data={data.soporte} cx="50%" cy="50%" outerRadius={100} innerRadius={60} dataKey="value" stroke="none" label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}>
                     {data.soporte.map((entry, index) => (
@@ -364,8 +364,8 @@ export function ResumenDashboard() {
           </div>
           <div style={{ backgroundColor: 'var(--card-bg)', borderRadius: '1.5rem', padding: '2rem', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-color)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 2rem 0', color: 'var(--text-primary)' }}>Inventario TI (Movimientos)</h3>
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer>
+            <div style={{ width: '100%', height: 280, minWidth: 0 }}>
+              <ResponsiveContainer width="99%" minWidth={1}>
                 <BarChart data={data.inventario} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-primary)', fontSize: 12}} dy={10} />

@@ -1527,17 +1527,23 @@ app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) =
 
 app.get('/api/entregas/export-excel', async (req, res) => {
   try {
-    const { tipo } = req.query; // 'Entrega' o 'DevoluciÃ³n'
-    let query = 'SELECT * FROM entregas_ti';
+    const { tipo, categoria } = req.query; // 'Entrega' o 'DevoluciÃ³n'
+    let query = 'SELECT * FROM entregas_ti WHERE 1=1';
     let params = [];
     
     if (tipo === 'DevoluciÃ³n') {
-      query += ' WHERE tipo_movimiento = $1';
       params.push('DevoluciÃ³n');
+      query += ` AND tipo_movimiento = $${params.length}`;
     } else if (tipo === 'Entrega') {
-      query += " WHERE tipo_movimiento = $1 OR tipo_movimiento IS NULL OR tipo_movimiento = ''";
       params.push('Entrega');
+      query += ` AND (tipo_movimiento = $${params.length} OR tipo_movimiento IS NULL OR tipo_movimiento = '')`;
     }
+    
+    if (categoria) {
+      params.push(`%${categoria}%`);
+      query += ` AND equipo_tipo ILIKE $${params.length}`;
+    }
+    
     query += ' ORDER BY id ASC';
 
     const result = await pool.query(query, params);
