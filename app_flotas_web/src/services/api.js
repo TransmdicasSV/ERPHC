@@ -357,9 +357,11 @@ export const api = {  // ==========================================
     return response.json();
   },
 
-  exportExcelEntregas: (vista) => {
+  exportExcelEntregas: (vista, categoria) => {
     const token = localStorage.getItem('nexus_token');
-    const param = vista ? `&tipo=${encodeURIComponent(vista)}` : '';
-    window.location.href = `${BASE_URL}/api/entregas/export-excel?token=${token}${param}`;
-  }
+    let params = `token=${token}`;
+    if (vista) params += `&tipo=${encodeURIComponent(vista)}`;
+    if (categoria) params += `&categoria=${encodeURIComponent(categoria)}`;
+    window.location.href = `${BASE_URL}/api/entregas/export-excel?${params}`;
+  },
 };

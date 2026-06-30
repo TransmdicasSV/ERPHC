@@ -11,6 +11,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
   const [personalList, setPersonalList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoriaFilter, setCategoriaFilter] = useState('');
   const [uploading, setUploading] = useState(false);
   const [selectedEntrega, setSelectedEntrega] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -96,7 +97,9 @@ export function EntregasTIDashboard({ vista, permisos }) {
                           (e.equipo_tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
     const itemTipo = e.tipo_movimiento || 'Entrega';
     const matchesVista = !vista || itemTipo === vista;
-    return matchesSearch && matchesVista;
+    const matchesCategoria = !categoriaFilter || (e.equipo_tipo || '').toUpperCase().includes(categoriaFilter.toUpperCase());
+    
+    return matchesSearch && matchesVista && matchesCategoria;
   });
 
   const requestSort = (key) => {
@@ -265,7 +268,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
-            onClick={() => api.exportExcelEntregas(vista)}
+            onClick={() => api.exportExcelEntregas(vista, categoriaFilter)}
             style={{ backgroundColor: '#f59e0b', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
             📥 Exportar Excel
           </button>
@@ -299,11 +302,25 @@ export function EntregasTIDashboard({ vista, permisos }) {
           <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>🔍</span>
           <input 
             type="text" 
-            placeholder="Buscar por Nombre, DNI o Equipo..."
+            placeholder="Buscar por DNI, Nombre o Tipo..." 
             value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', outline: 'none' }}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
           />
+        </div>
+        <div style={{ flex: '0 1 200px' }}>
+          <select
+            value={categoriaFilter}
+            onChange={(e) => setCategoriaFilter(e.target.value)}
+            style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
+          >
+            <option value="">Todas las categorías</option>
+            <option value="PULSERA">Solo Pulseras</option>
+            <option value="LAPTOP">Laptops</option>
+            <option value="CELULAR">Celulares</option>
+            <option value="TABLET">Tablets</option>
+            <option value="MONITOR">Monitores</option>
+          </select>
         </div>
       </div>
 
@@ -313,6 +330,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
         ) : filteredData.length === 0 ? (
           <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No hay registros para mostrar. Usa "Cargar Excel" para importar tu base de datos.</p>
         ) : (
+          <div className="table-responsive-wrapper">
           <table>
             <thead>
               <tr>
@@ -409,6 +427,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
               ))})()}
             </tbody>
           </table>
+          </div>
         )}
         
         {!loading && filteredData.length > 0 && (() => {
@@ -446,7 +465,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
       {/* MODAL DE DETALLE */}
       {showDetailModal && selectedEntrega && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+          <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
             <button onClick={() => setShowDetailModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
             
             <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Detalles de Entrega TI</h3>
@@ -503,8 +522,8 @@ export function EntregasTIDashboard({ vista, permisos }) {
       {/* MODAL FORMULARIO CRUD */}
       {showFormModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '700px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-            <button type="button" onClick={() => setShowFormModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
+          <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '800px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowFormModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
             <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
               {isEditing ? `✏️ Editar ${vista || 'Registro'}` : `➕ Nuevo Registro de ${vista || 'Entrega'}`}
             </h3>
@@ -580,7 +599,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cargo</label>
                     <input 
