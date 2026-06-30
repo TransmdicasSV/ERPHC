@@ -467,3 +467,79 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
   }
 }
+
+.table-responsive-wrapper {
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .responsive-modal {
+    width: 95% !important;
+    padding: 1rem !important;
+    max-height: 95vh !important;
+  }
+  
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .table-responsive-wrapper th,
+  .table-responsive-wrapper td {
+    padding: 0.5rem !important;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+
+/* Responsive Layout Fixes */
+.main-content-admin {
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden; /* Prevent horizontal scroll on body */
+}
+
+@media (max-width: 768px) {
+  .main-content-admin {
+    padding: 1rem;
+  }
+  
+  /* Override inline grids for mobile to strictly stack */
+  div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Fix header actions flex wrap */
+  .no-print[style*="justify-content: space-between"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+  
+  .no-print[style*="justify-content: space-between"] > div {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+  
+  /* Adjust title sizes on mobile */
+  h2[style*="fontSize: 2.25rem"], h2[style*="font-size: 2.25rem"] {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* Fix for Recharts ResponsiveContainer negative width in Grid/Flex */
+.main-content-admin div[style*="grid-template-columns"] > div {
+  min-width: 0;
+}
+.main-content-admin .recharts-responsive-container {
+  min-width: 1px !important;
+}
+
+/* Ensure main area is pushed down so it's not hidden behind the fixed hamburger menu */
+@media (max-width: 1024px) {
+  .main-area-wrapper {
+    padding-top: 60px;
+  }
+}
