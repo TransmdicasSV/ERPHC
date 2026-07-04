@@ -314,6 +314,14 @@ export function MaestroFlotaDashboard({ permisos }) {
           </div>
         </div>
       )}
+      
+      {isEditModalOpen && (
+        <EditModal 
+          item={editItem} 
+          onClose={() => setIsEditModalOpen(false)} 
+          onSaved={() => { setIsEditModalOpen(false); loadData(); }} 
+        />
+      )}
     </div>
   );
 }

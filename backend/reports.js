@@ -19,8 +19,7 @@ const fetchImage = async (urlOrFileName) => {
   if (!urlOrFileName) return null;
   if (urlOrFileName.startsWith('http')) {
     try {
-      const optimizedUrl = optimizeCloudinaryUrl(urlOrFileName);
-      const response = await fetch(optimizedUrl);
+      const response = await fetch(urlOrFileName);
       if (!response.ok) return null;
       const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
@@ -47,27 +46,47 @@ const formatDMY = (dateObj) => {
 // ==========================================
 // GENERADOR DE PDF (PROFESIONAL)
 // ==========================================
-export const generatePDF = async (pool, filtro, valor, res) => {
+export const generatePDF = async (pool, queryParams, res) => {
   try {
-    let query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa';
+    const { filtro, valor, fecha, operacion } = queryParams || {};
+    
+    let query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
     let params = [];
+    let paramIndex = 1;
 
+    // Backward compatibility for old UI links
     if (filtro === 'placa') {
-      query += ' WHERE i.placa = $1';
+      query += ` AND i.placa = $${paramIndex++}`;
       params.push(valor.toUpperCase());
     } else if (filtro === 'programa') {
       if (valor === 'Falta identificar') {
-        query += ` WHERE (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
-      } else if (valor === 'Industrias') {
-        query += ` WHERE LOWER(v.operacion) LIKE $1`;
-        params.push('%industria%');
-      } else if (valor === 'Bambas') {
-        query += ` WHERE LOWER(v.operacion) LIKE $1`;
-        params.push('%bambas%');
+        query += ` AND (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+      } else if (valor === 'Industrias' || valor === 'Bambas') {
+        query += ` AND LOWER(v.operacion) LIKE $${paramIndex++}`;
+        params.push(`%${valor.toLowerCase()}%`);
       } else {
-        query += ` WHERE LOWER(v.operacion) = $1`;
+        query += ` AND LOWER(v.operacion) = $${paramIndex++}`;
         params.push(valor.toLowerCase());
       }
+    }
+
+    // New combination filters
+    if (operacion && operacion !== 'todas') {
+      if (operacion === 'Falta identificar') {
+        query += ` AND (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+      } else if (operacion === 'Industrias' || operacion === 'Bambas') {
+        query += ` AND LOWER(v.operacion) LIKE $${paramIndex++}`;
+        params.push(`%${operacion.toLowerCase()}%`);
+      } else {
+        query += ` AND LOWER(v.operacion) = $${paramIndex++}`;
+        params.push(operacion.toLowerCase());
+      }
+    }
+
+    if (fecha === 'hoy') {
+      query += ` AND i.fecha = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')`;
+    } else if (fecha === 'semana') {
+      query += ` AND i.fecha >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')`;
     }
     
     query += ' ORDER BY i.fecha DESC, i.hora DESC';
@@ -82,7 +101,14 @@ export const generatePDF = async (pool, filtro, valor, res) => {
 
     let subtitle = 'Todas las unidades';
     if (filtro === 'placa') subtitle = `Filtro: Placa ${valor}`;
-    if (filtro === 'programa') subtitle = `Filtro: Programa ${valor}`;
+    else if (filtro === 'programa') subtitle = `Filtro: Programa ${valor}`;
+    else if (fecha || operacion) {
+      let ops = [];
+      if (fecha === 'hoy') ops.push('Hoy');
+      else if (fecha === 'semana') ops.push('Últimos 7 días');
+      if (operacion && operacion !== 'todas') ops.push(`Op: ${operacion}`);
+      if (ops.length > 0) subtitle = `Filtro: ${ops.join(' | ')}`;
+    }
 
     // Dibujar Cabecera en una página
     const drawHeader = (pageNum) => {
@@ -222,39 +248,80 @@ export const generatePDF = async (pool, filtro, valor, res) => {
 // ==========================================
 // GENERADOR DE EXCEL GENERAL / FILTRADO
 // ==========================================
-export const generateExcel = async (pool, filtro, valor, res) => {
+export const generateExcel = async (pool, queryParams, res) => {
   try {
+    const { filtro, valor, fecha, operacion } = queryParams || {};
+    
     let query = '';
     let params = [];
+    let paramIndex = 1;
 
     if (filtro === 'gerencial') {
       query = `
         SELECT 
           v.placa, v.tipo_vehiculo as tipo, v.operacion as programa, 'Activo' as estado_vehiculo,
-          i.fecha, i.hora, i.tablet, i.radio, i.camaras, i.observaciones
+          i.fecha, i.hora, i.tablet, i.radio, i.camaras, i.img_tablet, i.img_radio, i.img_camaras, i.observaciones
         FROM vehiculos v
         LEFT JOIN inspecciones_flota i ON v.placa = i.placa
-        ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, v.placa ASC
+        WHERE 1=1
       `;
+      
+      // New combination filters for gerencial
+      if (operacion && operacion !== 'todas') {
+        if (operacion === 'Falta identificar') {
+          query += ` AND (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+        } else if (operacion === 'Industrias' || operacion === 'Bambas') {
+          query += ` AND LOWER(v.operacion) LIKE $${paramIndex++}`;
+          params.push(`%${operacion.toLowerCase()}%`);
+        } else {
+          query += ` AND LOWER(v.operacion) = $${paramIndex++}`;
+          params.push(operacion.toLowerCase());
+        }
+      }
+
+      if (fecha === 'hoy') {
+        query += ` AND i.fecha = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')`;
+      } else if (fecha === 'semana') {
+        query += ` AND i.fecha >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')`;
+      }
+      
+      query += ` ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, v.placa ASC`;
     } else {
-      query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa';
+      query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
       if (filtro === 'placa') {
-        query += ' WHERE i.placa = $1';
+        query += ` AND i.placa = $${paramIndex++}`;
         params.push(valor.toUpperCase());
       } else if (filtro === 'programa') {
         if (valor === 'Falta identificar') {
-          query += ` WHERE (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
-        } else if (valor === 'Industrias') {
-          query += ` WHERE LOWER(v.operacion) LIKE $1`;
-          params.push('%industria%');
-        } else if (valor === 'Bambas') {
-          query += ` WHERE LOWER(v.operacion) LIKE $1`;
-          params.push('%bambas%');
+          query += ` AND (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+        } else if (valor === 'Industrias' || valor === 'Bambas') {
+          query += ` AND LOWER(v.operacion) LIKE $${paramIndex++}`;
+          params.push(`%${valor.toLowerCase()}%`);
         } else {
-          query += ` WHERE LOWER(v.operacion) = $1`;
+          query += ` AND LOWER(v.operacion) = $${paramIndex++}`;
           params.push(valor.toLowerCase());
         }
       }
+      
+      // New combination filters
+      if (operacion && operacion !== 'todas') {
+        if (operacion === 'Falta identificar') {
+          query += ` AND (v.operacion IS NULL OR v.operacion = '' OR LOWER(v.operacion) = 'sin operación')`;
+        } else if (operacion === 'Industrias' || operacion === 'Bambas') {
+          query += ` AND LOWER(v.operacion) LIKE $${paramIndex++}`;
+          params.push(`%${operacion.toLowerCase()}%`);
+        } else {
+          query += ` AND LOWER(v.operacion) = $${paramIndex++}`;
+          params.push(operacion.toLowerCase());
+        }
+      }
+
+      if (fecha === 'hoy') {
+        query += ` AND i.fecha = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')`;
+      } else if (fecha === 'semana') {
+        query += ` AND i.fecha >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')`;
+      }
+      
       query += ' ORDER BY i.fecha DESC, i.hora DESC';
     }
     const result = await pool.query(query, params);
@@ -275,6 +342,9 @@ export const generateExcel = async (pool, filtro, valor, res) => {
         { key: 'tablet', width: 15 },
         { key: 'radio', width: 15 },
         { key: 'camaras', width: 15 },
+        { key: 'img_tablet', width: 40 },
+        { key: 'img_radio', width: 40 },
+        { key: 'img_camaras', width: 40 },
         { key: 'observaciones', width: 45 },
       ];
 
@@ -299,7 +369,7 @@ export const generateExcel = async (pool, filtro, valor, res) => {
       // 3. Cabecera de la tabla
       const headerRow = worksheet.addRow([
         'Operación', 'Placa', 'Tipo Unidad', 'Estado Unidad', 
-        'Última Insp.', 'Hora', 'Tablet', 'Radio Base', 'Cámaras', 'Observaciones'
+        'Última Insp.', 'Hora', 'Tablet', 'Radio Base', 'Cámaras', 'Foto Tablet', 'Foto Radio', 'Foto Cámaras', 'Observaciones'
       ]);
       
       headerRow.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -326,6 +396,9 @@ export const generateExcel = async (pool, filtro, valor, res) => {
           tablet: insp.tablet || '-',
           radio: insp.radio || '-',
           camaras: insp.camaras || '-',
+          img_tablet: insp.img_tablet ? (insp.img_tablet.startsWith('http') ? insp.img_tablet : `http://localhost:8000/uploads/${insp.img_tablet}`) : 'N/A',
+          img_radio: insp.img_radio ? (insp.img_radio.startsWith('http') ? insp.img_radio : `http://localhost:8000/uploads/${insp.img_radio}`) : 'N/A',
+          img_camaras: insp.img_camaras ? (insp.img_camaras.startsWith('http') ? insp.img_camaras : `http://localhost:8000/uploads/${insp.img_camaras}`) : 'N/A',
           observaciones: insp.observaciones || '-'
         });
 
@@ -378,9 +451,9 @@ export const generateExcel = async (pool, filtro, valor, res) => {
           tablet: insp.tablet,
           radio: insp.radio,
           camaras: insp.camaras,
-          img_tablet: insp.img_tablet ? `http://localhost:8000/uploads/${insp.img_tablet}` : 'N/A',
-          img_radio: insp.img_radio ? `http://localhost:8000/uploads/${insp.img_radio}` : 'N/A',
-          img_camaras: insp.img_camaras ? `http://localhost:8000/uploads/${insp.img_camaras}` : 'N/A',
+          img_tablet: insp.img_tablet ? (insp.img_tablet.startsWith('http') ? insp.img_tablet : `http://localhost:8000/uploads/${insp.img_tablet}`) : 'N/A',
+          img_radio: insp.img_radio ? (insp.img_radio.startsWith('http') ? insp.img_radio : `http://localhost:8000/uploads/${insp.img_radio}`) : 'N/A',
+          img_camaras: insp.img_camaras ? (insp.img_camaras.startsWith('http') ? insp.img_camaras : `http://localhost:8000/uploads/${insp.img_camaras}`) : 'N/A',
         });
       });
     }

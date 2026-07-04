@@ -448,14 +448,16 @@ function ExportModal({ onClose }) {
   const [formato, setFormato] = useState('pdf');
   const [filtro, setFiltro] = useState('todos');
   const [valor, setValor] = useState('');
+  const [fecha, setFecha] = useState('siempre');
+  const [operacion, setOperacion] = useState('todas');
 
   const handleExport = () => {
-    if (filtro !== 'todos' && filtro !== 'gerencial' && !valor.trim()) {
-      toast.error('Debe ingresar un valor para filtrar');
+    if (filtro === 'placa' && !valor.trim()) {
+      toast.error('Debe ingresar una placa');
       return;
     }
     const token = localStorage.getItem('nexus_token') || '';
-    const url = `${BASE_API_URL}/reportes/${formato}?filtro=${filtro}&valor=${valor}&token=${token}`;
+    const url = `${BASE_API_URL}/reportes/${formato}?filtro=${filtro}&valor=${valor}&fecha=${fecha}&operacion=${operacion}&token=${token}`;
     window.open(url, '_blank');
     onClose();
   };
@@ -477,16 +479,15 @@ function ExportModal({ onClose }) {
             </div>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Filtro de Extracción</label>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Tipo de Reporte</label>
             <select value={filtro} onChange={e=>{
               const newFiltro = e.target.value;
               setFiltro(newFiltro); 
               setValor('');
               if (newFiltro === 'gerencial') setFormato('excel');
             }} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
-              <option value="todos">Todas las Unidades (Completo)</option>
+              <option value="todos">Reporte Estándar (Todas las Unidades)</option>
               <option value="placa">Por Placa Específica</option>
-              <option value="programa">Por Operación (Categoría)</option>
               <option value="gerencial">Reporte Gerencial (Último Estado, Sin Fotos)</option>
             </select>
           </div>
@@ -497,22 +498,34 @@ function ExportModal({ onClose }) {
               <input value={valor} onChange={e=>setValor(e.target.value)} type="text" placeholder="Ej. ABC-123" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }} />
             </div>
           )}
-          
-          {filtro === 'programa' && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Seleccione Operación</label>
-              <select value={valor} onChange={e=>setValor(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
-                <option value="">Seleccione...</option>
-                <option value="Primax">Primax</option>
-                <option value="Bambas">Bambas</option>
-                <option value="Industrias">Industrias</option>
-                <option value="Repsol">Repsol</option>
-                <option value="Mantenimiento">Mantenimiento</option>
-                <option value="GLP">GLP</option>
-                <option value="Falta identificar">Falta identificar</option>
-              </select>
-            </div>
+
+          {filtro !== 'placa' && (
+            <>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Filtro de Fecha</label>
+                <select value={fecha} onChange={e=>setFecha(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
+                  <option value="siempre">Siempre (Histórico completo)</option>
+                  <option value="hoy">Hoy</option>
+                  <option value="semana">Últimos 7 días</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Filtro de Operación</label>
+                <select value={operacion} onChange={e=>setOperacion(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
+                  <option value="todas">Todas las Operaciones</option>
+                  <option value="Primax">Primax</option>
+                  <option value="Bambas">Bambas</option>
+                  <option value="Industrias">Industrias</option>
+                  <option value="Repsol">Repsol</option>
+                  <option value="Mantenimiento">Mantenimiento</option>
+                  <option value="GLP">GLP</option>
+                  <option value="Falta identificar">Sin Operación</option>
+                </select>
+              </div>
+            </>
           )}
+
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" onClick={onClose} style={{ padding: '0.5rem', background: 'none', border: 'none', cursor: 'pointer' }}>Cancelar</button>
