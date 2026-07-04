@@ -23,7 +23,7 @@ const { Pool } = pkg;
 const app = express();
 const port = process.env.PORT || 8000;
 
-// ConfiguraciÃ³n de multer
+// Configuración de multer
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -33,7 +33,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// ConfiguraciÃ³n de Cloudinary
+// Configuración de Cloudinary
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
   api_key: process.env.CLOUDINARY_API_KEY, 
@@ -69,17 +69,17 @@ const deleteFromCloudinary = async (url) => {
   }
 };
 
-// ConfiguraciÃ³n de Multer (Memoria en vez de Disco)
+// Configuración de Multer (Memoria en vez de Disco)
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// ConfiguraciÃ³n de CORS y estÃ¡ticos
+// Configuración de CORS y estÃ¡ticos
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir imÃ¡genes estÃ¡ticas
 
-// ConexiÃ³n a PostgreSQL (Neon.tech en la Nube)
+// Conexión a PostgreSQL (Neon.tech en la Nube)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -526,7 +526,7 @@ app.get('/vehiculos/', async (req, res) => {
     const result = await pool.query(query, params);
 
     let vehiculosConEstado = result.rows.map(v => {
-      let estado = 'Falta de revisiÃ³n';
+      let estado = 'Falta de revisión';
       if (v.tablet) {
         const t = v.tablet.trim().toUpperCase();
         const r = v.radio.trim().toUpperCase();
@@ -534,8 +534,12 @@ app.get('/vehiculos/', async (req, res) => {
 
         const isOkOrNa = (val) => val === 'OK' || val === 'N/A' || val === 'NO APLICA';
         const isNa = (val) => val === 'N/A' || val === 'NO APLICA';
+        const hasError = t === 'ERROR' || r === 'ERROR' || c === 'ERROR';
+        const hasFalta = t.includes('FALTA') || r.includes('FALTA') || c.includes('FALTA');
 
-        if (isNa(t) && isNa(r) && isNa(c)) estado = 'N/A';
+        if (hasError) estado = 'Observada';
+        else if (hasFalta) estado = 'Falta de revisión';
+        else if (isNa(t) && isNa(r) && isNa(c)) estado = 'N/A';
         else if (isOkOrNa(t) && isOkOrNa(r) && isOkOrNa(c)) estado = 'Operativa';
         else estado = 'Observada';
       }
@@ -573,7 +577,7 @@ app.post('/vehiculos/', async (req, res) => {
     const values = [placa, opFinal, tipo_vehiculo, cliente, marca_tracto, modelo_tracto, anio_fabricacion];
     const result = await pool.query(query, values);
     
-    await logAction(req.user ? req.user.id : null, `CreÃ³ el vehÃ­culo ${placa}`, 'vehiculos');
+    await logAction(req.user ? req.user.id : null, `Creó el vehÃ­culo ${placa}`, 'vehiculos');
     
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -654,7 +658,7 @@ app.post('/mantenimientos/', async (req, res) => {
       INSERT INTO mantenimientos_tecnicos (placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *
     `, [placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas]);
-    await logAction(req.user ? req.user.id : null, `RegistrÃ³ mantenimiento para ${placa}`, 'mantenimientos_tecnicos');
+    await logAction(req.user ? req.user.id : null, `Registró mantenimiento para ${placa}`, 'mantenimientos_tecnicos');
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -720,7 +724,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
     sheet.getCell('A2').font = fontBold;
     sheet.getCell('A2').border = borderAll;
 
-    const metadata = ['VersiÃ³n:', 'Fecha:', 'Revisa:', 'Aprueba:'];
+    const metadata = ['Versión:', 'Fecha:', 'Revisa:', 'Aprueba:'];
     for(let i=0; i<4; i++) {
       const c = sheet.getCell('V' + (i+2));
       c.value = metadata[i];
@@ -747,7 +751,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 
     // FILA 7: Columnas (Verde claro/cian)
     const headers = [
-      'NÂ°', 'TIPO DE VEHÃCULO', 'PLACA', 'MARCA TRACTO', 'MODELO TRACTO', 'AÃ‘O FABRICACIÃ“N TRACTO', 'OPERACIÃ“N', 'CLIENTE',
+      'NÂ°', 'TIPO DE VEHÃCULO', 'PLACA', 'MARCA TRACTO', 'MODELO TRACTO', 'AÑO FABRICACIÃ“N TRACTO', 'OPERACIÃ“N', 'CLIENTE',
       'FECHA ULT MANTENIMIENTO', 'FRECUENCIA', 'FECHA PROX MANTENIMIENTO',
       'DVR', 'COPILOTO', 'RADIO BASE', 'HANDY', 'CAMARA INTERNA', 'CAMARA EXTERNA', 'CAMARA DE RETROCESO', 'SENSORES DE RETROCESO', 'SENSORES DELANTEROS', 'SISTEMA ADAS', 'FECHA EJECUTADA'
     ];
@@ -941,7 +945,7 @@ app.delete('/api/incidentes/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query('DELETE FROM incidentes_soporte WHERE id = $1', [id]);
-    await logAction(req.user ? req.user.id : null, `EliminÃ³ incidente de soporte #${id}`, 'incidentes_soporte');
+    await logAction(req.user ? req.user.id : null, `Eliminó incidente de soporte #${id}`, 'incidentes_soporte');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar incidente' });
@@ -961,7 +965,7 @@ app.get('/inspecciones/:placa', async (req, res) => {
   }
 });
 
-// Registrar InspecciÃ³n CON ImÃ¡genes
+// Registrar Inspección CON ImÃ¡genes
 app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_radio' }, { name: 'img_camaras' }]), async (req, res) => {
   const { placa, programa, fecha, hora, tablet, radio, camaras, observaciones } = req.body;
   
@@ -988,7 +992,7 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
       [placa, programa]
     );
 
-    // Insertar inspecciÃ³n en el historial
+    // Insertar inspección en el historial
     const query = `
       INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
@@ -996,19 +1000,19 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
     const values = [placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones || ''];
     const result = await pool.query(query, values);
     
-    await logAction(req.user ? req.user.id : null, `RegistrÃ³ inspecciÃ³n en ${placa}`, 'inspecciones_flota');
+    await logAction(req.user ? req.user.id : null, `Registró inspección en ${placa}`, 'inspecciones_flota');
     
     await pool.query('COMMIT');
     res.json(result.rows[0]);
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Error al registrar inspecciÃ³n' });
+    res.status(500).json({ error: 'Error al registrar inspección' });
   }
 });
 
 // Actualizar Vehículo Completo (Tracto)
-app.put('/vehiculos/:placa', requireAdmin, async (req, res) => {
+app.put('/vehiculos/:placa', verifyToken, async (req, res) => {
   const { placa } = req.params;
   const data = req.body;
   try {
@@ -1024,9 +1028,9 @@ app.put('/vehiculos/:placa', requireAdmin, async (req, res) => {
       data.peso_ton, data.potencia, data.cilindros, data.cilindrada, data.torque,
       data.cambios, data.transmision, data.suspension_del, data.suspension_post, data.placa_sr,
       placa
-    ];
+    ].map(v => v === undefined ? null : (v === '' ? null : v));
     const result = await pool.query(query, values);
-    await logAction(req.user ? req.user.id : null, `Actualizó datos técnicos del tracto ${placa}`, 'vehiculos');
+    await logAction(req.user ? req.user.id : null, `Actualizó el tracto ${placa}`, 'vehiculos');
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error PUT /vehiculos:', err);
@@ -1035,7 +1039,7 @@ app.put('/vehiculos/:placa', requireAdmin, async (req, res) => {
 });
 
 // Eliminar Vehículo (Protegido por Foreign Key constraint por defecto)
-app.delete('/vehiculos/:placa', requireAdmin, async (req, res) => {
+app.delete('/vehiculos/:placa', verifyToken, async (req, res) => {
   const { placa } = req.params;
   try {
     await pool.query('DELETE FROM vehiculos WHERE placa = $1', [placa]);
@@ -1052,7 +1056,7 @@ app.delete('/vehiculos/:placa', requireAdmin, async (req, res) => {
 });
 
 // Actualizar Semirremolque
-app.put('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
+app.put('/semirremolques/:placa_sr', verifyToken, async (req, res) => {
   const { placa_sr } = req.params;
   const data = req.body;
   try {
@@ -1066,9 +1070,9 @@ app.put('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
       data.tipo, data.marca, data.modelo, data.chasis, data.capacidad,
       data.compartimientos, data.diametro_interior, data.frecuencia_p,
       placa_sr
-    ];
+    ].map(v => v === undefined ? null : (v === '' ? null : v));
     const result = await pool.query(query, values);
-    await logAction(req.user ? req.user.id : null, `Actualizó semirremolque ${placa_sr}`, 'semirremolques');
+    await logAction(req.user ? req.user.id : null, `Actualizó el semirremolque ${placa_sr}`, 'semirremolques');
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error PUT /semirremolques:', err);
@@ -1077,7 +1081,7 @@ app.put('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
 });
 
 // Eliminar Semirremolque
-app.delete('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
+app.delete('/semirremolques/:placa_sr', verifyToken, async (req, res) => {
   const { placa_sr } = req.params;
   try {
     await pool.query('DELETE FROM semirremolques WHERE placa_sr = $1', [placa_sr]);
@@ -1092,7 +1096,7 @@ app.delete('/semirremolques/:placa_sr', requireAdmin, async (req, res) => {
   }
 });
 
-// Eliminar InspecciÃ³n individual
+// Eliminar Inspección individual
 app.delete('/inspecciones/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1107,14 +1111,14 @@ app.delete('/inspecciones/:id', async (req, res) => {
     }
     
     await pool.query('DELETE FROM inspecciones_flota WHERE id = $1', [id]);
-    res.json({ message: 'InspecciÃ³n eliminada' });
+    res.json({ message: 'Inspección eliminada' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al eliminar inspecciÃ³n' });
+    res.status(500).json({ error: 'Error al eliminar inspección' });
   }
 });
 
-// Editar Estado y Fotos de InspecciÃ³n individual
+// Editar Estado y Fotos de Inspección individual
 app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img_radio' }, { name: 'img_camaras' }]), async (req, res) => {
   const { id } = req.params;
   const { fecha, hora, tablet, radio, camaras, observaciones } = req.body;
@@ -1148,7 +1152,7 @@ app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar inspecciÃ³n completa' });
+    res.status(500).json({ error: 'Error al actualizar inspección completa' });
   }
 });
 
@@ -1156,13 +1160,11 @@ app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img
 // ENDPOINTS REPORTES (PDF/EXCEL)
 // ==========================================
 app.get('/reportes/pdf', async (req, res) => {
-  const { filtro, valor } = req.query; // filtro: 'todos', 'placa', 'programa'
-  await generatePDF(pool, filtro, valor, res);
+  await generatePDF(pool, req.query, res);
 });
 
 app.get('/reportes/excel', async (req, res) => {
-  const { filtro, valor } = req.query;
-  await generateExcel(pool, filtro, valor, res);
+  await generateExcel(pool, req.query, res);
 });
 
 // ==========================================
@@ -1267,7 +1269,7 @@ app.get('/stats/charts', async (req, res) => {
       inspecciones: conteoFechas[date]
     }));
 
-    // 2. DistribuciÃ³n de fallos globales
+    // 2. Distribución de fallos globales
     const errors = await pool.query(`
       SELECT 
         SUM(CASE WHEN tablet != 'OK' AND tablet != 'N/A' THEN 1 ELSE 0 END) as tablet_errors,
@@ -1353,7 +1355,7 @@ app.get('/radar/stream', (req, res) => {
 
 app.post('/radar/force', async (req, res) => {
   res.json({ message: 'Escaneo forzado iniciado' });
-  syncRadarData(pool); // Se corre asincrÃ³nicamente
+  syncRadarData(pool); // Se corre asincrónicamente
 });
 
 // Iniciar Motor de Radar al arrancar el servidor
@@ -1460,7 +1462,7 @@ app.delete('/api/entregas/:id', async (req, res) => {
 });
 
 app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No se subiÃ³ ningÃºn archivo' });
+  if (!req.file) return res.status(400).json({ error: 'No se subió ningÃºn archivo' });
 
   try {
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
@@ -1518,7 +1520,7 @@ app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) =
       }
     }
     fs.unlinkSync(req.file.path);
-    res.json({ message: `ImportaciÃ³n exitosa. ${inserted} registros nuevos aÃ±adidos (se ignoraron los duplicados).` });
+    res.json({ message: `Importación exitosa. ${inserted} registros nuevos aÃ±adidos (se ignoraron los duplicados).` });
   } catch (error) {
     console.error('Error importando Excel:', error);
     res.status(500).json({ error: 'Error procesando el archivo Excel' });
@@ -1527,12 +1529,12 @@ app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) =
 
 app.get('/api/entregas/export-excel', async (req, res) => {
   try {
-    const { tipo, categoria } = req.query; // 'Entrega' o 'DevoluciÃ³n'
+    const { tipo, categoria } = req.query; // 'Entrega' o 'Devolución'
     let query = 'SELECT * FROM entregas_ti WHERE 1=1';
     let params = [];
     
-    if (tipo === 'DevoluciÃ³n') {
-      params.push('DevoluciÃ³n');
+    if (tipo === 'Devolución') {
+      params.push('Devolución');
       query += ` AND tipo_movimiento = $${params.length}`;
     } else if (tipo === 'Entrega') {
       params.push('Entrega');
@@ -1578,7 +1580,7 @@ app.get('/api/entregas/export-excel', async (req, res) => {
     // TÃ­tulo Principal
     worksheet.mergeCells('D2:J3');
     const titleCell = worksheet.getCell('D2');
-    titleCell.value = tipo === 'DevoluciÃ³n' ? 'REGISTRO DE DEVOLUCIONES TI' : 'REGISTRO DE ENTREGAS TI';
+    titleCell.value = tipo === 'Devolución' ? 'REGISTRO DE DEVOLUCIONES TI' : 'REGISTRO DE ENTREGAS TI';
     titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -1659,7 +1661,7 @@ app.get('/api/entregas/export-excel', async (req, res) => {
 
     const buffer = await workbook.xlsx.writeBuffer();
     
-    const filename = tipo === 'DevoluciÃ³n' ? 'Devoluciones_Equipos_TI_Premium.xlsx' : 'Entrega_Equipos_TI_Premium.xlsx';
+    const filename = tipo === 'Devolución' ? 'Devoluciones_Equipos_TI_Premium.xlsx' : 'Entrega_Equipos_TI_Premium.xlsx';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(buffer);
