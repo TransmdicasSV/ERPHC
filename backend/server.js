@@ -1259,9 +1259,17 @@ app.get('/stats/charts', async (req, res) => {
 
     // Ordenar las fechas y tomar las Ãºltimas 7
     const sortedFechas = Object.keys(conteoFechas).sort((a, b) => {
-      // Intento de parseo de fechas para ordenarlas
-      // Si a = DD/MM/YYYY y b = YYYY-MM-DD serÃ¡ difÃ­cil, pero simplifiquemos:
-      return new Date(a) - new Date(b); 
+      const parseDate = (d) => {
+        if (!d) return 0;
+        if (d.includes('-')) {
+          return new Date(d).getTime();
+        } else if (d.includes('/')) {
+          const parts = d.split('/');
+          if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+        }
+        return 0;
+      };
+      return parseDate(a) - parseDate(b);
     });
 
     const recentTrend = sortedFechas.slice(-14).map(date => ({
@@ -1304,7 +1312,7 @@ app.get('/stats/charts', async (req, res) => {
     `);
 
     // 5. Soporte TI (Incidentes por Estado)
-    const soporte = await pool.query(`SELECT estado, COUNT(*) as count FROM incidentes GROUP BY estado`);
+    const soporte = await pool.query(`SELECT estado, COUNT(*) as count FROM incidentes_soporte GROUP BY estado`);
     const soporteData = soporte.rows.map(r => ({
       name: r.estado || 'Sin Estado',
       value: parseInt(r.count)
