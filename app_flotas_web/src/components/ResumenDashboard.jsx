@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { api } from '../services/api';
+import { api, BASE_API_URL } from '../services/api';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ComposedChart, Line } from 'recharts';
 import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas';
@@ -21,6 +21,15 @@ export function ResumenDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState('');
   const dashboardRef = useRef(null);
+
+  // Estados para el buscador de placas interno y stats públicos integrados
+  const [placa, setPlaca] = useState('');
+  const [placasDisponibles, setPlacasDisponibles] = useState([]);
+  const [result, setResult] = useState(null);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [errorSearch, setErrorSearch] = useState('');
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [publicStats, setPublicStats] = useState({ ticker: [], trabajosTI: [] });
 
   useEffect(() => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -66,7 +75,46 @@ export function ResumenDashboard() {
       }
     };
     loadData();
+
+    // Fetch Placas disponibles para el buscador interno
+    fetch(`${BASE_API_URL}/api/public/placas`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setPlacasDisponibles(data);
+      })
+      .catch(err => console.error('Error fetching placas:', err));
+
+    // Fetch Stats públicos para los paneles inferiores
+    fetch(`${BASE_API_URL}/api/public/stats`)
+      .then(res => res.json())
+      .then(data => setPublicStats(data))
+      .catch(err => console.error('Error fetching public stats:', err));
   }, []);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!placa.trim()) return;
+
+    setLoadingSearch(true);
+    setErrorSearch('');
+    setResult(null);
+
+    try {
+      const res = await fetch(`${BASE_API_URL}/api/public/consulta/${placa.toUpperCase()}`);
+      if (!res.ok) {
+        if (res.status === 404) throw new Error('Unidad no encontrada en nuestros registros.');
+        throw new Error('Error al consultar el estado de la unidad.');
+      }
+      const data = await res.json();
+      setResult(data);
+      setShowResultModal(true);
+    } catch (err) {
+      setErrorSearch(err.message);
+      alert(err.message);
+    } finally {
+      setLoadingSearch(false);
+    }
+  };
 
   if (loading) return (
     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -210,6 +258,31 @@ export function ResumenDashboard() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          
+          {/* Buscador de Placas Interno */}
+          <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '1rem' }}>
+            <input 
+              type="text" 
+              list="placas-list-interno"
+              placeholder="Buscar placa..." 
+              value={placa}
+              onChange={(e) => setPlaca(e.target.value.toUpperCase())}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', outline: 'none', textTransform: 'uppercase', width: '150px' }}
+            />
+            <datalist id="placas-list-interno">
+              {placasDisponibles.map((p, idx) => (
+                <option key={idx} value={p} />
+              ))}
+            </datalist>
+            <button 
+              type="submit" 
+              disabled={loadingSearch}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: loadingSearch ? 'not-allowed' : 'pointer' }}
+            >
+              {loadingSearch ? '...' : '🔍'}
+            </button>
+          </form>
+
           <button onClick={handleExportPDF} style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             Exportar PDF
@@ -384,6 +457,194 @@ export function ResumenDashboard() {
           </div>
         </div>
       </div>
+
+      {/* PANELES INTERACTIVOS (Trasladados del Portal Público) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '1rem' }}>
+        
+        {/* Panel A: Pizarra de Avisos */}
+        <div className="power-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>📋</span> Últimas Inspecciones
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
+            {publicStats.ticker && publicStats.ticker.length > 0 ? (
+              publicStats.ticker.slice(0, 5).map((t, idx) => (
+                <div key={idx} style={{ backgroundColor: 'var(--bg-color)', padding: '0.75rem', borderRadius: '0.5rem', borderLeft: `4px solid ${t.estado === 'APROBADO' ? 'var(--green-text)' : 'var(--yellow-text)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>Placa: {t.placa}</p>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t.hora}</span>
+                  </div>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: t.estado === 'APROBADO' ? 'var(--green-text)' : 'var(--yellow-text)' }}>
+                    {t.estado === 'APROBADO' ? '✅ Aprobado (Condiciones OK)' : '⚠️ Observado (Requiere revisión)'}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', marginTop: '1rem' }}>No hay inspecciones registradas hoy.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Panel B: Soporte en Acción */}
+        <div className="power-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🔧</span> Trabajos de Soporte Recientes
+          </h3>
+          {publicStats.trabajosTI && publicStats.trabajosTI.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {publicStats.trabajosTI.map(tkt => (
+                <div key={tkt.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)', letterSpacing: '1px' }}>{tkt.placa}</strong>
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{tkt.tipo}</p>
+                  </div>
+                  <span style={{ backgroundColor: 'var(--green-bg)', color: 'var(--green-text)', fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontWeight: 'bold' }}>✓ Completado</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', marginTop: '2rem' }}>No hay tickets recientes.</p>
+          )}
+        </div>
+
+        {/* Panel C: Estado del Sistema */}
+        <div className="power-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: 'var(--green-text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>📡</span> Estado del Sistema
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1, justifyContent: 'center' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                <span>Conexión Base de Datos</span>
+                <span style={{ color: 'var(--green-text)', fontWeight: 'bold' }}>Estable (12ms)</span>
+              </div>
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--green-text)', boxShadow: '0 0 10px var(--green-text)' }}></div>
+              </div>
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                <span>Sincronización OMNI Cloud</span>
+                <span style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>En Línea</span>
+              </div>
+              <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--accent-color)', boxShadow: '0 0 10px var(--accent-color)' }}></div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: 'var(--green-bg)', border: '1px solid var(--green-text)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', marginTop: '0.5rem' }}>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--green-text)', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <span style={{ width: 8, height: 8, backgroundColor: 'var(--green-text)', borderRadius: '50%', boxShadow: '0 0 8px var(--green-text)' }}></span>
+                SISTEMA OPERATIVO AL 100%
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* MODAL RESULTADO BUSQUEDA (CARNET DIGITAL) */}
+      {showResultModal && result && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div id="carnet-digital" style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '500px', borderRadius: '1.5rem', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', overflow: 'hidden', border: '1px solid var(--border-color)', position: 'relative' }}>
+            
+            <button className="no-print" onClick={() => setShowResultModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>X</button>
+
+            <div style={{ backgroundColor: result.estado_general === 'APROBADO' ? '#059669' : '#dc2626', color: 'white', padding: '2rem 1.5rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '1rem', left: '1rem', fontSize: '0.7rem', opacity: 0.8, letterSpacing: '2px', fontFamily: 'monospace' }}>JDCALI OMNI O.S.</div>
+              <h3 style={{ fontSize: '2.5rem', margin: 0, fontWeight: '900', letterSpacing: '2px', textShadow: '0 2px 5px rgba(0,0,0,0.3)' }}>{result.placa}</h3>
+              <p style={{ margin: '0.5rem 0 0 0', fontSize: '1.25rem', fontWeight: '800', textTransform: 'uppercase', background: 'rgba(0,0,0,0.2)', display: 'inline-block', padding: '0.2rem 1rem', borderRadius: '2rem' }}>
+                ESTADO: {result.estado_general}
+              </p>
+            </div>
+
+            <div style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Última Inspección</p>
+                  <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{result.fecha} {result.hora}</p>
+                </div>
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://jdcali.com/flota/${result.placa}&color=0f172a&bgcolor=ffffff`} alt="QR" style={{ borderRadius: '0.5rem', border: '2px solid #e2e8f0', padding: '2px' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Cámaras</p>
+                  <span style={{ color: result.camaras === 'OK' || result.camaras === 'NO APLICA' || result.camaras === 'N/A' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.camaras}</span>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Radio</p>
+                  <span style={{ color: result.radio === 'OK' || result.radio === 'NO APLICA' || result.radio === 'N/A' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.radio}</span>
+                </div>
+                <div style={{ textAlign: 'center', padding: '0.75rem 0.25rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+                  <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Tablet</p>
+                  <span style={{ color: result.tablet === 'OK' || result.tablet === 'NO APLICA' || result.tablet === 'N/A' ? '#059669' : '#dc2626', fontWeight: 'bold', fontSize: '0.9rem' }}>{result.tablet}</span>
+                </div>
+              </div>
+
+              {result.incidente_pendiente && result.incidente_pendiente.estado !== 'Resuelto' && (
+                <div style={{ marginBottom: '1.5rem', backgroundColor: '#FFFBEB', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #FDE68A' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#B45309', margin: 0, textTransform: 'uppercase' }}>
+                      Ticket de Soporte Activo
+                    </h4>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem', color: '#92400E' }}>
+                    <div><strong>Estado:</strong> <span style={{ backgroundColor: '#FDE68A', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>{result.incidente_pendiente.estado}</span></div>
+                    <div><strong>Requerimiento:</strong> {result.incidente_pendiente.tipo_solicitud}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* TIMELINE */}
+              {result.timeline && result.timeline.length > 0 && (
+                <div style={{ marginBottom: '1.5rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', margin: '0 0 0.75rem 0', textTransform: 'uppercase' }}>Historial Reciente</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {result.timeline.map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#334155' }}>
+                        <span style={{ color: item.estado === 'APROBADO' ? '#10b981' : '#ef4444', fontSize: '1rem' }}>{item.estado === 'APROBADO' ? '🟢' : '🔴'}</span>
+                        <strong>{item.fecha}</strong> ({item.hora}) - {item.estado}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Evidencias Fotográficas */}
+              <h4 className="no-print" style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-primary)', margin: '0 0 0.5rem 0', textTransform: 'uppercase' }}>Evidencia Fotográfica</h4>
+              <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                {result.fotos && result.fotos.map((foto, idx) => (
+                  foto.url ? (
+                    <div key={idx} style={{ textAlign: 'center' }}>
+                      <a href={foto.url} target="_blank" rel="noreferrer">
+                        <img src={foto.url} alt={foto.tipo} style={{ width: '100%', height: '70px', objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }} />
+                      </a>
+                    </div>
+                  ) : (
+                    <div key={idx} style={{ textAlign: 'center', height: '70px', backgroundColor: '#f1f5f9', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.7rem', border: '1px dashed #cbd5e1' }}>
+                      Sin Foto
+                    </div>
+                  )
+                ))}
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="no-print" style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  onClick={() => window.print()}
+                  style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+                  <span>🖨️</span> Imprimir
+                </button>
+                <button 
+                  onClick={() => setShowResultModal(false)}
+                  style={{ flex: 2, backgroundColor: '#38bdf8', color: '#0f172a', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+                  <span>🔧</span> Solicitar Soporte
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
