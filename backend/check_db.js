@@ -13,4 +13,6 @@ async function run() {
   console.table(inv.rows);
   pool.end();
 }
+
 run();
+
