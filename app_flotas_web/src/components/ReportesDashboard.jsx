@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
+import { api } from '../services/api';
 
 export function ReportesDashboard() {
   const [loading, setLoading] = useState(false);
@@ -24,18 +25,10 @@ export function ReportesDashboard() {
     const loadingToast = toast.loading('Generando Reporte Master... esto puede demorar debido a la descarga de fotos 📸');
 
     try {
-      const token = localStorage.getItem('nexus_token');
-      const BASE_URL = import.meta.env.DEV ? 'http://localhost:8000' : 'https://jdcali-backend.onrender.com';
-      
-      const url = `${BASE_URL}/api/reportes/master?token=${token}&startDate=${fechaInicio}&endDate=${fechaFin}`;
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error('Error al generar el reporte en el servidor');
-      }
-
-      const blob = await response.blob();
+      const blob = await api.downloadMasterReport(
+        fechaInicio,
+        fechaFin
+      );
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;

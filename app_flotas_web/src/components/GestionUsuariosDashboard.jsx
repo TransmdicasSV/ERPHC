@@ -3,9 +3,9 @@ import { BASE_API_URL } from '../services/api';
 
 const MODULES = [
   { id: 'resumen', label: 'Centro de Control (Resumen)' },
-  { id: 'maestros', label: 'Maestros Generales (Flota/Personal)' },
+  { id: 'flota', label: 'Maestros Generales - Flota' },
+  { id: 'personal', label: 'Maestros Generales - Personal' },
   { id: 'dashboard', label: 'Registro de Inspecciones' },
-  { id: 'radar', label: 'C.O.R.E. Radar' },
   { id: 'tickets', label: 'Tickets de Soporte' },
   { id: 'entregas', label: 'Entregas TI' },
   { id: 'devoluciones', label: 'Devoluciones TI' },
@@ -15,22 +15,55 @@ const MODULES = [
 ];
 
 const TEMPLATES = {
-  admin: MODULES.reduce((acc, m) => ({ ...acc, [m.id]: { ver: true, editar: true } }), {}),
-  operaciones: {
+  admin: {
+    ...MODULES.reduce(
+      (acc, modulo) => ({
+        ...acc,
+        [modulo.id]: { ver: true, editar: true }
+      }),
+      {}
+    ),
+    tickets: {
+      ver: true,
+      editar: true,
+      crear: true,
+      gestionar: true
+    }
+  },
+
+  supervisor: {
     resumen: { ver: true, editar: false },
-    maestros: { ver: true, editar: false },
-    dashboard: { ver: true, editar: false },
-    radar: { ver: true, editar: false },
-    tickets: { ver: true, editar: false },
-    entregas: { ver: true, editar: false },
-    devoluciones: { ver: true, editar: false },
+    flota: { ver: true, editar: false },
+    personal: { ver: false, editar: false },
+    dashboard: { ver: true, editar: true },
+    tickets: {
+      ver: true,
+      editar: false,
+      crear: false,
+      gestionar: false
+    },
+    entregas: { ver: true, editar: true },
+    devoluciones: { ver: false, editar: false },
     mantenimiento: { ver: false, editar: false },
-    reportes: { ver: true, editar: false },
+    reportes: { ver: false, editar: false },
     usuarios: { ver: false, editar: false }
   },
-  supervisor: MODULES.reduce((acc, m) => ({ ...acc, [m.id]: { ver: true, editar: false } }), {}),
-  inspectores: {
-    ...MODULES.reduce((acc, m) => ({ ...acc, [m.id]: { ver: true, editar: true } }), {}),
+
+  ti: {
+    resumen: { ver: true, editar: false },
+    flota: { ver: true, editar: true },
+    personal: { ver: true, editar: true },
+    dashboard: { ver: true, editar: true },
+    tickets: {
+      ver: true,
+      editar: true,
+      crear: false,
+      gestionar: true
+    },
+    entregas: { ver: true, editar: true },
+    devoluciones: { ver: true, editar: true },
+    mantenimiento: { ver: true, editar: true },
+    reportes: { ver: false, editar: false },
     usuarios: { ver: false, editar: false }
   }
 };
@@ -38,24 +71,27 @@ const TEMPLATES = {
 export function GestionUsuariosDashboard() {
   const [usuarios, setUsuarios] = useState([]);
   const [personal, setPersonal] = useState([]);
+  const [operaciones, setOperaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    rol: 'operaciones',
-    estado: 'activo',
-    permisos: TEMPLATES.operaciones
-  });
+
+ const [formData, setFormData] = useState({
+  username: '',
+  password: '',
+  rol: 'supervisor',
+  operacion: '',
+  estado: 'activo',
+  permisos: TEMPLATES.supervisor
+});
 
   const [selectedPersonalId, setSelectedPersonalId] = useState('');
 
   useEffect(() => {
     fetchData();
     fetchPersonal();
+    fetchOperaciones();
   }, []);
 
   const fetchData = async () => {
@@ -90,6 +126,20 @@ export function GestionUsuariosDashboard() {
       console.error(err);
     }
   };
+  const fetchOperaciones = async () => {
+  try {
+    const token = localStorage.getItem('nexus_token');
+    const res = await fetch(`${BASE_API_URL}/api/usuarios/operaciones`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setOperaciones(data);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const handleOpenModal = (user = null) => {
     if (user) {
@@ -98,8 +148,9 @@ export function GestionUsuariosDashboard() {
         username: user.username,
         password: '',
         rol: user.rol,
+        operacion: user.operacion || '',
         estado: user.estado,
-        permisos: user.permisos || TEMPLATES[user.rol] || TEMPLATES.operaciones
+        permisos: user.permisos || TEMPLATES[user.rol] || TEMPLATES.supervisor
       });
       setSelectedPersonalId('');
     } else {
@@ -107,9 +158,10 @@ export function GestionUsuariosDashboard() {
       setFormData({
         username: '',
         password: '',
-        rol: 'operaciones',
+        rol: 'supervisor',
+        operacion: '',
         estado: 'activo',
-        permisos: TEMPLATES.operaciones
+        permisos: TEMPLATES.supervisor
       });
       setSelectedPersonalId('');
     }
@@ -128,21 +180,22 @@ export function GestionUsuariosDashboard() {
   };
 
   const handleRolChange = (e) => {
-    const newRol = e.target.value;
-    setFormData({
-      ...formData,
-      rol: newRol,
-      permisos: TEMPLATES[newRol] || TEMPLATES.operaciones
-    });
-  };
+  const newRol = e.target.value;
+  setFormData({
+    ...formData,
+    rol: newRol,
+    operacion: newRol === 'supervisor' ? formData.operacion : '',
+    permisos: TEMPLATES[newRol] || TEMPLATES.supervisor
+  });
+};
 
   const togglePermiso = (modulo, tipo) => {
     setFormData(prev => {
       const perms = { ...prev.permisos };
       const current = perms[modulo] ? { ...perms[modulo] } : { ver: false, editar: false };
-      
+
       current[tipo] = !current[tipo];
-      
+
       // Si se quita "ver", también quitar "editar"
       if (tipo === 'ver' && !current.ver) {
         current.editar = false;
@@ -151,7 +204,7 @@ export function GestionUsuariosDashboard() {
       if (tipo === 'editar' && current.editar) {
         current.ver = true;
       }
-      
+
       perms[modulo] = current;
       return { ...prev, permisos: perms };
     });
@@ -162,13 +215,13 @@ export function GestionUsuariosDashboard() {
     const token = localStorage.getItem('nexus_token');
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId ? `${BASE_API_URL}/api/usuarios/${editingId}` : `${BASE_API_URL}/api/usuarios`;
-    
+
     try {
       const res = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(formData)
       });
@@ -208,7 +261,7 @@ export function GestionUsuariosDashboard() {
     <div style={{ color: 'white', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.8rem' }}>🔐 Gestión de Usuarios (RBAC)</h1>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           style={{ background: '#4F46E5', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}
         >
@@ -235,19 +288,24 @@ export function GestionUsuariosDashboard() {
               const indexOfLastItem = currentPage * itemsPerPage;
               const indexOfFirstItem = indexOfLastItem - itemsPerPage;
               const currentItems = usuarios.slice(indexOfFirstItem, indexOfLastItem);
-              
+
               return currentItems.map(u => {
-                const activeModules = u.permisos ? Object.entries(u.permisos).filter(([k,v]) => v?.ver).length : 0;
+                const activeModules = u.permisos ? Object.entries(u.permisos).filter(([k, v]) => v?.ver).length : 0;
                 return (
                   <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '1rem', fontWeight: 'bold' }}>{u.username}</td>
                     <td style={{ padding: '1rem', textTransform: 'capitalize' }}>
-                      <span style={{ 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '1rem', 
-                        fontSize: '0.75rem', 
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '1rem',
+                        fontSize: '0.75rem',
                         fontWeight: 'bold',
-                        backgroundColor: u.rol === 'admin' ? '#DC2626' : u.rol === 'operaciones' ? '#3B82F6' : u.rol === 'supervisor' ? '#8B5CF6' : '#10B981' 
+                        backgroundColor:
+                          u.rol === 'admin'
+                            ? '#DC2626'
+                            : u.rol === 'supervisor'
+                              ? '#8B5CF6'
+                              : '#10B981'
                       }}>
                         {u.rol}
                       </span>
@@ -273,23 +331,23 @@ export function GestionUsuariosDashboard() {
         const totalPages = Math.ceil(usuarios.length / itemsPerPage);
         const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
         const indexOfLastItem = Math.min(currentPage * itemsPerPage, usuarios.length);
-        
+
         return (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
               Mostrando {usuarios.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {usuarios.length} registros
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button 
-                disabled={currentPage === 1} 
-                onClick={() => setCurrentPage(prev => prev - 1)} 
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
                 style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
               >
                 Anterior
               </button>
-              <button 
-                disabled={currentPage >= totalPages} 
-                onClick={() => setCurrentPage(prev => prev + 1)} 
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
                 style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
               >
                 Siguiente
@@ -302,7 +360,7 @@ export function GestionUsuariosDashboard() {
       {modalOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
           <div style={{ background: 'var(--card-bg)', borderRadius: '1rem', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-            
+
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ margin: 0 }}>{editingId ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</h2>
               <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
@@ -310,15 +368,15 @@ export function GestionUsuariosDashboard() {
 
             <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
               <form id="user-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                
+
                 {/* COLUMNA IZQUIERDA: DATOS BÁSICOS */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  
+
                   {!editingId && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Vincular con Personal (opcional)</label>
-                      <select 
-                        value={selectedPersonalId} 
+                      <select
+                        value={selectedPersonalId}
                         onChange={handlePersonalChange}
                         style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
                       >
@@ -332,11 +390,11 @@ export function GestionUsuariosDashboard() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Username (DNI)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={formData.username}
-                      onChange={e => setFormData({...formData, username: e.target.value})}
+                      onChange={e => setFormData({ ...formData, username: e.target.value })}
                       disabled={!!editingId}
                       style={{ padding: '0.75rem', borderRadius: '0.5rem', background: editingId ? '#111827' : '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
                     />
@@ -344,11 +402,11 @@ export function GestionUsuariosDashboard() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Contraseña {editingId && '(dejar en blanco para no cambiar)'}</label>
-                    <input 
+                    <input
                       type="password"
                       required={!editingId}
                       value={formData.password}
-                      onChange={e => setFormData({...formData, password: e.target.value})}
+                      onChange={e => setFormData({ ...formData, password: e.target.value })}
                       style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
                     />
                   </div>
@@ -356,22 +414,21 @@ export function GestionUsuariosDashboard() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Rol Base (Plantilla)</label>
-                      <select 
+                      <select
                         value={formData.rol}
                         onChange={handleRolChange}
                         style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
                       >
                         <option value="admin">Administrador</option>
-                        <option value="operaciones">Operaciones</option>
                         <option value="supervisor">Supervisor</option>
-                        <option value="inspectores">Inspectores</option>
+                        <option value="ti">TI</option>
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Estado</label>
-                      <select 
+                      <select
                         value={formData.estado}
-                        onChange={e => setFormData({...formData, estado: e.target.value})}
+                        onChange={e => setFormData({ ...formData, estado: e.target.value })}
                         style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
                       >
                         <option value="activo">Activo</option>
@@ -379,6 +436,24 @@ export function GestionUsuariosDashboard() {
                       </select>
                     </div>
                   </div>
+                     {formData.rol === 'supervisor' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Operación asignada</label>
+                      <select
+                        required
+                        value={formData.operacion}
+                        onChange={e => setFormData({ ...formData, operacion: e.target.value })}
+                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
+                      >
+                        <option value="">-- Seleccionar Operación --</option>
+                        {operaciones.map(operacion => (
+                          <option key={operacion} value={operacion}>{operacion}</option>
+                        ))}
+                      </select>
+                      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>El supervisor solamente podrá consultar información perteneciente a esta operación.</span>
+                    </div>
+                  )}
+
 
                 </div>
 
@@ -401,18 +476,18 @@ export function GestionUsuariosDashboard() {
                             <tr key={m.id} style={{ borderBottom: '1px solid #374151' }}>
                               <td style={{ padding: '0.5rem' }}>{m.label}</td>
                               <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                <input 
-                                  type="checkbox" 
-                                  checked={perms.ver} 
-                                  onChange={() => togglePermiso(m.id, 'ver')} 
+                                <input
+                                  type="checkbox"
+                                  checked={perms.ver}
+                                  onChange={() => togglePermiso(m.id, 'ver')}
                                   style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
                                 />
                               </td>
                               <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                <input 
-                                  type="checkbox" 
-                                  checked={perms.editar} 
-                                  onChange={() => togglePermiso(m.id, 'editar')} 
+                                <input
+                                  type="checkbox"
+                                  checked={perms.editar}
+                                  onChange={() => togglePermiso(m.id, 'editar')}
                                   disabled={!perms.ver}
                                   style={{ transform: 'scale(1.2)', cursor: perms.ver ? 'pointer' : 'not-allowed', opacity: perms.ver ? 1 : 0.3 }}
                                 />

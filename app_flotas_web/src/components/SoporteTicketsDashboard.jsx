@@ -24,6 +24,9 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     tipo_solicitud: 'Soporte Técnico',
     descripcion: ''
   });
+  const canCreate = permisos?.crear === true;
+  const canManage = permisos?.gestionar === true;
+  const isAdmin = ['admin', 'administrador'].includes(String(usuario?.rol || '').toLowerCase());
 
   useEffect(() => {
     fetchTickets();
@@ -42,6 +45,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   };
 
   const handleStatusChange = async (id, newStatus) => {
+    if (!canManage) {
+      toast.error('No tienes permiso para gestionar tickets');
+      return;
+    }
     if (newStatus === 'Resuelto') {
       setResolvingTicketId(id);
       setResolveFormData({ resolucion_desc: '', evidencia: null });
@@ -60,6 +67,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
   const handleResolveSubmit = async (e) => {
     e.preventDefault();
+    if (!canManage) {
+      toast.error('No tienes permiso para resolver tickets');
+      return;
+    }
     try {
       toast.loading('Resolviendo ticket...', { id: 'resolve-ticket' });
       const formData = new FormData();
@@ -70,13 +81,13 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       if (resolveFormData.evidencia) {
         formData.append('evidencia', resolveFormData.evidencia);
       }
-      
+
       await api.updateIncidenteConEvidencia(resolvingTicketId, formData);
       toast.success('Ticket resuelto exitosamente', { id: 'resolve-ticket' });
       setShowResolveModal(false);
       fetchTickets();
       if (selectedTicket && String(selectedTicket.id) === String(resolvingTicketId)) {
-        setSelectedTicket({...selectedTicket, estado: 'Resuelto'});
+        setSelectedTicket({ ...selectedTicket, estado: 'Resuelto' });
       }
     } catch (error) {
       console.error("Error Front-end al resolver ticket:", error);
@@ -85,6 +96,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   };
 
   const handleDelete = async (id) => {
+    if (!isAdmin) {
+      toast.error('Solo el administrador puede eliminar tickets');
+      return;
+    }
     if (!window.confirm('¿Está seguro de eliminar permanentemente este ticket?')) return;
     try {
       await api.deleteIncidente(id);
@@ -97,6 +112,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
   const handleSaveTicket = async (e) => {
     e.preventDefault();
+    if (!canCreate) {
+      toast.error('No tienes permiso para crear tickets');
+      return;
+    }
     try {
       await api.createIncidente({
         ...formData,
@@ -152,7 +171,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const handleDrop = async (e, columnStatus) => {
     e.preventDefault();
     setDragOverColumn(null);
-    if (permisos && permisos.editar === false) return; // Bloquear si es solo lectura
+    if (!canManage) return; // Bloquear si es solo lectura
     const id = e.dataTransfer.getData('ticketId');
     if (id) {
       const ticket = tickets.find(t => String(t.id) === String(id));
@@ -184,9 +203,9 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     const list = getFilteredList(ticketsList);
 
     return (
-      <div 
-        className="kanban-column" 
-        style={{ 
+      <div
+        className="kanban-column"
+        style={{
           borderTop: `4px solid ${colorHex}`,
           backgroundColor: dragOverColumn === status ? '#F3F4F6' : 'var(--card-bg)',
           transition: 'background-color 0.2s ease',
@@ -202,7 +221,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           </h3>
           <span style={{ backgroundColor: '#E5E7EB', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold', color: '#4B5563' }}>{list.length}</span>
         </div>
-        
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {list.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', border: '2px dashed #E5E7EB', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -210,30 +229,30 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
             </div>
           ) : (
             list.map(ticket => (
-              <div 
-                key={ticket.id} 
+              <div
+                key={ticket.id}
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, ticket.id)}
                 onDragEnd={handleDragEnd}
-                onClick={() => setSelectedTicket(ticket)} 
-                style={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #E5E7EB', 
-                  borderRadius: '0.5rem', 
-                  padding: '1rem', 
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)', 
-                  cursor: 'grab', 
+                onClick={() => setSelectedTicket(ticket)}
+                style={{
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '0.5rem',
+                  padding: '1rem',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                  cursor: 'grab',
                   opacity: draggedTicketId === ticket.id ? 0.4 : 1,
                   transform: draggedTicketId === ticket.id ? 'scale(0.98)' : 'scale(1)',
-                  transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.2s' 
-                }} 
-                onMouseEnter={(e) => { if(draggedTicketId !== ticket.id) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)'; } }} 
-                onMouseLeave={(e) => { if(draggedTicketId !== ticket.id) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; } }}>
+                  transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.2s'
+                }}
+                onMouseEnter={(e) => { if (draggedTicketId !== ticket.id) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.05)'; } }}
+                onMouseLeave={(e) => { if (draggedTicketId !== ticket.id) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; } }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <span style={{ fontWeight: '800', color: '#111827', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>{formatDate(ticket.fecha).split(' ')[0]}</span>
                 </div>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #BFDBFE' }}>{ticket.placa || 'N/A'}</span>
                   {ticket.prioridad && (
@@ -246,31 +265,31 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 <div style={{ fontWeight: '700', color: '#1F2937', fontSize: '0.9rem', marginBottom: '0.5rem', lineHeight: '1.2' }}>
                   {ticket.tipo_solicitud === 'Técnico Externo' ? '👷‍♂️ TÉCNICO EXTERNO' : ticket.tipo_solicitud}
                 </div>
-                
+
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>
                   {ticket.descripcion}
                 </p>
-                
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F3F4F6', paddingTop: '0.75rem' }}>
                   <div style={{ fontSize: '0.8rem', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: '500' }}>
                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem' }}>👤</div>
                     {ticket.operador ? (ticket.operador.split(' ')[0]) : 'S/N'}
                   </div>
-                  
+
                   {/* Select Inline para cambio rápido de estado */}
-                  <select 
-                      value={ticket.estado} 
-                      onClick={(e) => e.stopPropagation()} 
-                      onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
-                      disabled={permisos && permisos.editar === false}
-                      style={{ 
-                        padding: '0.25rem 0.5rem', borderRadius: '1rem', border: '1px solid transparent', fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer', outline: 'none',
-                        backgroundColor: ticket.estado === 'Pendiente' ? '#FEE2E2' : ticket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
-                        color: ticket.estado === 'Pendiente' ? '#991B1B' : ticket.estado === 'En Proceso' ? '#92400E' : '#065F46'
-                      }}>
-                      <option value="Pendiente">Pendiente</option>
-                      <option value="En Proceso">En Proceso</option>
-                      <option value="Resuelto">Resuelto</option>
+                  <select
+                    value={ticket.estado}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
+                    disabled={!canManage}
+                    style={{
+                      padding: '0.25rem 0.5rem', borderRadius: '1rem', border: '1px solid transparent', fontWeight: '700', fontSize: '0.75rem', cursor: 'pointer', outline: 'none',
+                      backgroundColor: ticket.estado === 'Pendiente' ? '#FEE2E2' : ticket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
+                      color: ticket.estado === 'Pendiente' ? '#991B1B' : ticket.estado === 'En Proceso' ? '#92400E' : '#065F46'
+                    }}>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="En Proceso">En Proceso</option>
+                    <option value="Resuelto">Resuelto</option>
                   </select>
                 </div>
               </div>
@@ -281,32 +300,34 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     );
   };
 
-  const isOperaciones = usuario?.rol?.toLowerCase() === 'operaciones';
+  const isReadOnly = !canManage;
 
-  if (isOperaciones) {
+  if (isReadOnly) {
     return (
       <div style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <h1 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '2rem' }}>🎫</span> Mis Solicitudes de Soporte TI
+              <span style={{ fontSize: '2rem' }}>🎫</span> Tickets de Soporte de mi Operación
             </h1>
             <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
-              Consulta el estado de tus requerimientos y crea nuevos tickets.
+              Consulta el estado de los requerimientos pertenecientes a tu operación.
             </p>
           </div>
-          <button 
-            onClick={() => setShowModal(true)}
-            style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-            ➕ Nueva Solicitud
-          </button>
+          {canCreate && (
+            <button
+              onClick={() => setShowModal(true)}
+              style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              ➕ Nueva Solicitud
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'grid', gap: '1rem' }}>
           {tickets.length === 0 ? (
-             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', backgroundColor: 'var(--card-bg)', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
-                No tienes solicitudes registradas.
-             </div>
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', backgroundColor: 'var(--card-bg)', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
+              No tienes solicitudes registradas.
+            </div>
           ) : (
             tickets.map(ticket => (
               <div key={ticket.id} style={{ padding: '1.5rem', backgroundColor: 'var(--card-bg)', borderRadius: '1rem', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -316,10 +337,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                   <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#9CA3AF' }}>📅 {formatDate(ticket.fecha)} | 👤 {ticket.operador}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ 
-                    padding: '0.5rem 1rem', 
-                    borderRadius: '2rem', 
-                    fontWeight: 'bold', 
+                  <span style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '2rem',
+                    fontWeight: 'bold',
                     fontSize: '0.85rem',
                     backgroundColor: ticket.estado === 'Pendiente' ? '#FEE2E2' : ticket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
                     color: ticket.estado === 'Pendiente' ? '#991B1B' : ticket.estado === 'En Proceso' ? '#92400E' : '#065F46'
@@ -327,7 +348,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                     {ticket.estado}
                   </span>
                   {ticket.resolucion_desc && (
-                     <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#065F46' }}>✓ {ticket.resolucion_desc}</div>
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#065F46' }}>✓ {ticket.resolucion_desc}</div>
                   )}
                 </div>
               </div>
@@ -336,41 +357,41 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         </div>
 
         {/* Modal Nuevo Ticket */}
-        {showModal && (
+        {canCreate && showModal && (
           <div onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', animation: 'scaleUp 0.2s ease-out' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 'bold' }}>Nuevo Ticket de Ayuda</h2>
                 <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
               </div>
-              
+
               <form onSubmit={handleSaveTicket} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Placa de Vehículo</label>
-                    <input type="text" value={formData.placa} onChange={e => setFormData({...formData, placa: e.target.value.toUpperCase()})} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+                    <input type="text" value={formData.placa} onChange={e => setFormData({ ...formData, placa: e.target.value.toUpperCase() })} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Nombre del Solicitante</label>
-                    <input type="text" value={formData.operador} onChange={e => setFormData({...formData, operador: e.target.value})} placeholder="Ej. Juan Pérez" required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+                    <input type="text" value={formData.operador} onChange={e => setFormData({ ...formData, operador: e.target.value })} placeholder="Ej. Juan Pérez" required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
                   </div>
                 </div>
-                
+
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Tipo de Solicitud</label>
-                  <select value={formData.tipo_solicitud} onChange={e => setFormData({...formData, tipo_solicitud: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }}>
+                  <select value={formData.tipo_solicitud} onChange={e => setFormData({ ...formData, tipo_solicitud: e.target.value })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }}>
                     <option>Soporte Técnico</option>
                     <option>Solicitud de Accesorio</option>
                     <option>Revisión de Cámaras</option>
                     <option>Capacitación</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Problema</label>
-                  <textarea value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})} rows={4} required placeholder="Describa el problema detalladamente..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)', resize: 'vertical' }}></textarea>
+                  <textarea value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} rows={4} required placeholder="Describa el problema detalladamente..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)', resize: 'vertical' }}></textarea>
                 </div>
-                
+
                 <button type="submit" style={{ backgroundColor: 'var(--accent-color)', color: 'white', padding: '1rem', borderRadius: '0.5rem', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginTop: '0.5rem', transition: 'background 0.2s' }}>
                   Crear Ticket
                 </button>
@@ -393,9 +414,11 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           <button onClick={() => setShowExternalTechModal(true)} style={{ padding: '0.75rem 1.5rem', background: '#FEF08A', color: '#854D0E', border: '1px solid #FDE047', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
             <span>👷‍♂️</span> Técnicos Externos
           </button>
-          <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1.5rem', background: '#2563EB', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' }}>
-            <span>➕ </span> Crear Nuevo Ticket
-          </button>
+          {canCreate && (
+            <button onClick={() => setShowModal(true)} style={{ padding: '0.75rem 1.5rem', background: '#2563EB', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)' }}>
+              <span>➕ </span> Crear Nuevo Ticket
+            </button>
+          )}
         </div>
       </div>
 
@@ -413,14 +436,14 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         <>
           {/* Controles de Filtrado y Stats */}
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            <input 
-              type="text" 
-              placeholder="🔍 Buscar placa o #TKT..." 
+            <input
+              type="text"
+              placeholder="🔍 Buscar placa o #TKT..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ flex: '1 1 250px', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', outline: 'none', fontSize: '0.9rem' }}
             />
-            
+
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button onClick={() => setStatusFilter('Todos')} style={{ padding: '0.5rem 1rem', borderRadius: '2rem', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem', backgroundColor: statusFilter === 'Todos' ? '#1F2937' : '#E5E7EB', color: statusFilter === 'Todos' ? 'white' : '#374151', transition: 'all 0.2s' }}>
                 Todos ({pendientes.length + enProceso.length})
@@ -449,16 +472,16 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       {activeTab === 'HISTORIAL' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.3s ease-out' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-            <input 
-              type="text" 
-              placeholder="🔍 Buscar placa o #TKT en historial..." 
+            <input
+              type="text"
+              placeholder="🔍 Buscar placa o #TKT en historial..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '300px', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', outline: 'none', fontSize: '0.9rem' }}
             />
             <span style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>Total Resueltos: {resueltos.length}</span>
           </div>
-          
+
           <div className="table-container" style={{ backgroundColor: 'var(--card-bg)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
@@ -473,20 +496,20 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
               </thead>
               <tbody>
                 {getFilteredList(resueltos).length === 0 ? (
-                  <tr><td colSpan="6" style={{textAlign:'center', padding:'3rem', color:'var(--text-secondary)'}}>No hay tickets resueltos.</td></tr>
+                  <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No hay tickets resueltos.</td></tr>
                 ) : (
                   getFilteredList(resueltos).map(ticket => (
                     <tr key={ticket.id} style={{ borderBottom: '1px solid #E5E7EB', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '1rem', fontWeight: 'bold', color: '#111827' }}>#{ticket.id}</td>
                       <td style={{ padding: '1rem', color: '#4B5563', fontSize: '0.9rem' }}>{formatDate(ticket.fecha)}</td>
-                      <td style={{ padding: '1rem' }}><span className="badge" style={{backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem'}}>{ticket.placa || 'N/A'}</span></td>
+                      <td style={{ padding: '1rem' }}><span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || 'N/A'}</span></td>
                       <td style={{ padding: '1rem' }}>
-                        <div style={{fontWeight:'600', color: '#111827', fontSize: '0.9rem'}}>{ticket.tipo_solicitud}</div>
-                        <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>👤 {ticket.operador || 'S/N'}</div>
+                        <div style={{ fontWeight: '600', color: '#111827', fontSize: '0.9rem' }}>{ticket.tipo_solicitud}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>👤 {ticket.operador || 'S/N'}</div>
                       </td>
                       <td style={{ padding: '1rem', maxWidth: '300px' }}>
-                        <div style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={ticket.descripcion}><strong>Prob:</strong> {ticket.descripcion}</div>
-                        {ticket.resolucion_desc && <div style={{fontSize: '0.85rem', color: '#065F46', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={ticket.resolucion_desc}><strong>Sol:</strong> {ticket.resolucion_desc}</div>}
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={ticket.descripcion}><strong>Prob:</strong> {ticket.descripcion}</div>
+                        {ticket.resolucion_desc && <div style={{ fontSize: '0.85rem', color: '#065F46', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={ticket.resolucion_desc}><strong>Sol:</strong> {ticket.resolucion_desc}</div>}
                       </td>
                       <td style={{ padding: '1rem', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
                         {ticket.evidencia && (
@@ -494,7 +517,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                             📸
                           </button>
                         )}
-                        {(!permisos || permisos.editar !== false) && (
+                        {isAdmin && (
                           <button onClick={() => handleDelete(ticket.id)} style={{ padding: '0.4rem 0.6rem', backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Eliminar Permanente">
                             🗑️
                           </button>
@@ -510,29 +533,29 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       )}
 
       {/* Modal Nuevo Ticket */}
-      {showModal && (
+      {canCreate && showModal && (
         <div onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', animation: 'scaleUp 0.2s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 'bold' }}>Nuevo Ticket de Ayuda</h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
             </div>
-            
+
             <form onSubmit={handleSaveTicket} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Placa de Vehículo</label>
-                  <input type="text" value={formData.placa} onChange={e => setFormData({...formData, placa: e.target.value.toUpperCase()})} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+                  <input type="text" value={formData.placa} onChange={e => setFormData({ ...formData, placa: e.target.value.toUpperCase() })} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Nombre del Solicitante</label>
-                  <input type="text" value={formData.operador} onChange={e => setFormData({...formData, operador: e.target.value})} placeholder="Ej. Juan Pérez" required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+                  <input type="text" value={formData.operador} onChange={e => setFormData({ ...formData, operador: e.target.value })} placeholder="Ej. Juan Pérez" required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
                 </div>
               </div>
-              
+
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Categoría del Problema</label>
-                <select value={formData.tipo_solicitud} onChange={e => setFormData({...formData, tipo_solicitud: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }}>
+                <select value={formData.tipo_solicitud} onChange={e => setFormData({ ...formData, tipo_solicitud: e.target.value })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }}>
                   <option value="Soporte Técnico">Soporte Técnico (General)</option>
                   <option value="GPS No Reporta">GPS No Reporta</option>
                   <option value="Cámaras Desconectadas">Cámaras Desconectadas</option>
@@ -544,7 +567,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Descripción Detallada</label>
-                <textarea value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})} rows="4" placeholder="Describa el problema reportado de manera clara..." required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', resize: 'vertical', outlineColor: 'var(--accent-color)' }}></textarea>
+                <textarea value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} rows="4" placeholder="Describa el problema reportado de manera clara..." required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', resize: 'vertical', outlineColor: 'var(--accent-color)' }}></textarea>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
@@ -567,7 +590,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
               </div>
               <button onClick={() => setShowExternalTechModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6B7280' }}>&times;</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {tickets.filter(t => t.tipo_solicitud === 'Técnico Externo').length === 0 ? (
@@ -607,7 +630,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       {selectedTicket && (
         <div onClick={() => setSelectedTicket(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '600px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', maxHeight: '90vh', overflowY: 'auto', animation: 'scaleUp 0.2s ease-out' }}>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid #E5E7EB', paddingBottom: '1rem' }}>
               <div>
                 <h2 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.5rem', fontWeight: 'bold' }}>
@@ -619,7 +642,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
               </div>
               <button onClick={() => setSelectedTicket(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
             </div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #E5E7EB' }}>
@@ -630,18 +653,18 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 </div>
                 <div style={{ flex: 1, backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #E5E7EB' }}>
                   <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Estado Actual</span>
-                  <select 
-                      value={selectedTicket.estado} 
-                      onChange={(e) => { handleStatusChange(selectedTicket.id, e.target.value); setSelectedTicket({...selectedTicket, estado: e.target.value}); }}
-                      disabled={permisos && permisos.editar === false}
-                      style={{ 
-                        padding: '0.4rem 0.8rem', borderRadius: '0.5rem', border: '1px solid transparent', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', outline: 'none', width: '100%',
-                        backgroundColor: selectedTicket.estado === 'Pendiente' ? '#FEE2E2' : selectedTicket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
-                        color: selectedTicket.estado === 'Pendiente' ? '#991B1B' : selectedTicket.estado === 'En Proceso' ? '#92400E' : '#065F46'
-                      }}>
-                      <option value="Pendiente">Pendiente</option>
-                      <option value="En Proceso">En Proceso</option>
-                      <option value="Resuelto">Resuelto</option>
+                  <select
+                    value={selectedTicket.estado}
+                    onChange={(e) => { handleStatusChange(selectedTicket.id, e.target.value); setSelectedTicket({ ...selectedTicket, estado: e.target.value }); }}
+                    disabled={!canManage}
+                    style={{
+                      padding: '0.4rem 0.8rem', borderRadius: '0.5rem', border: '1px solid transparent', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', outline: 'none', width: '100%',
+                      backgroundColor: selectedTicket.estado === 'Pendiente' ? '#FEE2E2' : selectedTicket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
+                      color: selectedTicket.estado === 'Pendiente' ? '#991B1B' : selectedTicket.estado === 'En Proceso' ? '#92400E' : '#065F46'
+                    }}>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="En Proceso">En Proceso</option>
+                    <option value="Resuelto">Resuelto</option>
                   </select>
                 </div>
               </div>
@@ -662,7 +685,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                     {selectedTicket.descripcion}
                   </div>
                 </div>
-                
+
                 {selectedTicket.evidencia && (
                   <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #E5E7EB' }}>
                     <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Evidencia Fotográfica de Resolución</span>
@@ -673,7 +696,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #E5E7EB' }}>
-              {(!permisos || permisos.editar !== false) ? (
+              {isAdmin ? (
                 <button type="button" onClick={() => { setSelectedTicket(null); handleDelete(selectedTicket.id); }} style={{ padding: '0.75rem 1.5rem', backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>🗑️ Eliminar Ticket</button>
               ) : (
                 <div></div>
@@ -690,12 +713,12 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', animation: 'scaleUp 0.2s ease-out' }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-primary)' }}>✅ Resolver Ticket</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Adjunte una foto del trabajo realizado y/o un comentario opcional para el cierre.</p>
-            
+
             <form onSubmit={handleResolveSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Evidencia Fotográfica (Opcional)</label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept="image/*"
                   onChange={(e) => setResolveFormData({ ...resolveFormData, evidencia: e.target.files[0] })}
                   style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem' }}
@@ -704,7 +727,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Nota de Resolución (Opcional)</label>
-                <textarea 
+                <textarea
                   value={resolveFormData.resolucion_desc}
                   onChange={(e) => setResolveFormData({ ...resolveFormData, resolucion_desc: e.target.value })}
                   placeholder="Se reemplazó el equipo dañado por uno nuevo..."

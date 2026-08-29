@@ -292,10 +292,39 @@ export const api = {  // ==========================================
     return response.json();
   },
 
-  downloadExcel: () => {
-    const token = localStorage.getItem('nexus_token');
-    window.location.href = `${BASE_URL}/api/reportes/mantenimiento-excel?token=${token}`;
-  },
+downloadExcel: async () => {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/api/reportes/mantenimiento-excel`
+  );
+  if (!response.ok) {
+    throw new Error('Error al descargar el reporte de mantenimiento');
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'reporte_mantenimiento.xlsx';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+},
+downloadMasterReport: async (startDate, endDate) => {
+  const params = new URLSearchParams({
+    startDate,
+    endDate
+  });
+
+  const response = await fetchWithAuth(
+    `${BASE_URL}/api/reportes/master?${params.toString()}`
+  );
+
+  if (!response.ok) {
+    throw new Error('Error al generar el reporte maestro');
+  }
+
+  return response.blob();
+},
 
   // === ENTREGAS ===
   getEntregas: async () => {
@@ -357,11 +386,71 @@ export const api = {  // ==========================================
     return response.json();
   },
 
-  exportExcelEntregas: (vista, categoria) => {
-    const token = localStorage.getItem('nexus_token');
-    let params = `token=${token}`;
-    if (vista) params += `&tipo=${encodeURIComponent(vista)}`;
-    if (categoria) params += `&categoria=${encodeURIComponent(categoria)}`;
-    window.location.href = `${BASE_URL}/api/entregas/export-excel?${params}`;
-  },
+  exportExcelEntregas: async (vista, categoria) => {
+  const params = new URLSearchParams();
+
+  if (vista) {
+    params.set('tipo', vista);
+  }
+
+  if (categoria) {
+    params.set('categoria', categoria);
+  }
+
+  const query = params.toString();
+  const endpoint =
+    `${BASE_URL}/api/entregas/export-excel${query ? `?${query}` : ''}`;
+
+  const response = await fetchWithAuth(endpoint);
+
+  if (!response.ok) {
+    throw new Error('Error al exportar las entregas');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'entregas_ti.xlsx';
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.URL.revokeObjectURL(url);
+},
+downloadFlotasReport: async ({
+  formato = 'pdf',
+  filtro = 'todos',
+  valor = '',
+  fecha = 'siempre',
+  operacion = 'todas'
+}) => {
+  const params = new URLSearchParams({
+    filtro,
+    valor,
+    fecha,
+    operacion
+  });
+
+  const response = await fetchWithAuth(
+    `${BASE_URL}/reportes/${formato}?${params.toString()}`
+  );
+
+  if (!response.ok) {
+    let mensaje = 'Error al generar el reporte';
+
+    try {
+      const data = await response.json();
+      if (data.error) mensaje = data.error;
+    } catch {
+      // La respuesta puede ser un archivo o texto.
+    }
+
+    throw new Error(mensaje);
+  }
+
+  return response.blob();
+},
 };

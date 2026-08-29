@@ -179,6 +179,35 @@ export function FlotasDashboard({ permisos }) {
         if (dateB.getTime() === 0) return -1;
 
         if (sortFecha === 'asc') return dateA - dateB;
+        const handleDirectPdf = async (placa) => {
+  const reportWindow = window.open('', '_blank');
+
+  try {
+    const blob = await api.downloadFlotasReport({
+      formato: 'pdf',
+      filtro: 'placa',
+      valor: placa
+    });
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+
+    if (reportWindow) {
+      reportWindow.location.href = downloadUrl;
+    } else {
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `Reporte_${placa}.pdf`;
+      link.click();
+    }
+
+    setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 60000);
+  } catch (error) {
+    reportWindow?.close();
+    toast.error(error.message);
+  }
+};
         return dateB - dateA;
       });
     }
@@ -398,7 +427,7 @@ export function FlotasDashboard({ permisos }) {
                       <td style={{textAlign: 'right'}}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                           <button 
-                            onClick={() => window.open(`${BASE_API_URL}/reportes/pdf?filtro=placa&valor=${v.placa}&token=${localStorage.getItem('nexus_token')}`, '_blank')}
+                           onClick={() => handleDirectPdf(v.placa)}
                             style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.4rem 0.8rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
                           >
                             PDF Directo
@@ -451,16 +480,51 @@ function ExportModal({ onClose }) {
   const [fecha, setFecha] = useState('siempre');
   const [operacion, setOperacion] = useState('todas');
 
-  const handleExport = () => {
-    if (filtro === 'placa' && !valor.trim()) {
-      toast.error('Debe ingresar una placa');
-      return;
+  const handleExport = async () => {
+  if (filtro === 'placa' && !valor.trim()) {
+    toast.error('Debe ingresar una placa');
+    return;
+  }
+
+  const reportWindow = formato === 'pdf'
+    ? window.open('', '_blank')
+    : null;
+
+  try {
+    const blob = await api.downloadFlotasReport({
+      formato,
+      filtro,
+      valor,
+      fecha,
+      operacion
+    });
+
+    const downloadUrl = window.URL.createObjectURL(blob);
+
+    if (formato === 'pdf' && reportWindow) {
+      reportWindow.location.href = downloadUrl;
+    } else {
+      const extension = formato === 'pdf' ? 'pdf' : 'xlsx';
+      const link = document.createElement('a');
+
+      link.href = downloadUrl;
+      link.download = `Reporte_Flotas.${extension}`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     }
-    const token = localStorage.getItem('nexus_token') || '';
-    const url = `${BASE_API_URL}/reportes/${formato}?filtro=${filtro}&valor=${valor}&fecha=${fecha}&operacion=${operacion}&token=${token}`;
-    window.open(url, '_blank');
+
+    setTimeout(() => {
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 60000);
+
     onClose();
-  };
+  } catch (error) {
+    reportWindow?.close();
+    toast.error(error.message);
+  }
+};
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
