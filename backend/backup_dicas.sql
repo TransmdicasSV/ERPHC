@@ -39,7 +39,7 @@ CREATE TABLE public.entregas_ti (
     equipo_tipo character varying(100),
     marca character varying(100),
     modelo character varying(100),
-    serie character varying(100),
+    serie character varying(100), 
     laptop character varying(100),
     mouse character varying(100),
     cargador character varying(100),

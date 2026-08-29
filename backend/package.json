@@ -18,7 +18,6 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
-    "node-telegram-bot-api": "^0.67.0",
     "pdfkit": "^0.18.0",
     "pdfkit-table": "^0.2.11",
     "pg": "^8.11.5",
@@ -27,6 +26,7 @@
   },
   "devDependencies": {
     "node-fetch": "^3.3.2",
+    "nodemon": "^3.1.14",
     "proxy-agent": "^8.0.2"
   }
 }

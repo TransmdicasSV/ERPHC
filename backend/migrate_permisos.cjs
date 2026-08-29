@@ -18,7 +18,6 @@ async function run() {
       resumen: { ver: true, editar: true },
       maestros: { ver: true, editar: true },
       dashboard: { ver: true, editar: true },
-      radar: { ver: true, editar: true },
       tickets: { ver: true, editar: true },
       entregas: { ver: true, editar: true },
       devoluciones: { ver: true, editar: true },
