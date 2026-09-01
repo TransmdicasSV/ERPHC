@@ -136,7 +136,6 @@ export function DirectorioPersonal({ permisos }) {
           type="text" 
           placeholder="Buscar por nombre, DNI, cargo o área..." 
           value={searchTerm}
-          value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
             setCurrentPage(1); // Reset page on search

@@ -43,7 +43,8 @@ export function ResumenDashboard() {
           api.getChartStats()
         ]);
 
-        const vData = vResponse.data || [];
+        const vData = Array.isArray(vResponse.data) ? vResponse.data : [];
+        setPlacasDisponibles([...new Set(vData.map(v => v.placa).filter(Boolean))].sort());
         const operativas = vData.filter(v => v.estado === 'Operativa').length;
         const observadas = vData.filter(v => v.estado === 'Observada').length;
         const faltaRevision = vData.filter(v => v.estado === 'Falta de revisión').length;
@@ -76,13 +77,7 @@ export function ResumenDashboard() {
     };
     loadData();
 
-    // Fetch Placas disponibles para el buscador interno
-    fetch(`${BASE_API_URL}/api/public/placas`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setPlacasDisponibles(data);
-      })
-      .catch(err => console.error('Error fetching placas:', err));
+
 
     // Fetch Stats públicos para los paneles inferiores
     fetch(`${BASE_API_URL}/api/public/stats`)
@@ -125,14 +120,14 @@ export function ResumenDashboard() {
   );
 
   const porcentajeSalud = data.total > 0 ? Math.round((data.operativas / data.total) * 100) : 0;
-  
+
   const handleExportPDF = () => {
     const element = dashboardRef.current;
-    
+
     // Ocultar UI e inyectar layout formal
     const noPrintEls = element.querySelectorAll('.no-print');
     noPrintEls.forEach(el => el.style.display = 'none');
-    
+
     const printOnlyEls = element.querySelectorAll('.print-header, .print-only');
     printOnlyEls.forEach(el => el.style.display = 'block');
 
@@ -143,12 +138,12 @@ export function ResumenDashboard() {
     }
 
     const opt = {
-      margin:       10,
-      filename:     'Reporte_Grafico_Centro_Control.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1200 },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-      pagebreak:    { mode: ['css', 'legacy'] }
+      margin: 10,
+      filename: 'Reporte_Grafico_Centro_Control.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1200 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+      pagebreak: { mode: ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
@@ -204,13 +199,13 @@ export function ResumenDashboard() {
   };
 
   const cardStyle = {
-    backgroundColor: 'var(--card-bg)', 
-    borderRadius: '1.25rem', 
-    padding: '1.5rem', 
-    boxShadow: 'var(--shadow-sm)', 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '1.25rem', 
+    backgroundColor: 'var(--card-bg)',
+    borderRadius: '1.25rem',
+    padding: '1.5rem',
+    boxShadow: 'var(--shadow-sm)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.25rem',
     border: '1px solid var(--border-color)',
     transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     cursor: 'default',
@@ -223,6 +218,7 @@ export function ResumenDashboard() {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .power-card { 
+          min-width: 0;
           background-color: var(--card-bg, #ffffff);
           border: 1px solid var(--border-color, #e2e8f0); 
           border-radius: 0.5rem;
@@ -242,7 +238,7 @@ export function ResumenDashboard() {
         }
       `}</style>
 
-      <div className="print-header" style={{display: 'none'}}>
+      <div className="print-header" style={{ display: 'none' }}>
         <h1>REPORTE GRÁFICO - JDCALI FLOTAS</h1>
         <p>Generado el: {currentDate}</p>
         <p><strong>Eficiencia Global de la Flota: {porcentajeSalud}%</strong></p>
@@ -258,13 +254,13 @@ export function ResumenDashboard() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          
+
           {/* Buscador de Placas Interno */}
           <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '1rem' }}>
-            <input 
-              type="text" 
+            <input
+              type="text"
               list="placas-list-interno"
-              placeholder="Buscar placa..." 
+              placeholder="Buscar placa..."
               value={placa}
               onChange={(e) => setPlaca(e.target.value.toUpperCase())}
               style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', outline: 'none', textTransform: 'uppercase', width: '150px' }}
@@ -274,8 +270,8 @@ export function ResumenDashboard() {
                 <option key={idx} value={p} />
               ))}
             </datalist>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loadingSearch}
               style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: loadingSearch ? 'not-allowed' : 'pointer' }}
             >
@@ -308,38 +304,38 @@ export function ResumenDashboard() {
           </div>
         </div>
         <div className="power-card" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-           <div style={{ padding: '0.5rem', backgroundColor: 'var(--green-bg)', borderRadius: '0.25rem', color: 'var(--green-text)' }}>
+          <div style={{ padding: '0.5rem', backgroundColor: 'var(--green-bg)', borderRadius: '0.25rem', color: 'var(--green-text)' }}>
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           </div>
           <div>
-             <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>Operativas</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>Operativas</p>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--text-primary)', lineHeight: '1' }}>{data.operativas}</h3>
           </div>
         </div>
         <div className="power-card" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-           <div style={{ padding: '0.5rem', backgroundColor: 'var(--red-bg)', borderRadius: '0.25rem', color: 'var(--red-text)' }}>
+          <div style={{ padding: '0.5rem', backgroundColor: 'var(--red-bg)', borderRadius: '0.25rem', color: 'var(--red-text)' }}>
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           </div>
           <div>
-             <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>En Taller / Obs.</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>En Taller / Obs.</p>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--text-primary)', lineHeight: '1' }}>{data.observadas}</h3>
           </div>
         </div>
         <div className="power-card" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-           <div style={{ padding: '0.5rem', backgroundColor: 'var(--yellow-bg)', borderRadius: '0.25rem', color: 'var(--yellow-text)' }}>
+          <div style={{ padding: '0.5rem', backgroundColor: 'var(--yellow-bg)', borderRadius: '0.25rem', color: 'var(--yellow-text)' }}>
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
           </div>
           <div>
-             <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>Pendientes</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>Pendientes</p>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--text-primary)', lineHeight: '1' }}>{data.faltaRevision}</h3>
           </div>
         </div>
         <div className="power-card" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-           <div style={{ padding: '0.5rem', backgroundColor: 'rgba(147, 51, 234, 0.1)', borderRadius: '0.25rem', color: '#9333ea' }}>
+          <div style={{ padding: '0.5rem', backgroundColor: 'rgba(147, 51, 234, 0.1)', borderRadius: '0.25rem', color: '#9333ea' }}>
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           </div>
           <div>
-             <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>Inspecciones</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontWeight: 'bold', margin: '0 0 0.1rem 0', textTransform: 'uppercase' }}>Inspecciones</p>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, color: 'var(--text-primary)', lineHeight: '1' }}>{data.inspecciones}</h3>
           </div>
         </div>
@@ -349,30 +345,30 @@ export function ResumenDashboard() {
         <div className="power-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>Rend. Inspecciones</h3>
           <div style={{ width: '100%', height: 160 }}>
-            <ResponsiveContainer width="99%" minWidth={1}>
+            <ResponsiveContainer width="100%" height={160} minWidth={1}>
               <AreaChart data={data.trend} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorInsp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent-color)" stopOpacity={0.6}/>
-                    <stop offset="95%" stopColor="var(--accent-color)" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="var(--accent-color)" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="var(--accent-color)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
-                <XAxis dataKey="date" tick={{fontSize: 10, fill: 'var(--text-secondary)'}} tickFormatter={(val) => { if(!val) return ''; const [y,m,d] = val.split('-'); return `${d}/${m}`; }} axisLine={false} tickLine={false} dy={5} />
-                <YAxis allowDecimals={false} tick={{fontSize: 10, fill: 'var(--text-secondary)'}} axisLine={false} tickLine={false} dx={-5} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} tickFormatter={(val) => { if (!val) return ''; const [y, m, d] = val.split('-'); return `${d}/${m}`; }} axisLine={false} tickLine={false} dy={5} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} dx={-5} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="inspecciones" name="Inspecciones" stroke="var(--accent-color)" strokeWidth={2} fillOpacity={1} fill="url(#colorInsp)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
-        
+
         <div className="power-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
           <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-primary)', alignSelf: 'flex-start' }}>Salud Global</h3>
           <div style={{ width: '100%', height: 160, position: 'relative', minWidth: 0 }}>
             <ResponsiveContainer width="99%" minWidth={1}>
               <PieChart>
-                <Pie data={[{value: porcentajeSalud}, {value: 100 - porcentajeSalud}]} cx="50%" cy="80%" innerRadius="70%" outerRadius="100%" stroke="none" startAngle={180} endAngle={0} paddingAngle={0}>
+                <Pie data={[{ value: porcentajeSalud }, { value: 100 - porcentajeSalud }]} cx="50%" cy="80%" innerRadius="70%" outerRadius="100%" stroke="none" startAngle={180} endAngle={0} paddingAngle={0}>
                   <Cell fill={porcentajeSalud > 80 ? 'var(--green-text)' : (porcentajeSalud > 50 ? 'var(--yellow-text)' : 'var(--red-text)')} />
                   <Cell fill="var(--chart-grid)" />
                 </Pie>
@@ -383,16 +379,16 @@ export function ResumenDashboard() {
             </div>
           </div>
         </div>
-        
+
         <div className="power-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>Distribución Operativa</h3>
           <div style={{ width: '100%', height: 160, minWidth: 0 }}>
             <ResponsiveContainer width="99%" minWidth={1}>
               <BarChart data={data.programasBarras} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-primary)', fontWeight: 'bold', fontSize: 10}} dy={5} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--text-secondary)', fontSize: 10}} dx={-5} />
-                <Tooltip content={<CustomTooltip />} cursor={{fill: 'var(--chart-grid)', opacity: 0.3}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-primary)', fontWeight: 'bold', fontSize: 10 }} dy={5} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} dx={-5} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--chart-grid)', opacity: 0.3 }} />
                 <Bar dataKey="Operativa" stackId="a" fill="var(--green-text)" barSize={20} />
                 <Bar dataKey="Observada" stackId="a" fill="var(--red-text)" barSize={20} />
                 <Bar dataKey="Falta de revisión" stackId="a" fill="var(--yellow-text)" barSize={20} />
@@ -417,16 +413,16 @@ export function ResumenDashboard() {
             </ResponsiveContainer>
           </div>
         </div>
-        
+
         <div className="power-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>Soporte TI (Tickets)</h3>
           <div style={{ width: '100%', height: 160, minWidth: 0 }}>
             <ResponsiveContainer width="99%" minWidth={1}>
               <BarChart data={data.soporte} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-primary)', fontSize: 10, fontWeight: 'bold'}} dy={5} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--text-secondary)', fontSize: 10}} dx={-5} />
-                <Tooltip content={<CustomTooltip />} cursor={{fill: 'var(--chart-grid)', opacity: 0.3}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-primary)', fontSize: 10, fontWeight: 'bold' }} dy={5} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} dx={-5} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--chart-grid)', opacity: 0.3 }} />
                 <Bar dataKey="value" name="Tickets" barSize={30}>
                   {data.soporte.map((entry, index) => {
                     const name = entry.name.toLowerCase();
@@ -448,9 +444,9 @@ export function ResumenDashboard() {
             <ResponsiveContainer width="99%" minWidth={1}>
               <BarChart data={data.inventario} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: 'var(--text-primary)', fontSize: 10, fontWeight: 'bold'}} dy={5} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: 'var(--text-secondary)', fontSize: 10}} dx={-5} />
-                <Tooltip content={<CustomTooltip />} cursor={{fill: 'var(--chart-grid)', opacity: 0.3}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-primary)', fontSize: 10, fontWeight: 'bold' }} dy={5} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} dx={-5} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--chart-grid)', opacity: 0.3 }} />
                 <Bar dataKey="value" name="Equipos" fill="#9333ea" barSize={30} />
               </BarChart>
             </ResponsiveContainer>
@@ -460,7 +456,7 @@ export function ResumenDashboard() {
 
       {/* PANELES INTERACTIVOS (Trasladados del Portal Público) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '1rem' }}>
-        
+
         {/* Panel A: Pizarra de Avisos */}
         <div className="power-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -540,12 +536,12 @@ export function ResumenDashboard() {
           </div>
         </div>
       </div>
-      
+
       {/* MODAL RESULTADO BUSQUEDA (CARNET DIGITAL) */}
       {showResultModal && result && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div id="carnet-digital" style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '500px', borderRadius: '1.5rem', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', overflow: 'hidden', border: '1px solid var(--border-color)', position: 'relative' }}>
-            
+
             <button className="no-print" onClick={() => setShowResultModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>X</button>
 
             <div style={{ backgroundColor: result.estado_general === 'APROBADO' ? '#059669' : '#dc2626', color: 'white', padding: '2rem 1.5rem 1.5rem 1.5rem', textAlign: 'center', position: 'relative' }}>
@@ -630,12 +626,12 @@ export function ResumenDashboard() {
 
               {/* Botones de Acción */}
               <div className="no-print" style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
+                <button
                   onClick={() => window.print()}
                   style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
                   <span>🖨️</span> Imprimir
                 </button>
-                <button 
+                <button
                   onClick={() => setShowResultModal(false)}
                   style={{ flex: 2, backgroundColor: '#38bdf8', color: '#0f172a', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
                   <span>🔧</span> Solicitar Soporte

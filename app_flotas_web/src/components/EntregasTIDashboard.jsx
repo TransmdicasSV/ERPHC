@@ -6,7 +6,11 @@ import { Document, Page, pdfjs } from 'react-pdf';
 // Configurar el worker de PDF.js
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-export function EntregasTIDashboard({ vista, permisos }) {
+export function EntregasTIDashboard({ vista, permisos, usuario }) {
+    const rolUsuario = String(usuario?.rol || '').toLowerCase();
+  const isAdmin = rolUsuario === 'admin' || rolUsuario === 'administrador';
+  const canEdit = permisos?.editar === true;
+  const canBulkUpload = isAdmin || rolUsuario === 'ti';
   const [entregas, setEntregas] = useState([]);
   const [personalList, setPersonalList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
   }, []);
 
   const handleFileUpload = async (e) => {
+        if (!canBulkUpload) { toast.error('Solo TI y Administrador pueden realizar cargas masivas'); e.target.value = ''; return; }
     const file = e.target.files[0];
     if (!file) return;
 
@@ -222,6 +227,7 @@ export function EntregasTIDashboard({ vista, permisos }) {
   };
 
   const handleDelete = async (id) => {
+        if (!isAdmin) { toast.error('Solo el Administrador puede eliminar registros'); return; }
     if (window.confirm('¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.')) {
       toast.loading('Eliminando...', { id: 'delete' });
       try {
@@ -272,13 +278,15 @@ export function EntregasTIDashboard({ vista, permisos }) {
             style={{ backgroundColor: '#f59e0b', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
             📥 Exportar Excel
           </button>
-          {(!permisos || permisos.editar !== false) && (
+                    {canEdit && (
+            <button 
+              onClick={openCreateModal}
+              style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+              {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
+            </button>
+          )}
+          {canBulkUpload && (
             <>
-              <button 
-                onClick={openCreateModal}
-                style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-                {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
-              </button>
               <input 
                 type="file" 
                 accept=".xlsx, .xls" 
@@ -403,23 +411,23 @@ export function EntregasTIDashboard({ vista, permisos }) {
                           📄
                         </button>
                       )}
-                      {(!permisos || permisos.editar !== false) && (
-                        <>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
-                            style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
-                            title="Editar"
-                          >
-                            ✏️
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
-                            title="Eliminar"
-                          >
-                            🗑️
-                          </button>
-                        </>
+                                            {canEdit && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
+                          style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
                       )}
                     </div>
                   </td>
