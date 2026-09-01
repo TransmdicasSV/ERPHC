@@ -150,7 +150,7 @@ export function GestionUsuariosDashboard() {
         rol: user.rol,
         operacion: user.operacion || '',
         estado: user.estado,
-        permisos: user.permisos || TEMPLATES[user.rol] || TEMPLATES.supervisor
+        permisos: TEMPLATES[user.rol] || TEMPLATES.supervisor
       });
       setSelectedPersonalId('');
     } else {
@@ -189,26 +189,7 @@ export function GestionUsuariosDashboard() {
   });
 };
 
-  const togglePermiso = (modulo, tipo) => {
-    setFormData(prev => {
-      const perms = { ...prev.permisos };
-      const current = perms[modulo] ? { ...perms[modulo] } : { ver: false, editar: false };
-
-      current[tipo] = !current[tipo];
-
-      // Si se quita "ver", también quitar "editar"
-      if (tipo === 'ver' && !current.ver) {
-        current.editar = false;
-      }
-      // Si se da "editar", también dar "ver"
-      if (tipo === 'editar' && current.editar) {
-        current.ver = true;
-      }
-
-      perms[modulo] = current;
-      return { ...prev, permisos: perms };
-    });
-  };
+ 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -367,7 +348,7 @@ export function GestionUsuariosDashboard() {
             </div>
 
             <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
-              <form id="user-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <form id="user-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
 
                 {/* COLUMNA IZQUIERDA: DATOS BÁSICOS */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -456,50 +437,6 @@ export function GestionUsuariosDashboard() {
 
 
                 </div>
-
-                {/* COLUMNA DERECHA: MATRIZ DE PERMISOS */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '0.5rem' }}>Matriz Dinámica de Accesos</label>
-                  <div style={{ background: '#1F2937', borderRadius: '0.5rem', border: '1px solid #374151', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                      <thead>
-                        <tr style={{ background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid #374151' }}>
-                          <th style={{ padding: '0.5rem', textAlign: 'left' }}>Módulo</th>
-                          <th style={{ padding: '0.5rem', textAlign: 'center' }}>Ver</th>
-                          <th style={{ padding: '0.5rem', textAlign: 'center' }}>Editar</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {MODULES.map(m => {
-                          const perms = formData.permisos[m.id] || { ver: false, editar: false };
-                          return (
-                            <tr key={m.id} style={{ borderBottom: '1px solid #374151' }}>
-                              <td style={{ padding: '0.5rem' }}>{m.label}</td>
-                              <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={perms.ver}
-                                  onChange={() => togglePermiso(m.id, 'ver')}
-                                  style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
-                                />
-                              </td>
-                              <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={perms.editar}
-                                  onChange={() => togglePermiso(m.id, 'editar')}
-                                  disabled={!perms.ver}
-                                  style={{ transform: 'scale(1.2)', cursor: perms.ver ? 'pointer' : 'not-allowed', opacity: perms.ver ? 1 : 0.3 }}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
               </form>
             </div>
 

@@ -387,11 +387,11 @@ function App() {
         {/* CONTENIDO PRINCIPAL */}
         <main className="main-content-admin" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-color)', margin: 0 }}>
           {activeTab === 'resumen' && hasAccess('resumen') && <ResumenDashboard permisos={isAdmin ? { editar: true } : user?.permisos?.resumen} />}
-          {activeTab === 'maestro'  && hasAccess('flota') && ( <MaestroFlotaDashboard permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.flota}/>)}
-          {activeTab === 'personal' && hasAccess('personal') && ( <DirectorioPersonal permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.personal}/>)}
+          {activeTab === 'maestro' && hasAccess('flota') && (<MaestroFlotaDashboard permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.flota} />)}
+          {activeTab === 'personal' && hasAccess('personal') && (<DirectorioPersonal permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.personal} />)}
           {activeTab === 'dashboard' && hasAccess('dashboard') && <FlotasDashboard permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard} />}
-          {activeTab === 'entregas' && hasAccess('entregas') && <EntregasTIDashboard vista="Entrega" permisos={isAdmin ? { editar: true } : user?.permisos?.entregas} />}
-          {activeTab === 'devoluciones' && hasAccess('devoluciones') && <EntregasTIDashboard vista="Devolución" permisos={isAdmin ? { editar: true } : user?.permisos?.devoluciones} />}
+          {activeTab === 'entregas' && hasAccess('entregas') && <EntregasTIDashboard vista="Entrega" permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.entregas} usuario={user} />}
+          {activeTab === 'devoluciones' && hasAccess('devoluciones') && <EntregasTIDashboard vista="Devolución" permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.devoluciones} usuario={user} />}
           {activeTab === 'tickets' && hasAccess('tickets') && <SoporteTicketsDashboard permisos={isAdmin ? { ver: true, editar: true, crear: true, gestionar: true } : user?.permisos?.tickets} usuario={user} />}
           {activeTab === 'mantenimiento' && hasAccess('mantenimiento') && <MantenimientoTecnico permisos={isAdmin ? { editar: true } : user?.permisos?.mantenimiento} />}
           {activeTab === 'reportes' && hasAccess('reportes') && <ReportesDashboard permisos={isAdmin ? { editar: true } : user?.permisos?.reportes} />}

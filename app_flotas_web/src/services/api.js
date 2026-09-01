@@ -62,11 +62,7 @@ export const api = {  // ==========================================
     return response.json();
   },
   
-  getSemirremolques: async () => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/api/maestro/semirremolques`);
-    if (!response.ok) throw new Error('Error al cargar semirremolques');
-    return response.json();
-  },
+
   
   updateVehiculo: async (placa, data) => {
     const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, {
@@ -87,24 +83,8 @@ export const api = {  // ==========================================
     return response.json();
   },
 
-  updateSemirremolque: async (placa_sr, data) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/semirremolques/${placa_sr}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Error al actualizar semirremolque');
-    return response.json();
-  },
 
-  deleteSemirremolque: async (placa_sr) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/semirremolques/${placa_sr}`, { method: 'DELETE' });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Error al eliminar semirremolque');
-    }
-    return response.json();
-  },
+
 
   // ==========================================
   // DIRECTORIO DE PERSONAL
@@ -387,38 +367,22 @@ downloadMasterReport: async (startDate, endDate) => {
   },
 
   exportExcelEntregas: async (vista, categoria) => {
-  const params = new URLSearchParams();
-
-  if (vista) {
-    params.set('tipo', vista);
-  }
-
-  if (categoria) {
-    params.set('categoria', categoria);
-  }
-
-  const query = params.toString();
-  const endpoint =
-    `${BASE_URL}/api/entregas/export-excel${query ? `?${query}` : ''}`;
-
-  const response = await fetchWithAuth(endpoint);
-
-  if (!response.ok) {
-    throw new Error('Error al exportar las entregas');
-  }
-
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-
-  link.href = url;
-  link.download = 'entregas_ti.xlsx';
-
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  window.URL.revokeObjectURL(url);
+    const param = new URLSearchParams();
+    if(vista){params.set('tipo',vista);}
+    if(categoria){params.set('categoria',categoria);}
+    const query = params.toString();
+    const endpoint = `${BASE_URL}/api/entregas/export-excel${query ? `?${query}` : ''}`;
+    const respone = await fetchWithAuth(endpoint);
+    if(!response.ok){throw new Error('Error al exportar entregas');}
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');;
+    link.href = url;
+    link.download = 'entregas_ti.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    widow.URL.revokeObjectURL(url);
 },
 downloadFlotasReport: async ({
   formato = 'pdf',

@@ -127,23 +127,14 @@ const initDb = async () => {
   cargo VARCHAR(100),
   telefono VARCHAR(30),
   estado VARCHAR(20) DEFAULT 'Activo',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMEScTAMP
-);
-
-CREATE TABLE IF NOT EXISTS semirremolques (
-  placa_sr VARCHAR(20) PRIMARY KEY,
-  tipo VARCHAR(100),
-  marca VARCHAR(100),
-  modelo VARCHAR(100),
-  chasis VARCHAR(100),
-  capacidad VARCHAR(100),
-  compartimientos VARCHAR(100),
-  diametro_interior VARCHAR(100),
-  frecuencia_p VARCHAR(100),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(50) DEFAULT 'tecnico';
+
+      ALTER TABLE entregas_ti ADD COLUMN IF NOT EXISTS tipo_movimiento VARCHAR(50) DEFAULT 'Entrega';
+      ALTER TABLE entregas_ti ADD COLUMN IF NOT EXISTS documento_url TEXT;
+      UPDATE entregas_ti SET tipo_movimiento = 'Entrega' WHERE tipo_movimiento IS NULL OR TRIM(tipo_movimiento) = '';
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(50) DEFAULT 'tecnico';
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'activo';
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS operacion VARCHAR(100);
@@ -165,6 +156,40 @@ const logAction = async (userId, accion, tablaAfectada) => {
     );
   } catch (err) {
     console.error('Error de auditorÃ­a:', err);
+  }
+};
+const ROLE_MODULES = ['resumen', 'flota', 'personal', 'dashboard', 'tickets', 'entregas', 'devoluciones', 'mantenimiento', 'reportes', 'usuarios'];
+
+const ROLE_PERMISSIONS = {
+  admin: {
+    ...Object.fromEntries(ROLE_MODULES.map(modulo => [modulo, { ver: true, editar: true }])),
+    tickets: { ver: true, editar: true, crear: true, gestionar: true }
+  },
+
+  supervisor: {
+    resumen: { ver: true, editar: false },
+    flota: { ver: true, editar: false },
+    personal: { ver: false, editar: false },
+    dashboard: { ver: true, editar: true },
+    tickets: { ver: true, editar: false, crear: false, gestionar: false },
+    entregas: { ver: true, editar: true },
+    devoluciones: { ver: false, editar: false },
+    mantenimiento: { ver: false, editar: false },
+    reportes: { ver: false, editar: false },
+    usuarios: { ver: false, editar: false }
+  },
+
+  ti: {
+    resumen: { ver: true, editar: false },
+    flota: { ver: true, editar: true },
+    personal: { ver: true, editar: true },
+    dashboard: { ver: true, editar: true },
+    tickets: { ver: true, editar: true, crear: false, gestionar: true },
+    entregas: { ver: true, editar: true },
+    devoluciones: { ver: true, editar: true },
+    mantenimiento: { ver: true, editar: true },
+    reportes: { ver: false, editar: false },
+    usuarios: { ver: false, editar: false }
   }
 };
 // Middleware para proteger rutas
@@ -194,6 +219,7 @@ const verifyToken = (req, res, next) => {
 const PUBLIC_ROUTES = [
   { method: 'POST', pattern: /^\/api\/auth\/login\/?$/ },
   { method: 'POST', pattern: /^\/api\/public\/incidentes\/?$/ },
+  { method: 'POST', pattern: /^\/api\/public\/incidentes-soporte\/?$/ },
   { method: 'GET', pattern: /^\/api\/public\/stats\/?$/ },
   { method: 'GET', pattern: /^\/api\/public\/consulta\/[^/]+\/?$/ },
   { method: 'GET', pattern: /^\/uploads\/.+$/ },
@@ -228,8 +254,10 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = bcrypt.compareSync(password, user.password_hash);
     if (!validPassword) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
 
-    const userRol = user.rol || 'supervisor';
-    const userPermisos = user.permisos || {};
+    const userRolOriginal = String(user.rol || '').toLowerCase();
+    const userRol = userRolOriginal === 'administrador' ? 'admin' : userRolOriginal;
+    const userPermisos = ROLE_PERMISSIONS[userRol];
+    if (!userPermisos) return res.status(403).json({ error: 'El usuario tiene un rol antiguo o no válido. Comuníquese con el administrador' });
     const userOperacion = user.operacion || null;
     const token = jwt.sign({ id: user.id, username: user.username, rol: userRol, permisos: userPermisos, operacion: userOperacion }, JWT_SECRET, { expiresIn: '8h' });
     res.json({ token, user: { id: user.id, username: user.username, rol: userRol, permisos: userPermisos, operacion: userOperacion } });
@@ -293,13 +321,32 @@ const requirePermiso = (modulos, accion) => {
     next();
   };
 };
+const hastPermiso = (req, modulo, action) => {
+  const rol = String(req.user?.rol || '').toLowerCase();
+  if (rol === 'admin' || rol === 'administrador') return true;
+  return req.user?.permisos?.[modulo]?.[action] === true;
+};
 
+const getModuleMovimiento = (tipoMovimiento) => {
+  const tipo = String(tipoMovimiento || 'Entrega').toLowerCase();
+  return tipo === 'devolucion' || tipo === 'devolución' ? 'devoluciones' : 'entregas';
+}
+
+const hasPermiso = (req, modulo, accion) => {
+  const rol = String(req.user?.rol || '').toLowerCase();
+  if (rol === 'admin' || rol === 'administrador') return true;
+  return req.user?.permisos?.[modulo]?.[accion] === true;
+};
+
+const getModuloMovimiento = (tipoMovimiento) => {
+  const tipo = String(tipoMovimiento || 'Entrega').trim().toLowerCase();
+  return tipo === 'devolución' || tipo === 'devolucion' ? 'devoluciones' : 'entregas';
+};
 const PERMISSION_ROUTES = [
   { pattern: /^\/api\/usuarios(?:\/|$)/, adminOnly: true },
   { pattern: /^\/api\/personal(?:\/|$)/, modules: ['personal'] },
   { pattern: /^\/api\/maestro(?:\/|$)/, modules: ['flota'] },
   { pattern: /^\/vehiculos(?:\/|$)/, modules: ['flota'] },
-  { pattern: /^\/semirremolques(?:\/|$)/, modules: ['flota'] },
   { pattern: /^\/inspecciones(?:\/|$)/, modules: ['dashboard'] },
   { pattern: /^\/api\/incidentes(?:\/|$)/, modules: ['tickets'] },
   { pattern: /^\/incidentes(?:\/|$)/, modules: ['dashboard'] },
@@ -360,7 +407,7 @@ app.get('/api/usuarios', async (req, res) => {
 });
 
 app.post('/api/usuarios', requireAdmin, async (req, res) => {
-  const { username, password, rol, permisos, estado, operacion } = req.body;
+  const { username, password, rol, estado, operacion } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Faltan campos obligatorios' });
   const rolFinal = rol || 'supervisor';
   const rolesValidos = ['admin', 'supervisor', 'ti'];
@@ -374,7 +421,7 @@ app.post('/api/usuarios', requireAdmin, async (req, res) => {
     const hash = bcrypt.hashSync(password, 10);
     const result = await pool.query(
       'INSERT INTO usuarios (username, password_hash, rol, permisos, estado, operacion) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [username, hash, rolFinal, permisos || {}, estado || 'activo', operacionFinal]
+      [username, hash, rolFinal, permisosFinales, estado || 'activo', operacionFinal]
     );
     await logAction(req.user.id, `Usuario creado: ${username}`, 'usuarios');
     res.json({ success: true, id: result.rows[0].id });
@@ -386,17 +433,18 @@ app.post('/api/usuarios', requireAdmin, async (req, res) => {
 
 app.put('/api/usuarios/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { rol, permisos, estado, password, operacion } = req.body;
+  const { rol, estado, password, operacion } = req.body;
   const rolesValidos = ['admin', 'supervisor', 'ti'];
   if (!rolesValidos.includes(rol)) return res.status(400).json({ error: 'Rol no válido' });
   if (rol === 'supervisor' && !String(operacion || '').trim()) return res.status(400).json({ error: 'Debe asignar una operación al supervisor' });
   const operacionFinal = rol === 'supervisor' ? String(operacion).trim() : null;
+  const permisosFinales = ROLE_PERMISSIONS[rolFinal];
   try {
     if (password) {
       const hash = bcrypt.hashSync(password, 10);
-      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, operacion=$4, password_hash=$5 WHERE id=$6', [rol, permisos, estado, operacionFinal, hash, id]);
+      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, operacion=$4, password_hash=$5 WHERE id=$6', [rol, permisosFinales, estado, operacionFinal, hash, id]);
     } else {
-      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, operacion=$4 WHERE id=$5', [rol, permisos, estado, operacionFinal, id]);
+      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, operacion=$4 WHERE id=$5', [rol, permisosFinales, estado, operacionFinal, id]);
     }
     await logAction(req.user.id, `Usuario modificado ID: ${id}`, 'usuarios');
     res.json({ success: true });
@@ -520,21 +568,29 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
   }
 });
 
-// Crear Incidente (Desde Portal Público)
-app.post('/api/incidentes_soporte', async (req, res) => {
+// Crear ticket desde el portal público o desde la administración
+const createSupportTicket = async (req, res) => {
   const { placa, tipo_solicitud, descripcion, operador, categoria, prioridad } = req.body;
+
+  if (!tipo_solicitud || !descripcion || !operador) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+
   try {
     await pool.query(
       'INSERT INTO incidentes_soporte (placa, tipo_solicitud, descripcion, operador, categoria, prioridad) VALUES ($1, $2, $3, $4, $5, $6)',
-      [placa, tipo_solicitud, descripcion, operador, categoria || 'General', prioridad || 'Media']
+      [String(placa || '').trim().toUpperCase(), tipo_solicitud, descripcion, operador, categoria || 'General', prioridad || 'Media']
     );
-    await logAction(null, `Solicitud de soporte para ${placa}`, 'incidentes_soporte');
-    res.json({ success: true });
+    await logAction(req.user?.id || null, `Solicitud de soporte para ${placa || 'sin placa'}`, 'incidentes_soporte');
+    res.status(201).json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al registrar la solicitud' });
   }
-});
+};
+
+app.post('/api/public/incidentes-soporte', createSupportTicket);
+app.post('/api/incidentes_soporte', requireAdmin, createSupportTicket);
 
 // APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
 // Endpoint para recibir la telemetría del Core Desktop local (Sin JWT, usa secret interno)
@@ -614,16 +670,6 @@ app.get('/api/maestro/tractos', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error obteniendo tractos' });
-  }
-});
-
-app.get('/api/maestro/semirremolques', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM semirremolques ORDER BY placa_sr ASC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error obteniendo semirremolques' });
   }
 });
 
@@ -1185,26 +1231,24 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
 app.put('/vehiculos/:placa', async (req, res) => {
   const { placa } = req.params;
   const data = req.body;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return res.status(400).json({ error: 'Datos del vehículo no válidos' });
+  const permitidos = ['programa', 'tipo_vehiculo', 'marca_tracto', 'modelo_tracto', 'anio_fabricacion', 'operacion', 'cliente', 'estado_operativo', 'observaciones_operativas'];
+  const campos = permitidos.filter(campo => Object.prototype.hasOwnProperty.call(data, campo));
+  if (!campos.length) return res.status(400).json({ error: 'No se enviaron campos editables' });
+  if (campos.some(campo => data[campo] !== null && typeof data[campo] !== 'string')) return res.status(400).json({ error: 'Los campos deben contener texto o null' });
   try {
-    const query = `
-      UPDATE vehiculos SET 
-        operacion=$1, cliente=$2, vin=$3, marca=$4, modelo=$5, anio=$6, color=$7, 
-        peso_ton=$8, potencia=$9, cilindros=$10, cilindrada=$11, torque=$12, 
-        cambios=$13, transmision=$14, suspension_del=$15, suspension_post=$16, placa_sr=$17
-      WHERE placa = $18 RETURNING *
-    `;
-    const values = [
-      data.operacion, data.cliente, data.vin, data.marca, data.modelo, data.anio, data.color,
-      data.peso_ton, data.potencia, data.cilindros, data.cilindrada, data.torque,
-      data.cambios, data.transmision, data.suspension_del, data.suspension_post, data.placa_sr,
-      placa
-    ].map(v => v === undefined ? null : (v === '' ? null : v));
+    const cambios = campos.map((campo, indice) => `${campo} = $${indice + 1}`).join(', ');
+    const values = campos.map(campo => data[campo] === null ? null : (data[campo].trim() || null));
+    values.push(placa);
+    const query = `UPDATE public.vehiculos SET ${cambios} WHERE placa = $${values.length} RETURNING *`;
     const result = await pool.query(query, values);
+    if (!result.rows.length) return res.status(404).json({ error: 'Vehículo no encontrado' });
     await logAction(req.user ? req.user.id : null, `Actualizó el tracto ${placa}`, 'vehiculos');
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error PUT /vehiculos:', err);
-    res.status(500).json({ error: `Error DB: ${err.message}` });
+    if (err.code === '22001') return res.status(400).json({ error: 'Uno de los campos supera la longitud permitida' });
+    res.status(500).json({ error: 'Error al actualizar el vehículo' });
   }
 });
 
@@ -1225,46 +1269,9 @@ app.delete('/vehiculos/:placa', async (req, res) => {
   }
 });
 
-// Actualizar Semirremolque
-app.put('/semirremolques/:placa_sr', async (req, res) => {
-  const { placa_sr } = req.params;
-  const data = req.body;
-  try {
-    const query = `
-      UPDATE semirremolques SET 
-        tipo=$1, marca=$2, modelo=$3, chasis=$4, capacidad=$5, 
-        compartimientos=$6, diametro_interior=$7, frecuencia_p=$8
-      WHERE placa_sr = $9 RETURNING *
-    `;
-    const values = [
-      data.tipo, data.marca, data.modelo, data.chasis, data.capacidad,
-      data.compartimientos, data.diametro_interior, data.frecuencia_p,
-      placa_sr
-    ].map(v => v === undefined ? null : (v === '' ? null : v));
-    const result = await pool.query(query, values);
-    await logAction(req.user ? req.user.id : null, `Actualizó el semirremolque ${placa_sr}`, 'semirremolques');
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Error PUT /semirremolques:', err);
-    res.status(500).json({ error: `Error DB: ${err.message}` });
-  }
-});
 
-// Eliminar Semirremolque
-app.delete('/semirremolques/:placa_sr', async (req, res) => {
-  const { placa_sr } = req.params;
-  try {
-    await pool.query('DELETE FROM semirremolques WHERE placa_sr = $1', [placa_sr]);
-    await logAction(req.user ? req.user.id : null, `Eliminó el semirremolque ${placa_sr}`, 'semirremolques');
-    res.json({ message: 'Semirremolque eliminado' });
-  } catch (err) {
-    if (err.code === '23503') {
-      res.status(400).json({ error: 'No se puede eliminar porque está asociado a un vehículo o inspección.' });
-    } else {
-      res.status(500).json({ error: 'Error interno al eliminar' });
-    }
-  }
-});
+
+
 
 // Eliminar Inspección individual
 app.delete('/inspecciones/:id', async (req, res) => {
@@ -1531,17 +1538,35 @@ app.get('/stats/charts', async (req, res) => {
 
 app.get('/api/entregas', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM entregas_ti ORDER BY id DESC');
+    const puedeVerEntregas = hasPermiso(req, 'entregas', 'ver');
+    const puedeVerDevoluciones = hasPermiso(req, 'devoluciones', 'ver');
+    if (!puedeVerEntregas && !puedeVerDevoluciones) {
+      return res.status(403).json({ error: 'No tienes permiso para consultar inventario TI' });
+    }
+    let query = 'SELECT * FROM entregas_ti';
+    const params = [];
+    if (puedeVerEntregas && !puedeVerDevoluciones) {
+      query += " WHERE tipo_movimiento IS NULL OR TRIM(tipo_movimiento) = '' OR LOWER(TRIM(tipo_movimiento)) = 'entrega'";
+    } else if (!puedeVerEntregas && puedeVerDevoluciones) {
+      query += " WHERE LOWER(TRIM(tipo_movimiento)) IN ('devolución','devolucion')";
+    }
+    query += ' ORDER BY id DESC';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error obteniendo entregas TI' });
+    res.status(500).json({ error: 'Error obteniendo inventario TI' })
   }
 });
 
 app.post('/api/entregas', upload.single('acta'), async (req, res) => {
   const { fecha, encargado, nombre, dni, cargo, operacion, condicion, equipo_tipo, marca, modelo, serie, laptop, mouse, cargador, motivo, observaciones, precio, tipo_movimiento, documento_url } = req.body;
-
+  const tipoNormalizado = String(tipo_movimiento || 'Entrega').trim().toLocaleLowerCase();
+  if (!['entrega', 'devolución', 'devolucion'].includes(tipoNormalizado))
+    return res.status(400).json({ error: 'Tipo de Movimiento no valido' });
+  const t_mov = tipoNormalizado === 'entrega' ? 'Entrega' : 'Devolución';
+  const moduloMovimiento = getModuloMovimiento(t_mov);
+  if (!hasPermiso(req, moduloMovimiento, 'editar')) return res.status(403).json({ error: `No tienes permiso para crear registros de ${t_mov}` });
   let final_documento_url = documento_url || null;
   if (req.file) {
     try {
@@ -1556,7 +1581,6 @@ app.post('/api/entregas', upload.single('acta'), async (req, res) => {
   let precioParsed = parseFloat(precio);
   if (isNaN(precioParsed)) precioParsed = null;
   const fechaParsed = fecha || null;
-  const t_mov = tipo_movimiento || 'Entrega';
   try {
     const result = await pool.query(
       `INSERT INTO entregas_ti (fecha, encargado, nombre, dni, cargo, operacion, condicion, equipo_tipo, marca, modelo, serie, laptop, mouse, cargador, motivo, observaciones, precio, tipo_movimiento, documento_url)
@@ -1573,7 +1597,24 @@ app.post('/api/entregas', upload.single('acta'), async (req, res) => {
 app.put('/api/entregas/:id', upload.single('acta'), async (req, res) => {
   const { id } = req.params;
   const { fecha, encargado, nombre, dni, cargo, operacion, condicion, equipo_tipo, marca, modelo, serie, laptop, mouse, cargador, motivo, observaciones, precio, tipo_movimiento, documento_url } = req.body;
+  const tipoNormalizado = String(tipo_movimiento || 'Entrega').trim().toLowerCase();
+  if (!['entrega', 'devolución', 'devolucion'].includes(tipoNormalizado)) return res.status(400).json({ error: 'Tipo de movimiento no válido' });
+  const t_mov = tipoNormalizado === 'entrega' ? 'Entrega' : 'Devolución';
 
+  try {
+    const registroActual = await pool.query('SELECT tipo_movimiento FROM entregas_ti WHERE id = $1', [id]);
+    if (registroActual.rows.length === 0) return res.status(404).json({ error: 'No encontrado' });
+
+    const moduloActual = getModuloMovimiento(registroActual.rows[0].tipo_movimiento);
+    const moduloNuevo = getModuloMovimiento(t_mov);
+
+    if (!hasPermiso(req, moduloActual, 'editar') || !hasPermiso(req, moduloNuevo, 'editar')) {
+      return res.status(403).json({ error: 'No tienes permiso para modificar este tipo de movimiento' });
+    }
+  } catch (error) {
+    console.error('Error verificando permisos de inventario:', error);
+    return res.status(500).json({ error: 'Error verificando el registro' });
+  }
   let final_documento_url = documento_url || null;
 
   if (req.file) {
@@ -1594,7 +1635,6 @@ app.put('/api/entregas/:id', upload.single('acta'), async (req, res) => {
   let precioParsed = parseFloat(precio);
   if (isNaN(precioParsed)) precioParsed = null;
   const fechaParsed = fecha || null;
-  const t_mov = tipo_movimiento || 'Entrega';
   try {
     const result = await pool.query(
       `UPDATE entregas_ti SET 
@@ -1610,7 +1650,7 @@ app.put('/api/entregas/:id', upload.single('acta'), async (req, res) => {
   }
 });
 
-app.delete('/api/entregas/:id', async (req, res) => {
+app.delete('/api/entregas/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM entregas_ti WHERE id = $1 RETURNING *', [id]);
@@ -1622,7 +1662,12 @@ app.delete('/api/entregas/:id', async (req, res) => {
   }
 });
 
-app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) => {
+app.post('/api/entregas/upload-excel', (req, res, next) => {
+  const puedeEditarEntregas = hasPermiso(req, 'entregas', 'editar');
+  const puedeEditarDevoluciones = hasPermiso(req, 'devoluciones', 'editar');
+  if (!puedeEditarEntregas || !puedeEditarDevoluciones) return res.status(403).json({ error: 'No tienes permiso para realizar cargas masivas de inventario' });
+  next();
+}, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se subió ningÃºn archivo' });
 
   try {
@@ -1690,11 +1735,30 @@ app.post('/api/entregas/upload-excel', upload.single('file'), async (req, res) =
 
 app.get('/api/entregas/export-excel', async (req, res) => {
   try {
-    const { tipo, categoria } = req.query; // 'Entrega' o 'Devolución'
+    const { tipo, categoria } = req.query;
+    const tipoNormalizado = String(tipo || '').trim().toLowerCase();
+
+    if (tipoNormalizado && !['entrega', 'devolución', 'devolucion'].includes(tipoNormalizado)) {
+      return res.status(400).json({ error: 'Tipo de movimiento no válido' });
+    }
+
+    const puedeVerEntregas = hasPermiso(req, 'entregas', 'ver');
+    const puedeVerDevoluciones = hasPermiso(req, 'devoluciones', 'ver');
+    let tipoAutorizado = tipoNormalizado === 'entrega' ? 'Entrega' : tipoNormalizado === 'devolución' || tipoNormalizado === 'devolucion' ? 'Devolución' : null;
+
+    if (tipoAutorizado === 'Entrega' && !puedeVerEntregas) return res.status(403).json({ error: 'No tienes permiso para exportar entregas' });
+    if (tipoAutorizado === 'Devolución' && !puedeVerDevoluciones) return res.status(403).json({ error: 'No tienes permiso para exportar devoluciones' });
+
+    if (!tipoAutorizado) {
+      if (puedeVerEntregas && !puedeVerDevoluciones) tipoAutorizado = 'Entrega';
+      else if (!puedeVerEntregas && puedeVerDevoluciones) tipoAutorizado = 'Devolución';
+      else if (!puedeVerEntregas && !puedeVerDevoluciones) return res.status(403).json({ error: 'No tienes permiso para exportar inventario' });
+    }
+
     let query = 'SELECT * FROM entregas_ti WHERE 1=1';
     let params = [];
 
-    if (tipo === 'Devolución') {
+    if (tipoAutorizado === 'Devolución') {
       params.push('Devolución');
       query += ` AND tipo_movimiento = $${params.length}`;
     } else if (tipo === 'Entrega') {
