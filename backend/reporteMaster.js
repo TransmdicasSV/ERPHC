@@ -1,33 +1,89 @@
 import ExcelJS from 'exceljs';
-import https from 'https';
-import http from 'http';
+import { readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// Función para descargar imagen como buffer
-const downloadImage = (url) => {
-  return new Promise((resolve, reject) => {
-    if (!url || !url.startsWith('http')) return resolve(null);
-    const client = url.startsWith('https') ? https : http;
-    client.get(url, (res) => {
-      if (res.statusCode !== 200) {
-        return resolve(null); // Ignorar errores 404, etc
+const uploadsDir = fileURLToPath(new URL('./uploads/', import.meta.url));
+const downloadImage = async (source) => {
+  try {
+    let buffer;
+    const maxBytes = 8 * 1024 * 1024;
+    if (/^https?:\/\//i.test(source)) {
+      const url = new URL(source);
+      if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com' || url.port || url.username || url.password) return null;
+      url.pathname = url.pathname.replace('/image/upload/', '/image/upload/c_limit,w_300,h_300/q_auto/f_jpg/');
+      const response = await fetch(url, { signal: AbortSignal.timeout(12000), redirect: 'error' });
+      if (!response.ok) { await response.body?.cancel(); return null; }
+      const chunks = [];
+      let bytes = 0;
+      for await (const chunk of response.body) {
+        bytes += chunk.length;
+        if (bytes > maxBytes) throw new Error('Imagen demasiado grande');
+        chunks.push(chunk);
       }
-      const data = [];
-      res.on('data', chunk => data.push(chunk));
-      res.on('end', () => resolve(Buffer.concat(data)));
-    }).on('error', err => resolve(null));
-  });
+      buffer = Buffer.concat(chunks);
+    } else {
+      const name = source.replace(/^\/?uploads\//, '');
+      if (!name || name.includes('..') || /[\\/:]/.test(name)) return null;
+      const filename = path.join(uploadsDir, name);
+      if ((await stat(filename)).size > maxBytes) return null;
+      buffer = await readFile(filename);
+    }
+    const signature = buffer.subarray(0, 8).toString('hex');
+    const extension = signature.startsWith('ffd8ff') ? 'jpeg' : signature === '89504e470d0a1a0a' ? 'png' : signature.startsWith('474946383761') || signature.startsWith('474946383961') ? 'gif' : null;
+    return extension ? { buffer, extension } : null;
+  } catch {
+    return null;
+  }
 };
-
-export const generateMasterReport = async (pool, startDate, endDate) => {
+export const generateMasterReport = async (pool, startDate, endDate,operacion) => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Sistema OMNI';
   workbook.created = new Date();
+  
+    const result = await pool.query(`
+    SELECT i.*, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
+      CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END AS operacion,
+      i.fecha::text AS fecha_ejecutada_raw,
+      COALESCE(m.frecuencia_dias, 180) AS frecuencia_dias,
+      CASE WHEN i.camaras ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.dvr, 'N/A') END AS dvr,
+      CASE WHEN i.tablet ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.copiloto, 'N/A') END AS copiloto,
+      CASE WHEN i.radio ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.radio_base, 'N/A') END AS radio_base,
+      COALESCE(m.handy, 'N/A') AS handy, COALESCE(m.camara_interna, 'N/A') AS camara_interna,
+      COALESCE(m.camara_externa, 'N/A') AS camara_externa, COALESCE(m.camara_retroceso, 'N/A') AS camara_retroceso,
+      COALESCE(m.sensores_retroceso, 'N/A') AS sensores_retroceso, COALESCE(m.sensores_delanteros, 'N/A') AS sensores_delanteros, COALESCE(m.sistema_adas, 'N/A') AS sistema_adas
+    FROM vehiculos v
+    JOIN LATERAL (
+      SELECT x.* FROM inspecciones_flota x
+      WHERE x.placa = v.placa AND x.fecha BETWEEN $1 AND $2
+      ORDER BY x.fecha DESC, CASE WHEN BTRIM(x.hora::text) ~ '^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' THEN BTRIM(x.hora::text)::time END DESC NULLS LAST, x.id DESC
+      LIMIT 1
+    ) i ON true
+    LEFT JOIN LATERAL (
+      SELECT x.* FROM mantenimientos_tecnicos x WHERE x.placa = v.placa ORDER BY x.id DESC LIMIT 1
+    ) m ON true
+    WHERE LOWER(CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END) = LOWER($3)
+    ORDER BY v.placa ASC
+  `, [startDate, endDate, operacion]);
+  const inspecciones = result.rows;
+  if (!inspecciones.length) throw Object.assign(new Error('No hay inspecciones para esa operación en el período seleccionado'), { status: 404 });
+
+  const urls = [...new Set(inspecciones.flatMap(row => [row.img_tablet, row.img_camaras, row.img_radio]).filter(url => typeof url === 'string' && url.trim()))];
+  const images = new Map();
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, urls.length) }, async () => {
+    while (cursor < urls.length) {
+      const url = urls[cursor++];
+      images.set(url, await downloadImage(url));
+    }
+  }));
+  const imageIds = new Map();
+    
 
   // Helper para crear pestaña de Operaciones (LBB, PRX, AAQ, IND)
-  const createOperationSheet = async (sheetName, operationFilter) => {
+    const createOperationSheet = async (sheetName) => {
     const ws = workbook.addWorksheet(sheetName);
-    
-    // Configurar columnas
+
     ws.columns = [
       { header: 'FECHA', key: 'fecha', width: 15 },
       { header: 'HORA', key: 'hora', width: 10 },
@@ -44,51 +100,24 @@ export const generateMasterReport = async (pool, startDate, endDate) => {
       { header: 'EVIDENCIAS RADIO BASE', key: 'img_radio', width: 25 },
     ];
 
-    // Estilo a la cabecera
     ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
     ws.getRow(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-    // Query con JOIN a vehiculos
-    let query = `
-      SELECT i.*, v.operacion
-      FROM inspecciones_flota i
-      LEFT JOIN vehiculos v ON i.placa = v.placa
-      WHERE i.fecha BETWEEN $1 AND $2
-    `;
-    const queryParams = [startDate, endDate];
-    
-    if (operationFilter) {
-      if (operationFilter === 'LBB_Repsol') {
-        query += " AND (v.operacion ILIKE '%Bambas%' OR v.operacion ILIKE '%Repsol%')";
-      } else if (operationFilter === 'Primax') {
-        query += " AND v.operacion ILIKE '%Primax%'";
-      } else if (operationFilter === 'Quellaveco') {
-        query += " AND v.operacion ILIKE '%Quellaveco%'";
-      } else if (operationFilter === 'GLP') {
-        query += " AND v.operacion ILIKE '%GLP%'";
-      } else if (operationFilter === 'Industrias') {
-        query += " AND v.operacion ILIKE '%Industria%'";
-      }
-    }
-    
-    query += ' ORDER BY i.fecha DESC, i.hora DESC';
-
-    const result = await pool.query(query, queryParams);
-    const rows = result.rows;
+    const rows = inspecciones;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const rowIndex = i + 2; 
-      
+      const rowIndex = i + 2;
+
       const xlRow = ws.addRow({
         fecha: row.fecha,
         hora: row.hora,
         placa: row.placa,
         conductor: row.conductor,
         tablet: row.tablet,
-        obs_tablet: row.observaciones, 
-        img_tablet: '', 
+        obs_tablet: row.observaciones,
+        img_tablet: '',
         camaras: row.camaras,
         obs_camaras: '',
         img_camaras: '',
@@ -96,35 +125,26 @@ export const generateMasterReport = async (pool, startDate, endDate) => {
         obs_radio: '',
         img_radio: ''
       });
-      
-      xlRow.height = 80; 
+
+      xlRow.height = 80;
       xlRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
       const imgFields = [
-        { url: row.img_tablet, colIndex: 6 }, 
+        { url: row.img_tablet, colIndex: 6 },
         { url: row.img_camaras, colIndex: 9 },
-        { url: row.img_radio, colIndex: 12 } 
+        { url: row.img_radio, colIndex: 12 }
       ];
 
       for (const field of imgFields) {
-        if (field.url) {
-          const fullUrl = field.url.startsWith('http') ? field.url : `http://localhost:8000/uploads/${field.url}`;
-          const buffer = await downloadImage(fullUrl);
-          if (buffer) {
-            try {
-              const imageId = workbook.addImage({
-                buffer: buffer,
-                extension: 'jpeg',
-              });
-              ws.addImage(imageId, {
-                tl: { col: field.colIndex, row: rowIndex - 1 },
-                ext: { width: 100, height: 100 }
-              });
-            } catch(e) {
-              console.log('Error adding image to excel:', e.message);
-            }
-          }
-        }
+        if (!field.url) continue;
+        const cell = ws.getCell(rowIndex, field.colIndex + 1);
+        const isWeb = /^https?:\/\//i.test(field.url);
+        cell.value = isWeb ? { text: 'Ver original', hyperlink: field.url } : field.url;
+        cell.alignment = { vertical: 'bottom', horizontal: 'center', wrapText: true };
+        const img = images.get(field.url);
+        if (!img) { cell.note = 'No se pudo incrustar la imagen; se conserva su referencia original.'; continue; }
+        if (!imageIds.has(field.url)) imageIds.set(field.url, workbook.addImage(img));
+        ws.addImage(imageIds.get(field.url), { tl: { col: field.colIndex, row: rowIndex - 1 }, ext: { width: 100, height: 80 } });
       }
     }
   };
@@ -208,35 +228,8 @@ export const generateMasterReport = async (pool, startDate, endDate) => {
   });
   ws1.getRow(7).height = 80; 
 
-  const queryMant = `
-    SELECT 
-      v.*,
-      COALESCE(i.fecha::text, m.fecha_ejecutada::text) as fecha_ejecutada_raw,
-      COALESCE(m.frecuencia_dias, 180) as frecuencia_dias,
-      CASE WHEN i.camaras ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.dvr, 'N/A') END as dvr,
-      CASE WHEN i.tablet ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.copiloto, 'N/A') END as copiloto,
-      CASE WHEN i.radio ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.radio_base, 'N/A') END as radio_base,
-      COALESCE(m.handy, 'N/A') as handy,
-      COALESCE(m.camara_interna, 'N/A') as camara_interna,
-      COALESCE(m.camara_externa, 'N/A') as camara_externa,
-      COALESCE(m.camara_retroceso, 'N/A') as camara_retroceso,
-      COALESCE(m.sensores_retroceso, 'N/A') as sensores_retroceso,
-      COALESCE(m.sensores_delanteros, 'N/A') as sensores_delanteros,
-      COALESCE(m.sistema_adas, 'N/A') as sistema_adas
-    FROM vehiculos v
-    LEFT JOIN (
-      SELECT placa, fecha, camaras, tablet, radio, id,
-             ROW_NUMBER() OVER(PARTITION BY placa ORDER BY id DESC) as rn
-      FROM inspecciones_flota
-    ) i ON v.placa = i.placa AND i.rn = 1
-    LEFT JOIN (
-      SELECT *, ROW_NUMBER() OVER(PARTITION BY placa ORDER BY id DESC) as rn
-      FROM mantenimientos_tecnicos
-    ) m ON v.placa = m.placa AND m.rn = 1
-    ORDER BY v.placa ASC
-  `;
-  const dataRes = await pool.query(queryMant);
-
+  
+  const dataRes = { rows: inspecciones};
   let rowNum = 8;
   dataRes.rows.forEach((row, i) => {
     let rawF = row.fecha_ejecutada_raw;
@@ -304,47 +297,11 @@ export const generateMasterReport = async (pool, startDate, endDate) => {
   ws2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
 
-  const queryGerencial = `
-    SELECT 
-      v.placa, v.tipo_vehiculo as tipo, v.operacion as programa, 'Activo' as estado_vehiculo,
-      i.fecha, i.hora, i.tablet, i.radio, i.camaras, i.observaciones
-    FROM vehiculos v
-    LEFT JOIN inspecciones_flota i ON v.placa = i.placa
-    WHERE i.fecha BETWEEN $1 AND $2
-    ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, v.placa ASC
-  `;
-  const regResGerencial = await pool.query(queryGerencial, [startDate, endDate]);
-  regResGerencial.rows.forEach(r => ws2.addRow(r));
+  inspecciones.forEach(r => ws2.addRow({...r, tipo: r.tipo_vehiculo, programa:r.operacion, estado_vehiculo:r.estado_operativo || ''}));
 
-  // ==============================================
-  // 3. BBDD
-  // ==============================================
-  workbook.addWorksheet('BBDD');
 
-  // ==============================================
-  // 4. LBB (Bambas o Repsol)
-  // ==============================================
-  await createOperationSheet('LBB', 'LBB_Repsol');
-
-  // ==============================================
-  // 5. PRX
-  // ==============================================
-  await createOperationSheet('PRX', 'Primax');
-
-  // ==============================================
-  // 6. GLP
-  // ==============================================
-  await createOperationSheet('GLP', 'GLP');
-
-  // ==============================================
-  // 7. AAQ
-  // ==============================================
-  workbook.addWorksheet('AAQ');
-
-  // ==============================================
-  // 8. IND
-  // ==============================================
-  await createOperationSheet('IND', 'Industrias');
+  const sheetName = `OP ${operacion}`.replace(/[\\/*?:\[\]\x00-\x1f]/g, ' ').slice(0, 31).trim().replace(/'+$/, '');
+  await createOperationSheet(sheetName);
 
   return workbook;
 };

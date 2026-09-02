@@ -4,6 +4,27 @@ import { api } from '../services/api';
 
 export function ReportesDashboard() {
   const [loading, setLoading] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [operaciones, setOperaciones] = useState([]);
+  const [operacion, setOperacion] = useState('');
+  const [loadingOps, setLoadingOps] = useState(false);
+
+  const handleOpenExport = async() =>{
+    setModalOpen(true);
+    setLoadingOps(true);
+    setOperacion('');
+    setOperaciones([]);
+    try{
+      const data = await api.getOperacionesReportes();
+      setOperaciones(Array.isArray(data) ? data : []);
+    }catch(error){
+      toast.error(error.message);
+      setModalOpen(false);
+    } finally{
+      setLoadingOps(false);
+    }
+  };
   
   const defaultEnd = new Date().toISOString().split('T')[0];
   const defaultStart = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
@@ -11,41 +32,46 @@ export function ReportesDashboard() {
   const [fechaInicio, setFechaInicio] = useState(defaultStart);
   const [fechaFin, setFechaFin] = useState(defaultEnd);
 
-  const handleDownloadMaster = async () => {
-    if (!fechaInicio || !fechaFin) {
-      toast.error('Por favor seleccione un rango de fechas');
-      return;
-    }
-    if (fechaInicio > fechaFin) {
-      toast.error('La fecha de inicio no puede ser mayor a la fecha de fin');
-      return;
-    }
+ const handleDownloadMaster = async () => {
+  if(loading) return;
+  if(!operacion || !operaciones.includes(operacion)) return toast.error('Seleccione una operación válida.');
+  if(!fechaInicio || !fechaFin){
+    toast.error('Por favor seleccione un rango de fechas válido.');
+    return;
+  }
+  if(fechaInicio>fechaFin){
+    toast.error('La fecha de inicio no puede ser mayor a la fecha de fin.');
+    return;
+  }
+  setLoading(true);
+  const loadingToast = toast.loading('Generando las tres pestañas de la operacion seleccionada');
 
-    setLoading(true);
-    const loadingToast = toast.loading('Generando Reporte Master... esto puede demorar debido a la descarga de fotos 📸');
+  try{
+    const blob = await api.downloadMasterReport(
+      fechaInicio,
+      fechaFin,
+      operacion
+    );
 
-    try {
-      const blob = await api.downloadMasterReport(
-        fechaInicio,
-        fechaFin
-      );
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `Reporte_Auditoria_Master_${fechaInicio}_al_${fechaFin}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-      
-      toast.success('Reporte Master generado con éxito', { id: loadingToast });
-    } catch (error) {
-      console.error(error);
-      toast.error('Ocurrió un error al descargar el reporte', { id: loadingToast });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+     link.download = `Reporte_${operacion.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')}_${fechaInicio}_al_${fechaFin}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+     setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1000);
+     setModalOpen(false);
+
+     toast.success('Reporte descargado exitosamente', { id: loadingToast });
+  }catch(error){
+    console.error(error);
+    toast.error(error.message || 'Ocurrio un error al descargar reporte', {id: loadingToast});
+  } finally{
+    setLoading(false);
+  }
+ };
+
 
   return (
     <div style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
@@ -92,8 +118,8 @@ export function ReportesDashboard() {
             </div>
 
             <button 
-              onClick={handleDownloadMaster}
-              disabled={loading}
+              onClick={handleOpenExport}
+              disabled={loading || loadingOps || modalOpen}
               style={{ 
                 width: '100%', padding: '1rem', 
                 backgroundColor: loading ? '#9CA3AF' : '#10B981', 
@@ -119,6 +145,24 @@ export function ReportesDashboard() {
           </div>
         </div>
       </div>
+            {modalOpen && (
+        <div role="dialog" aria-modal="true" aria-labelledby="export-title" onKeyDown={e => { if (e.key === 'Escape' && !loading) setModalOpen(false); }} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)', padding: '1.5rem', borderRadius: '1rem', width: '100%', maxWidth: '480px' }}>
+            <h3 id="export-title" style={{ marginTop: 0 }}>Exportar por operación</h3>
+            <p>Período: {fechaInicio} al {fechaFin}. Se incluirá la última inspección de cada placa en ese rango.</p>
+            <label htmlFor="export-operacion">Operación</label>
+            <select id="export-operacion" autoFocus value={operacion} onChange={e => setOperacion(e.target.value)} disabled={loading || loadingOps} style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
+              <option value="">{loadingOps ? 'Cargando operaciones...' : 'Seleccione una operación'}</option>
+              {operaciones.map(op => <option key={op} value={op}>{op}</option>)}
+            </select>
+            {!loadingOps && !operaciones.length && <p>No hay operaciones disponibles.</p>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button type="button" disabled={loading} onClick={() => setModalOpen(false)} style={{ padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer' }}>Cancelar</button>
+              <button type="button" disabled={loading || loadingOps || !operacion} onClick={handleDownloadMaster} style={{ padding: '0.75rem', border: 'none', borderRadius: '0.5rem', backgroundColor: '#10B981', color: 'white', cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'Generando...' : 'Descargar Excel'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }

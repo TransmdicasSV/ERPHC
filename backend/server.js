@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import ExcelJS from 'exceljs';
+import { createHash } from 'node:crypto';
 
 import xlsx from 'xlsx';
 import { generatePDF, generateExcel } from './reports.js';
@@ -86,66 +87,89 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Servir imÃ¡genes estÃ¡ticas
 
 // Conexión a PostgreSQL (Neon.tech en la Nube)
+if (!process.env.DATABASE_URL) {
+  throw new Error('Falta configurar DATABASE_URL en backend/.env.');
+}
+
+let erpDatabaseUrl;
+
+try {
+  erpDatabaseUrl = new URL(process.env.DATABASE_URL);
+
+  if (!['postgres:', 'postgresql:'].includes(erpDatabaseUrl.protocol)) {
+    throw new Error();
+  }
+} catch {
+  throw new Error('DATABASE_URL no tiene un formato PostgreSQL valido.');
+}
+
+// Exigir validación del certificado y del servidor de Neon.
+erpDatabaseUrl.searchParams.set('sslmode', 'verify-full');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === 'true'
-    ? { rejectUnauthorized: false }
-    : false
+  connectionString: erpDatabaseUrl.toString(),
+  connectionTimeoutMillis: 10000
 });
 
 // Inicializar Tablas
+// Verificar la estructura existente. Las migraciones se ejecutan por separado.
 const initDb = async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS entregas_ti (
-        id SERIAL PRIMARY KEY,
-        fecha DATE,
-        encargado VARCHAR(100),
-        receptor VARCHAR(255),
-        equipo VARCHAR(255),
-        serie VARCHAR(100),
-        tipo_movimiento VARCHAR(50),
-        observaciones TEXT,
-        acta_url TEXT
-      );
+  const esquemaEsperado = {
+    audit_logs: ['id', 'user_id', 'accion', 'tabla_afectada', 'fecha'],
+    entregas_ti: ['id', 'fecha', 'encargado', 'nombre', 'dni', 'cargo', 'operacion', 'condicion', 'equipo_tipo', 'marca', 'modelo', 'serie', 'laptop', 'mouse', 'cargador', 'motivo', 'observaciones', 'precio', 'tipo_movimiento', 'documento_url'],
+    incidentes_soporte: ['id', 'placa', 'tipo_solicitud', 'descripcion', 'operador', 'estado', 'fecha', 'categoria', 'prioridad', 'evidencia'],
+    inspecciones_flota: ['id', 'placa', 'fecha', 'hora', 'tablet', 'radio', 'camaras', 'img_tablet', 'img_radio', 'img_camaras', 'observaciones'],
+    mantenimientos_tecnicos: ['id', 'placa', 'fecha_ejecutada', 'frecuencia_dias', 'dvr', 'copiloto', 'radio_base', 'handy', 'camara_interna', 'camara_externa', 'camara_retroceso', 'sensores_retroceso', 'sensores_delanteros', 'sistema_adas'],
+    personal: ['id', 'id_interno', 'nombre_completo', 'dni', 'modalidad', 'area', 'cargo', 'telefono', 'estado', 'created_at'],
+    usuarios: ['id', 'username', 'password_hash', 'rol', 'estado', 'permisos', 'operacion', 'created_at'],
+    vehiculos: ['placa', 'programa', 'tipo_vehiculo', 'marca_tracto', 'modelo_tracto', 'anio_fabricacion', 'operacion', 'cliente', 'estado_operativo', 'observaciones_operativas', 'fecha_reporte_flota']
+  };
 
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER,
-        accion VARCHAR(255),
-        tabla_afectada VARCHAR(100),
-        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+  const { rows } = await pool.query(`
+    SELECT table_name, column_name, data_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = ANY($1::text[])
+  `, [Object.keys(esquemaEsperado)]);
 
-      CREATE TABLE IF NOT EXISTS personal (
-  id SERIAL PRIMARY KEY,
-  id_interno VARCHAR(50),
-  nombre_completo VARCHAR(255) NOT NULL,
-  dni VARCHAR(20) NOT NULL UNIQUE,
-  modalidad VARCHAR(100),
-  area VARCHAR(100),
-  cargo VARCHAR(100),
-  telefono VARCHAR(30),
-  estado VARCHAR(20) DEFAULT 'Activo',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+  const tablas = new Set(rows.map(r => r.table_name));
+  const columnas = new Map(
+    rows.map(r => [`${r.table_name}.${r.column_name}`, r.data_type])
+  );
+  const faltantes = [];
 
+  for (const [tabla, campos] of Object.entries(esquemaEsperado)) {
+    if (!tablas.has(tabla)) {
+      faltantes.push(`tabla public.${tabla}`);
+      continue;
+    }
 
-      ALTER TABLE entregas_ti ADD COLUMN IF NOT EXISTS tipo_movimiento VARCHAR(50) DEFAULT 'Entrega';
-      ALTER TABLE entregas_ti ADD COLUMN IF NOT EXISTS documento_url TEXT;
-      UPDATE entregas_ti SET tipo_movimiento = 'Entrega' WHERE tipo_movimiento IS NULL OR TRIM(tipo_movimiento) = '';
-ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(50) DEFAULT 'tecnico';
-ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'activo';
-ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '{}'::jsonb;
-ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS operacion VARCHAR(100);
-
-    `);
-    console.log('Tablas validadas y estructura de seguridad lista.');
-  } catch (err) {
-    console.error('Error al crear tablas:', err);
+    for (const campo of campos) {
+      if (!columnas.has(`${tabla}.${campo}`)) {
+        faltantes.push(`${tabla}.${campo}`);
+      }
+    }
   }
+
+  if (faltantes.length) {
+    throw new Error(
+      `Faltan tablas o columnas, o permisos para verlas: ${faltantes.join(', ')}. Revisa la base y las migraciones.`
+    );
+  }
+
+  for (const campo of [
+    'entregas_ti.fecha',
+    'mantenimientos_tecnicos.fecha_ejecutada',
+    'vehiculos.fecha_reporte_flota'
+  ]) {
+    if (columnas.get(campo) !== 'date') {
+      throw new Error(`${campo} debe ser DATE. No se modifico la base.`);
+    }
+  }
+
+  console.log('Tablas y columnas requeridas verificadas. Sin cambios en la base de datos.');
 };
-initDb();
+
 
 // FUNCIÃ“N DE AUDITORÃ A
 const logAction = async (userId, accion, tablaAfectada) => {
@@ -218,7 +242,6 @@ const verifyToken = (req, res, next) => {
 
 const PUBLIC_ROUTES = [
   { method: 'POST', pattern: /^\/api\/auth\/login\/?$/ },
-  { method: 'POST', pattern: /^\/api\/public\/incidentes\/?$/ },
   { method: 'POST', pattern: /^\/api\/public\/incidentes-soporte\/?$/ },
   { method: 'GET', pattern: /^\/api\/public\/stats\/?$/ },
   { method: 'GET', pattern: /^\/api\/public\/consulta\/[^/]+\/?$/ },
@@ -266,26 +289,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.post('/api/public/incidentes', async (req, res) => {
-  const { placa, titulo, descripcion } = req.body;
 
-  if (!placa || !titulo) {
-    return res.status(400).json({ error: 'Faltan datos obligatorios' });
-  }
-
-  try {
-    const query = 'INSERT INTO incidentes (placa, titulo, descripcion, estado, fecha_reporte) VALUES ($1, $2, $3, $4, NOW()) RETURNING *';
-    const values = [placa, titulo, descripcion, 'Pendiente'];
-    const result = await pool.query(query, values);
-
-    await logAction(null, `Incidente reportado pÃºblicamente: ${titulo}`, 'incidentes');
-
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-});
 
 
 
@@ -349,7 +353,6 @@ const PERMISSION_ROUTES = [
   { pattern: /^\/vehiculos(?:\/|$)/, modules: ['flota'] },
   { pattern: /^\/inspecciones(?:\/|$)/, modules: ['dashboard'] },
   { pattern: /^\/api\/incidentes(?:\/|$)/, modules: ['tickets'] },
-  { pattern: /^\/incidentes(?:\/|$)/, modules: ['dashboard'] },
   { pattern: /^\/api\/incidentes_soporte(?:\/|$)/, modules: ['tickets'] },
   { pattern: /^\/mantenimientos(?:\/|$)/, modules: ['mantenimiento'] },
   { pattern: /^\/api\/entregas(?:\/|$)/, modules: ['entregas', 'devoluciones'] },
@@ -389,7 +392,7 @@ app.use((req, res, next) => {
 // ==========================================
 app.get('/api/usuarios/operaciones', async (req, res) => {
   try {
-    const result = await pool.query("SELECT DISTINCT TRIM(operacion) AS operacion FROM vehiculos WHERE operacion IS NOT NULL AND TRIM(operacion) <> '' ORDER BY operacion ASC");
+    const result = await pool.query("SELECT MIN(TRIM(operacion)) AS operacion FROM vehiculos WHERE operacion IS NOT NULL AND LOWER(TRIM(operacion)) NOT IN ('', 'test', 'text', 'null', 'undefined', 'sin operacion', 'sin operación', 'falta identificar') GROUP BY LOWER(TRIM(operacion)) ORDER BY operacion ASC");
     res.json(result.rows.map(row => row.operacion));
   } catch (err) {
     console.error(err);
@@ -406,6 +409,8 @@ app.get('/api/usuarios', async (req, res) => {
   }
 });
 
+
+
 app.post('/api/usuarios', requireAdmin, async (req, res) => {
   const { username, password, rol, estado, operacion } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -414,6 +419,7 @@ app.post('/api/usuarios', requireAdmin, async (req, res) => {
   if (!rolesValidos.includes(rolFinal)) return res.status(400).json({ error: 'Rol no válido' });
   if (rolFinal === 'supervisor' && !String(operacion || '').trim()) return res.status(400).json({ error: 'Debe asignar una operación al supervisor' });
   const operacionFinal = rolFinal === 'supervisor' ? String(operacion).trim() : null;
+  const permisosFinales = ROLE_PERMISSIONS[rolFinal];
   try {
     const existing = await pool.query('SELECT id FROM usuarios WHERE username = $1', [username]);
     if (existing.rows.length > 0) return res.status(400).json({ error: 'El usuario ya existe' });
@@ -431,29 +437,6 @@ app.post('/api/usuarios', requireAdmin, async (req, res) => {
   }
 });
 
-app.put('/api/usuarios/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { rol, estado, password, operacion } = req.body;
-  const rolesValidos = ['admin', 'supervisor', 'ti'];
-  if (!rolesValidos.includes(rol)) return res.status(400).json({ error: 'Rol no válido' });
-  if (rol === 'supervisor' && !String(operacion || '').trim()) return res.status(400).json({ error: 'Debe asignar una operación al supervisor' });
-  const operacionFinal = rol === 'supervisor' ? String(operacion).trim() : null;
-  const permisosFinales = ROLE_PERMISSIONS[rolFinal];
-  try {
-    if (password) {
-      const hash = bcrypt.hashSync(password, 10);
-      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, operacion=$4, password_hash=$5 WHERE id=$6', [rol, permisosFinales, estado, operacionFinal, hash, id]);
-    } else {
-      await pool.query('UPDATE usuarios SET rol=$1, permisos=$2, estado=$3, operacion=$4 WHERE id=$5', [rol, permisosFinales, estado, operacionFinal, id]);
-    }
-    await logAction(req.user.id, `Usuario modificado ID: ${id}`, 'usuarios');
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al modificar usuario' });
-  }
-});
-
 app.delete('/api/usuarios/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   if (parseInt(id) === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
@@ -461,11 +444,21 @@ app.delete('/api/usuarios/:id', requireAdmin, async (req, res) => {
     await pool.query('DELETE FROM usuarios WHERE id=$1', [id]);
     await logAction(req.user.id, `Usuario eliminado ID: ${id}`, 'usuarios');
     res.json({ success: true });
-  } catch (err) {
+  }  catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al eliminar usuario' });
+
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: 'No se puede eliminar este usuario porque tiene registros relacionados. Debe conservarse su historial.'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Error al eliminar usuario'
+    });
   }
-});
+  }
+);
 
 //
 //
@@ -570,22 +563,58 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
 
 // Crear ticket desde el portal público o desde la administración
 const createSupportTicket = async (req, res) => {
-  const { placa, tipo_solicitud, descripcion, operador, categoria, prioridad } = req.body;
+  const {
+    placa, tipo_solicitud, descripcion,
+    operador, categoria, prioridad
+  } = req.body || {};
+
+  const placaFinal =
+    typeof placa === 'string' ? placa.trim().toUpperCase() : '';
+
+  if (!placaFinal) {
+    return res.status(400).json({
+      error: 'Debe indicar una placa del maestro de vehiculos'
+    });
+  }
 
   if (!tipo_solicitud || !descripcion || !operador) {
-    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+    return res.status(400).json({
+      error: 'Faltan datos obligatorios'
+    });
   }
 
   try {
     await pool.query(
-      'INSERT INTO incidentes_soporte (placa, tipo_solicitud, descripcion, operador, categoria, prioridad) VALUES ($1, $2, $3, $4, $5, $6)',
-      [String(placa || '').trim().toUpperCase(), tipo_solicitud, descripcion, operador, categoria || 'General', prioridad || 'Media']
+      `INSERT INTO incidentes_soporte
+       (placa, tipo_solicitud, descripcion, operador, categoria, prioridad)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        placaFinal, tipo_solicitud, descripcion, operador,
+        categoria || 'General', prioridad || 'Media'
+      ]
     );
-    await logAction(req.user?.id || null, `Solicitud de soporte para ${placa || 'sin placa'}`, 'incidentes_soporte');
-    res.status(201).json({ success: true });
+
+    await logAction(
+      req.user?.id || null,
+      `Solicitud de soporte para ${placaFinal}`,
+      'incidentes_soporte'
+    );
+
+    return res.status(201).json({ success: true });
   } catch (err) {
+    if (
+      err.code === '23503' &&
+      err.constraint === 'incidentes_soporte_placa_fkey'
+    ) {
+      return res.status(400).json({
+        error: 'La placa no existe en el maestro de vehiculos. Seleccione una placa registrada.'
+      });
+    }
+
     console.error(err);
-    res.status(500).json({ error: 'Error al registrar la solicitud' });
+    return res.status(500).json({
+      error: 'Error al registrar la solicitud'
+    });
   }
 };
 
@@ -778,7 +807,7 @@ app.post('/vehiculos/', async (req, res) => {
   const opFinal = operacion || programa;
   if (!placa || !opFinal) return res.status(400).json({ error: 'Placa y Operacion son obligatorios' });
   try {
-    const query = 'INSERT INTO vehiculos (placa, operacion, tipo_vehiculo, cliente, marca, modelo, anio) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
+    const query = 'INSERT INTO vehiculos (placa, operacion, tipo_vehiculo, cliente, marca_tracto, modelo_tracto, anio_fabricacion) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *';
     const values = [placa, opFinal, tipo_vehiculo, cliente, marca_tracto, modelo_tracto, anio_fabricacion];
     const result = await pool.query(query, values);
 
@@ -857,32 +886,92 @@ app.get('/mantenimientos/', async (req, res) => {
 
 // Crear mantenimiento
 app.post('/mantenimientos/', async (req, res) => {
-  const { placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas } = req.body;
+  const {
+    placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto,
+    radio_base, handy, camara_interna, camara_externa,
+    camara_retroceso, sensores_retroceso, sensores_delanteros,
+    sistema_adas
+  } = req.body;
+
+  if (typeof placa !== 'string' || !placa.trim()) {
+    return res.status(400).json({
+      error: 'Debe seleccionar un vehículo para registrar el mantenimiento'
+    });
+  }
+
   try {
     const result = await pool.query(`
-      INSERT INTO mantenimientos_tecnicos (placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *
-    `, [placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto, radio_base, handy, camara_interna, camara_externa, camara_retroceso, sensores_retroceso, sensores_delanteros, sistema_adas]);
-    await logAction(req.user ? req.user.id : null, `Registró mantenimiento para ${placa}`, 'mantenimientos_tecnicos');
-    res.json(result.rows[0]);
+      INSERT INTO mantenimientos_tecnicos (
+        placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto,
+        radio_base, handy, camara_interna, camara_externa,
+        camara_retroceso, sensores_retroceso, sensores_delanteros,
+        sistema_adas
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12, $13
+      )
+      RETURNING *
+    `, [
+      placa, fecha_ejecutada, frecuencia_dias, dvr, copiloto,
+      radio_base, handy, camara_interna, camara_externa,
+      camara_retroceso, sensores_retroceso, sensores_delanteros,
+      sistema_adas
+    ]);
+
+    await logAction(
+      req.user ? req.user.id : null,
+      `Registró mantenimiento para ${placa}`,
+      'mantenimientos_tecnicos'
+    );
+
+    return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al registrar mantenimiento' });
+
+    if (err.code === '23503') {
+      return res.status(400).json({
+        error: 'La placa seleccionada no existe en el maestro de vehículos'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Error al registrar mantenimiento'
+    });
   }
 });
 
 // Generar Reporte Master (Auditoría)
-app.get('/api/reportes/master', async (req, res) => {
-  const { startDate, endDate } = req.query;
+app.get('/api/reportes/operaciones', async (req, res) => {
   try {
-    const workbook = await generateMasterReport(pool, startDate, endDate);
+    const result = await pool.query("SELECT MIN(op) AS operacion FROM (SELECT CASE WHEN LOWER(BTRIM(COALESCE(operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(operacion) END AS op FROM vehiculos WHERE LOWER(BTRIM(COALESCE(operacion, ''))) NOT IN ('test', 'text')) operaciones_limpias GROUP BY LOWER(op) ORDER BY operacion");
+    res.json(result.rows.map(row => row.operacion));
+  } catch (err) {
+    console.error('Error obteniendo operaciones de reportes:', err);
+    res.status(500).json({ error: 'No se pudieron cargar las operaciones' });
+  }
+});
+
+app.get('/api/reportes/master', async (req, res) => {
+  const { startDate, endDate, operacion } = req.query;
+  const fechaValida = (value) => {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  };
+  if (!fechaValida(startDate) || !fechaValida(endDate) || startDate > endDate) return res.status(400).json({ error: 'El rango de fechas no es válido' });
+  if (typeof operacion !== 'string' || !operacion.trim() || operacion.length > 100) return res.status(400).json({ error: 'Seleccione una operación válida' });
+  try {
+    const workbook = await generateMasterReport(pool, startDate, endDate, operacion.trim());
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=Reporte_Master.xlsx`);
+    res.setHeader('Content-Disposition', 'attachment; filename=Reporte_Master.xlsx');
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
     console.error('Error generando Reporte Master:', err);
-    res.status(500).json({ error: 'Error interno generando reporte' });
+    if (res.headersSent) return res.destroy();
+    res.status(err.status === 404 ? 404 : 500).json({ error: err.status === 404 ? err.message : 'Error interno generando reporte' });
   }
 });
 
@@ -1199,32 +1288,44 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
     return res.status(500).json({ error: 'Error al subir imÃ¡genes a la nube' });
   }
 
-  try {
-    await pool.query('BEGIN');
+  let client;
+  let descartar = false;
+  let result;
 
-    // Asegurar que el vehÃ­culo exista (Upsert)
-    await pool.query(
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    await client.query(
       'INSERT INTO vehiculos (placa, operacion) VALUES ($1, $2) ON CONFLICT (placa) DO UPDATE SET operacion = $2',
       [placa, programa]
     );
 
-    // Insertar inspección en el historial
-    const query = `
-      INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
-    `;
-    const values = [placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones || ''];
-    const result = await pool.query(query, values);
+    result = await client.query(
+      `INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones || '']
+    );
 
-    await logAction(req.user ? req.user.id : null, `Registró inspección en ${placa}`, 'inspecciones_flota');
-
-    await pool.query('COMMIT');
-    res.json(result.rows[0]);
+    await client.query('COMMIT');
   } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Error al registrar inspección' });
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch { descartar = true; }
+    }
+
+    console.error('Error al registrar inspeccion:', err);
+    return res.status(500).json({ error: 'Error al registrar inspeccion' });
+  } finally {
+    if (client) client.release(descartar);
   }
+
+  await logAction(
+    req.user ? req.user.id : null,
+    `Registró inspección en ${placa}`,
+    'inspecciones_flota'
+  );
+
+  res.json(result.rows[0]);
 });
 
 // Actualizar Vehículo Completo (Tracto)
@@ -1262,7 +1363,7 @@ app.delete('/vehiculos/:placa', async (req, res) => {
   } catch (err) {
     // Código de error de PostgreSQL para Foreign Key Violation es 23503
     if (err.code === '23503') {
-      res.status(400).json({ error: 'No se puede eliminar porque tiene historial de inspecciones. Elimine el historial primero.' });
+      res.status(400).json({ error: 'No se puede eliminar el vehículo porque tiene registros relacionados. Debe conservarse su historial.' });
     } else {
       res.status(500).json({ error: 'Error interno al eliminar' });
     }
@@ -1348,39 +1449,11 @@ app.get('/reportes/excel', async (req, res) => {
 // ENDPOINTS INCIDENTES Y ENTREGAS (Sin Cambios)
 // ==========================================
 
-app.get('/incidentes/', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM incidentes');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error' });
-  }
-});
 
-app.post('/incidentes/', async (req, res) => {
-  const { placa, conductor, fecha, area, novedad, estado, img } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO incidentes (placa, conductor, fecha, area, novedad, estado, img) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [placa, conductor, fecha, area, novedad, estado, img]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Error' });
-  }
-});
 
-app.delete('/incidentes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await pool.query('DELETE FROM incidentes WHERE id = $1', [id]);
-    res.json({ message: 'Incidente eliminado correctamente' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al eliminar incidente' });
-  }
-});
+
+
+
 
 app.get('/entregas/', async (req, res) => {
   try {
@@ -1663,73 +1736,118 @@ app.delete('/api/entregas/:id', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/entregas/upload-excel', (req, res, next) => {
-  const puedeEditarEntregas = hasPermiso(req, 'entregas', 'editar');
-  const puedeEditarDevoluciones = hasPermiso(req, 'devoluciones', 'editar');
-  if (!puedeEditarEntregas || !puedeEditarDevoluciones) return res.status(403).json({ error: 'No tienes permiso para realizar cargas masivas de inventario' });
+  if (!hasPermiso(req, 'entregas', 'editar') || !hasPermiso(req, 'devoluciones', 'editar')) return res.status(403).json({ error: 'No tienes permiso para realizar cargas masivas de inventario' });
   next();
 }, upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No se subió ningÃºn archivo' });
+  if (!req.file?.buffer) return res.status(400).json({ error: 'Selecciona un archivo Excel' });
+  const tipo = req.body.tipo;
+  if (!['Entrega', 'Devolución'].includes(tipo)) return res.status(400).json({ error: 'Selecciona Entregas o Devoluciones antes de importar' });
+  let client;
 
   try {
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+    const texto = valor => String(valor ?? '').trim();
+    const normalizar = valor => texto(valor).replace(/\s+/g, ' ').toUpperCase();
+    const serieClave = valor => /^(?:-*|S\/N|N\/A|NULL|SIN SERIE|NO APLICA)$/.test(normalizar(valor)) ? '' : normalizar(valor);
+    const fallo = mensaje => { throw Object.assign(new Error(mensaje), { status: 400 }); };
 
-    const excelDateToJSDate = (serial) => {
-      if (!serial || isNaN(serial)) return null;
-      const utc_days = Math.floor(serial - 25569);
-      const utc_value = utc_days * 86400;
-      const date_info = new Date(utc_value * 1000);
-      return date_info.toISOString().split('T')[0];
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: false });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) fallo('El archivo no contiene una hoja');
+
+    const data = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null, blankrows: true, range: 0 });
+    const titulo = normalizar(sheet.D2?.v);
+    const tipoArchivo = titulo.includes('DEVOLUCIONES') ? 'Devolución' : titulo.includes('ENTREGAS') ? 'Entrega' : null;
+    if (tipoArchivo !== tipo) fallo('El título del Excel no corresponde a la sección seleccionada');
+
+    const cabecera = data.findIndex(r => normalizar(r[1]) === 'FECHA' && normalizar(r[4]) === 'DNI' && normalizar(r[8]) === 'EQUIPO' && normalizar(r[11]).startsWith('S/N'));
+    if (cabecera < 0) fallo('No se reconocen las columnas del formato de inventario TI');
+
+    const convertirFecha = (valor, fila) => {
+      if (!texto(valor)) return null;
+      let fechaISO;
+
+      if (typeof valor === 'number') {
+        const usa1904 = [true, 1, '1', 'true'].includes(workbook.Workbook?.WBProps?.date1904);
+        const dias = Math.floor(valor);
+        if (!Number.isFinite(valor) || dias < (usa1904 ? 0 : 1) || (!usa1904 && dias === 60)) fallo(`Fecha numérica no válida en la fila ${fila}`);
+        const base = usa1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, dias < 60 ? 31 : 30);
+        const fecha = new Date(base + dias * 86400000);
+        if (Number.isNaN(fecha.getTime())) fallo(`Fecha no válida en la fila ${fila}`);
+        fechaISO = fecha.toISOString().slice(0, 10);
+      } else {
+        const partes = texto(valor).match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+        fechaISO = partes ? `${partes[3]}-${partes[2].padStart(2, '0')}-${partes[1].padStart(2, '0')}` : texto(valor);
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaISO) || fechaISO.startsWith('0000-')) fallo(`Formato de fecha no válido en la fila ${fila}`);
+      const fecha = new Date(`${fechaISO}T00:00:00.000Z`);
+      if (Number.isNaN(fecha.getTime()) || fecha.toISOString().slice(0, 10) !== fechaISO) fallo(`Fecha inexistente en la fila ${fila}`);
+      return fechaISO;
     };
 
-    let inserted = 0;
-    let startRow = 0;
-    for (let i = 0; i < Math.min(20, data.length); i++) {
-      if (data[i] && data[i].includes('DNI')) {
-        startRow = i + 1;
-        break;
-      }
-    }
+    const campos = ['fecha', 'encargado', 'nombre', 'dni', 'cargo', 'operacion', 'condicion', 'equipo_tipo', 'marca', 'modelo', 'serie', 'laptop', 'mouse', 'cargador', 'motivo', 'observaciones', 'precio', 'tipo_movimiento'];
+    const registros = [];
 
-    for (let i = startRow; i < data.length; i++) {
+    for (let i = cabecera + 1; i < data.length; i++) {
       const row = data[i];
-      if (!row || row.length === 0 || !row[3]) continue;
+      if (!row?.some(v => texto(v))) continue;
+      if (!texto(row[3])) fallo(`Falta el nombre en la fila ${i + 1}`);
 
-      const fechaRaw = row[1];
-      let fechaFormat = null;
-      if (typeof fechaRaw === 'number') {
-        fechaFormat = excelDateToJSDate(fechaRaw);
-      } else if (typeof fechaRaw === 'string') {
-        fechaFormat = fechaRaw;
-      }
-
-      const dniVal = row[4] ? String(row[4]) : '';
-      const equipoVal = row[8] || '';
-      const serieVal = row[11] || '';
-
-      const checkExist = await pool.query(
-        'SELECT id FROM entregas_ti WHERE dni = $1 AND equipo_tipo = $2 AND serie = $3',
-        [dniVal, equipoVal, serieVal]
-      );
-
-      if (checkExist.rows.length === 0) {
-        await pool.query(
-          `INSERT INTO entregas_ti (fecha, encargado, nombre, dni, cargo, operacion, condicion, equipo_tipo, marca, modelo, serie, laptop, mouse, cargador, motivo, observaciones, precio)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-          [
-            fechaFormat,
-            row[2] || '', row[3] || '', dniVal, row[5] || '', row[6] || '', row[7] || '', equipoVal, row[9] || '', row[10] || '', serieVal, row[12] || '', row[13] || '', row[14] || '', row[15] || '', row[16] || '', row[17] ? parseFloat(row[17]) : null
-          ]
-        );
-        inserted++;
-      }
+      const registro = Object.fromEntries(campos.slice(0, 17).map((campo, j) => [campo, texto(row[j + 1]) || null]));
+      registro.fecha = convertirFecha(row[1], i + 1);
+      registro.precio = !texto(row[17]) || /^-+$/.test(texto(row[17])) ? null : Number(row[17]);
+      if (registro.precio !== null && !Number.isFinite(registro.precio)) fallo(`Precio no válido en la fila ${i + 1}`);
+      registro.tipo_movimiento = tipo;
+      registro.fila = i + 1;
+      registros.push(registro);
     }
-    fs.unlinkSync(req.file.path);
-    res.json({ message: `Importación exitosa. ${inserted} registros nuevos aÃ±adidos (se ignoraron los duplicados).` });
+
+    if (!registros.length || registros.length > 10000) fallo('El Excel debe contener entre 1 y 10000 registros');
+
+    const clave = r => JSON.stringify([normalizar(r.tipo_movimiento || 'Entrega').replace('DEVOLUCION', 'DEVOLUCIÓN'), r.fecha || '', normalizar(r.dni), normalizar(r.nombre), normalizar(r.equipo_tipo), serieClave(r.serie)]);
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query("SET LOCAL lock_timeout = '5s'");
+    await client.query("SET LOCAL statement_timeout = '30s'");
+    await client.query('LOCK TABLE public.entregas_ti IN SHARE ROW EXCLUSIVE MODE');
+
+    const actual = await client.query("SELECT *, to_char(fecha, 'YYYY-MM-DD') AS fecha FROM public.entregas_ti");
+    const conocidas = new Set(actual.rows.map(clave));
+    const nuevos = [];
+    let omitidos = 0;
+
+    for (const registro of registros) {
+      const llave = clave(registro);
+      if (conocidas.has(llave)) { omitidos++; continue; }
+      if (!registro.fecha || !registro.dni || !registro.equipo_tipo || normalizar(registro.equipo_tipo) === 'NUEVO') fallo(`La fila ${registro.fila} no coincide con un registro existente y necesita revisar fecha, DNI o equipo antes de importarse`);
+      conocidas.add(llave);
+      nuevos.push(registro);
+    }
+
+    const firma = createHash('sha256').update(JSON.stringify(nuevos.map(r => campos.map(c => r[c])))).digest('hex');
+    const resumen = { total: registros.length, nuevos: nuevos.length, omitidos, firma };
+
+    if (req.body.confirmar !== 'si') {
+      await client.query('ROLLBACK');
+      return res.json({ ...resumen, revision: true, message: `Revisión: ${nuevos.length} por agregar; ${omitidos} ya reconocidos. No se guardó nada.` });
+    }
+
+    if (req.body.firma !== firma) fallo('Los datos cambiaron desde la revisión. Vuelve a seleccionar el archivo para revisarlo otra vez');
+
+    const sql = `INSERT INTO public.entregas_ti (${campos.join(', ')}) VALUES (${campos.map((_, i) => `$${i + 1}`).join(', ')})`;
+    for (const registro of nuevos) await client.query(sql, campos.map(campo => registro[campo]));
+
+    await client.query('COMMIT');
+    res.json({ ...resumen, insertados: nuevos.length, message: `Importación completada: ${nuevos.length} agregados y ${omitidos} ya reconocidos.` });
   } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (rollbackError) { client.release(rollbackError); client = null; }
+    }
     console.error('Error importando Excel:', error);
-    res.status(500).json({ error: 'Error procesando el archivo Excel' });
+    res.status(error.status || 500).json({ error: error.status === 400 ? error.message : 'No se pudo completar la importación. Revisa el registro del backend antes de reintentar.' });
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -1895,7 +2013,28 @@ app.get('/api/entregas/export-excel', async (req, res) => {
     res.status(500).send('Error generando el archivo Excel premium');
   }
 });
+const detenerArranque = async (error) => {
+  console.error('Arranque detenido:', error.message);
+  process.exitCode = 1;
 
-app.listen(8000, () => {
-  console.log('Servidor backend corriendo en el puerto 8000');
-});
+  try {
+    await pool.end();
+  } catch (cierreError) {
+    console.error(
+      'Error cerrando la conexion:',
+      cierreError.code || 'SIN_CODIGO'
+    );
+  }
+};
+
+const iniciarServidor = async () => {
+  await initDb();
+
+  const servidor = app.listen(port, () => {
+    console.log(`Servidor backend corriendo en el puerto ${port}`);
+  });
+
+  servidor.once('error', detenerArranque);
+};
+
+iniciarServidor().catch(detenerArranque);
