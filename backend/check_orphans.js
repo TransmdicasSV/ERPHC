@@ -1,54 +1,69 @@
-import 'dotenv/config';
 import pg from 'pg';
-const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+const connectionString = process.env.ERP_NEON_URL;
+if (!connectionString) throw new Error('Falta configurar ERP_NEON_URL en esta terminal.');
+const erpDbUrl = new URL(connectionString);
+erpDbUrl.searchParams.set('sslmode', 'verify-full');
+
+const pool = new pg.Pool({
+  connectionString: erpDbUrl.toString()
+});
+
+const relaciones = [
+  ['inspecciones_flota', 'placa', 'vehiculos', 'placa'],
+  ['mantenimientos_tecnicos', 'placa', 'vehiculos', 'placa'],
+  ['incidentes_soporte', 'placa', 'vehiculos', 'placa'],
+  ['entregas_ti', 'dni', 'personal', 'dni'],
+  ['audit_logs', 'user_id', 'usuarios', 'id']
+];
 
 async function run() {
-  const checks = [
-    {
-      nombre: 'mantenimientos_tecnicos.placa → vehiculos.placa',
-      sql: `SELECT DISTINCT placa FROM mantenimientos_tecnicos
-            WHERE placa IS NOT NULL AND placa NOT IN (SELECT placa FROM vehiculos)`,
-    },
-    {
-      nombre: 'incidentes.placa → vehiculos.placa',
-      sql: `SELECT DISTINCT placa FROM incidentes
-            WHERE placa IS NOT NULL AND placa NOT IN (SELECT placa FROM vehiculos)`,
-    },
-    {
-      nombre: 'incidentes_soporte.placa → vehiculos.placa',
-      sql: `SELECT DISTINCT placa FROM incidentes_soporte
-            WHERE placa IS NOT NULL AND placa NOT IN (SELECT placa FROM vehiculos)`,
-    },
-    {
-      nombre: 'vehiculos.placa_sr → semirremolques.placa_sr',
-      sql: `SELECT DISTINCT placa_sr FROM vehiculos
-            WHERE placa_sr IS NOT NULL AND placa_sr != ''
-            AND placa_sr NOT IN (SELECT placa_sr FROM semirremolques)`,
-    },
-    {
-      nombre: 'audit_logs.user_id → usuarios.id',
-      sql: `SELECT DISTINCT user_id FROM audit_logs
-            WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM usuarios)`,
-    },
-    {
-      nombre: 'entregas_ti.dni → personal.dni',
-      sql: `SELECT DISTINCT dni FROM entregas_ti
-            WHERE dni IS NOT NULL AND dni != '' AND dni NOT IN (SELECT dni FROM personal)`,
-    },
-  ];
-    console.log('=== Revisando registros huérfanos antes de crear las FKs ===\n');
+  let client;
+  let descartar = false;
 
-  for (const check of checks) {
-    const result = await pool.query(check.sql);
-    if (result.rows.length === 0) {
-      console.log(`${check.nombre} — sin huérfanos, se puede crear la FK sin problema.`);
-    } else {
-      console.log(` ${check.nombre} — ${result.rows.length} valor(es) huérfano(s), NO crear la FK todavía:`);
-      console.log('   ', result.rows.map(r => Object.values(r)[0]).join(', '));
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    await client.query("SET LOCAL statement_timeout = '30s'");
+    await client.query("SET LOCAL lock_timeout = '5s'");
+
+    const resultados = [];
+
+    for (const [tabla, columna, padre, clave] of relaciones) {
+      const { rows } = await client.query(`
+        SELECT COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE t.${columna} IS NULL) AS nulos,
+          COUNT(*) FILTER (WHERE BTRIM(t.${columna}::text) = '') AS vacios,
+          COUNT(*) FILTER (
+            WHERE BTRIM(t.${columna}::text) <> ''
+              AND NOT EXISTS (
+                SELECT 1 FROM public.${padre} p WHERE p.${clave} = t.${columna}
+              )
+          ) AS sin_correspondencia
+        FROM public.${tabla} t
+      `);
+
+      resultados.push({
+        relacion: `${tabla}.${columna} -> ${padre}.${clave}`,
+        ...rows[0]
+      });
     }
-    console.log('');
-  }
 
-  await pool.end();
+    await client.query('COMMIT');
+    console.table(resultados);
+    console.log('Revision de lectura terminada. No se modificaron registros ni se crearon claves foraneas.');
+  } catch (error) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch { descartar = true; }
+    }
+    throw error;
+  } finally {
+    if (client) client.release(descartar);
+    await pool.end();
+  }
 }
+
+run().catch(error => {
+  console.error('No se completo la revision. Codigo:', error.code || 'SIN_CODIGO');
+  process.exitCode = 1;
+});

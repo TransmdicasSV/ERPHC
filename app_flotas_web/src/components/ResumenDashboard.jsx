@@ -49,12 +49,18 @@ export function ResumenDashboard() {
         const observadas = vData.filter(v => v.estado === 'Observada').length;
         const faltaRevision = vData.filter(v => v.estado === 'Falta de revisión').length;
 
-        const progMap = {};
+        const progMap = Object.create(null);
+        const nombres = { glp: 'GLP', industrias: 'Industrias', mantenimiento: 'Mantenimiento', primax: 'Primax', repsol: 'Repsol', bambas: 'Bambas', quellaveco: 'Quellaveco', 'sin operacion': 'Sin Operación', 'datos por revisar': 'Datos por revisar' };
         vData.forEach(v => {
-          let p = v.programa || 'Sin Categoría';
-          if (p.toLowerCase().includes('industria')) p = 'Industrias';
-          if (!progMap[p]) progMap[p] = { name: p, Operativa: 0, Observada: 0, 'Falta de revisión': 0 };
-          progMap[p][v.estado] = (progMap[p][v.estado] || 0) + 1;
+          const original = String(v.operacion ?? '').trim();
+          let clave = original.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ');
+          if (['', 'null', 'undefined', 'sin operacion', 'sin categoria', 'falta identificar'].includes(clave)) clave = 'sin operacion';
+          if (['test', 'text'].includes(clave)) clave = 'datos por revisar';
+          if (clave === 'industria') clave = 'industrias';
+          const nombre = Object.prototype.hasOwnProperty.call(nombres, clave) ? nombres[clave] : original;
+          if (!progMap[clave]) progMap[clave] = { name: nombre, Operativa: 0, Observada: 0, 'Falta de revisión': 0, Otros: 0 };
+          const estado = ['Operativa', 'Observada', 'Falta de revisión'].includes(v.estado) ? v.estado : 'Otros';
+          progMap[clave][estado]++;
         });
 
         setData({
@@ -65,7 +71,7 @@ export function ResumenDashboard() {
           faltaRevision,
           trend: cData.trend,
           fallos: cData.fallos,
-          programasBarras: Object.values(progMap),
+                    programasBarras: Object.values(progMap).sort((a, b) => a.name.localeCompare(b.name, 'es')),
           soporte: cData.soporte || [],
           inventario: cData.inventario || []
         });

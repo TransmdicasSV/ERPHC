@@ -60,17 +60,26 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
     loadPersonal();
   }, []);
 
-  const handleFileUpload = async (e) => {
-        if (!canBulkUpload) { toast.error('Solo TI y Administrador pueden realizar cargas masivas'); e.target.value = ''; return; }
+    const handleFileUpload = async (e) => {
+    if (!canBulkUpload) { toast.error('Solo TI y Administrador pueden realizar cargas masivas'); e.target.value = ''; return; }
     const file = e.target.files[0];
     if (!file) return;
 
     try {
       setUploading(true);
+      toast.loading('Revisando Excel sin guardar...', { id: 'upload-excel' });
+      const revision = await api.uploadEntregasExcel(file, vista);
+      toast.dismiss('upload-excel');
+
+      if (revision.nuevos === 0) { toast.success('Todos los registros ya están reconocidos. No se agregó nada.'); return; }
+
+      const aceptar = window.confirm(`Se revisaron ${revision.total} registros.\nYa reconocidos: ${revision.omitidos}.\nPor agregar: ${revision.nuevos}.\n\n¿Confirmas la importación de ${vista}?`);
+      if (!aceptar) return;
+
       toast.loading('Importando Excel...', { id: 'upload-excel' });
-      await api.uploadEntregasExcel(file);
-      toast.success('Excel importado correctamente', { id: 'upload-excel' });
-      loadData(); // Recargar la tabla
+      const resultado = await api.uploadEntregasExcel(file, vista, true, revision.firma);
+      toast.success(resultado.message, { id: 'upload-excel' });
+      await loadData();
     } catch (error) {
       toast.error('Error al importar Excel: ' + error.message, { id: 'upload-excel' });
     } finally {

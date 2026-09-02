@@ -289,22 +289,28 @@ downloadExcel: async () => {
   link.remove();
   window.URL.revokeObjectURL(url);
 },
-downloadMasterReport: async (startDate, endDate) => {
+getOperacionesReportes: async () =>{
+  const response = await fetchWithAuth(`${BASE_URL}/api/reportes/operaciones`);
+  if(!response.ok) throw new Error('No se pudieron cargar operaciones');
+  return response.json();
+},
+downloadMasterReport : async (startDate, endDate, operacion) =>{
   const params = new URLSearchParams({
     startDate,
-    endDate
+    endDate,
+    operacion
   });
-
-  const response = await fetchWithAuth(
+    const response = await fetchWithAuth(
     `${BASE_URL}/api/reportes/master?${params.toString()}`
   );
+  if(!response.ok){
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al generar el reporte maestro');
 
-  if (!response.ok) {
-    throw new Error('Error al generar el reporte maestro');
   }
-
   return response.blob();
 },
+
 
   // === ENTREGAS ===
   getEntregas: async () => {
@@ -351,39 +357,49 @@ downloadMasterReport: async (startDate, endDate) => {
     return response.json();
   },
 
-  uploadEntregasExcel: async (file) => {
+    uploadEntregasExcel: async (file, vista, confirmar = false, firma = '') => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await fetchWithAuth(`${BASE_URL}/api/entregas/upload-excel`, {
-      method: 'POST',
-      body: formData
-    });
+    formData.append('tipo', vista || '');
+    formData.append('confirmar', confirmar ? 'si' : 'no');
+    formData.append('firma', firma);
+
+    const response = await fetchWithAuth(`${BASE_URL}/api/entregas/upload-excel`, { method: 'POST', body: formData });
     if (!response.ok) {
-      let errText = 'Error al subir Excel';
-      try { const resData = await response.json(); if (resData.error) errText += ': ' + resData.error; } catch(e){}
-      throw new Error(errText);
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al importar inventario TI');
     }
     return response.json();
   },
 
-  exportExcelEntregas: async (vista, categoria) => {
-    const param = new URLSearchParams();
-    if(vista){params.set('tipo',vista);}
-    if(categoria){params.set('categoria',categoria);}
+    exportExcelEntregas: async (vista, categoria) => {
+    const params = new URLSearchParams();
+    if (vista) params.set('tipo', vista);
+    if (categoria) params.set('categoria', categoria);
+
     const query = params.toString();
     const endpoint = `${BASE_URL}/api/entregas/export-excel${query ? `?${query}` : ''}`;
-    const respone = await fetchWithAuth(endpoint);
-    if(!response.ok){throw new Error('Error al exportar entregas');}
+    const response = await fetchWithAuth(endpoint);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al exportar inventario TI');
+    }
+
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');;
+    const link = document.createElement('a');
     link.href = url;
-    link.download = 'entregas_ti.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    widow.URL.revokeObjectURL(url);
-},
+    link.download = vista === 'Devolución' ? 'devoluciones_ti.xlsx' : 'entregas_ti.xlsx';
+
+    try {
+      document.body.appendChild(link);
+      link.click();
+    } finally {
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    }
+  },
 downloadFlotasReport: async ({
   formato = 'pdf',
   filtro = 'todos',
