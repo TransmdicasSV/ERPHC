@@ -117,7 +117,7 @@ const initDb = async () => {
   const esquemaEsperado = {
     audit_logs: ['id', 'user_id', 'accion', 'tabla_afectada', 'fecha'],
     entregas_ti: ['id', 'fecha', 'encargado', 'nombre', 'dni', 'cargo', 'operacion', 'condicion', 'equipo_tipo', 'marca', 'modelo', 'serie', 'laptop', 'mouse', 'cargador', 'motivo', 'observaciones', 'precio', 'tipo_movimiento', 'documento_url'],
-    incidentes_soporte: ['id', 'placa', 'tipo_solicitud', 'descripcion', 'operador', 'estado', 'fecha', 'categoria', 'prioridad', 'evidencia'],
+    incidentes_soporte: ['id', 'placa', 'tipo_solicitud', 'descripcion', 'operador', 'estado', 'fecha', 'categoria', 'prioridad', 'evidencia','operacion'],
     inspecciones_flota: ['id', 'placa', 'fecha', 'hora', 'tablet', 'radio', 'camaras', 'img_tablet', 'img_radio', 'img_camaras', 'observaciones'],
     mantenimientos_tecnicos: ['id', 'placa', 'fecha_ejecutada', 'frecuencia_dias', 'dvr', 'copiloto', 'radio_base', 'handy', 'camara_interna', 'camara_externa', 'camara_retroceso', 'sensores_retroceso', 'sensores_delanteros', 'sistema_adas'],
     personal: ['id', 'id_interno', 'nombre_completo', 'dni', 'modalidad', 'area', 'cargo', 'telefono', 'estado', 'created_at'],
@@ -195,7 +195,7 @@ const ROLE_PERMISSIONS = {
     flota: { ver: true, editar: false },
     personal: { ver: false, editar: false },
     dashboard: { ver: true, editar: true },
-    tickets: { ver: true, editar: false, crear: false, gestionar: false },
+    tickets: { ver: true, editar: false, crear: true, gestionar: false },
     entregas: { ver: true, editar: true },
     devoluciones: { ver: false, editar: false },
     mantenimiento: { ver: false, editar: false },
@@ -379,10 +379,12 @@ app.use((req, res, next) => {
     return requireAdmin(req, res, next);
   }
 
-  const accion =
-    req.method === 'GET' || req.method === 'HEAD'
-      ? 'ver'
-      : 'editar';
+  const esCreacionTicket = req.method === 'POST'
+  && /^\/api\/incidentes_soporte\/?$/i.test(req.path);
+
+const accion = esCreacionTicket
+  ? 'crear'
+  : (req.method === 'GET' || req.method === 'HEAD' ? 'ver' : 'editar');
 
   return requirePermiso(rule.modules, accion)(req, res, next);
 });
@@ -409,31 +411,82 @@ app.get('/api/usuarios', async (req, res) => {
   }
 });
 
-
-
-app.post('/api/usuarios', requireAdmin, async (req, res) => {
-  const { username, password, rol, estado, operacion } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Faltan campos obligatorios' });
-  const rolFinal = rol || 'supervisor';
-  const rolesValidos = ['admin', 'supervisor', 'ti'];
-  if (!rolesValidos.includes(rolFinal)) return res.status(400).json({ error: 'Rol no válido' });
-  if (rolFinal === 'supervisor' && !String(operacion || '').trim()) return res.status(400).json({ error: 'Debe asignar una operación al supervisor' });
-  const operacionFinal = rolFinal === 'supervisor' ? String(operacion).trim() : null;
-  const permisosFinales = ROLE_PERMISSIONS[rolFinal];
+app.get('/api/usuarios/personal-administrativo', requireAdmin, async (req, res) => {
   try {
-    const existing = await pool.query('SELECT id FROM usuarios WHERE username = $1', [username]);
-    if (existing.rows.length > 0) return res.status(400).json({ error: 'El usuario ya existe' });
-
-    const hash = bcrypt.hashSync(password, 10);
     const result = await pool.query(
-      'INSERT INTO usuarios (username, password_hash, rol, permisos, estado, operacion) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [username, hash, rolFinal, permisosFinales, estado || 'activo', operacionFinal]
+      `SELECT id, dni, nombre_completo
+       FROM personal
+       WHERE LOWER(BTRIM(COALESCE(modalidad, ''))) = 'administrativo'
+       ORDER BY nombre_completo`
     );
-    await logAction(req.user.id, `Usuario creado: ${username}`, 'usuarios');
-    res.json({ success: true, id: result.rows[0].id });
+    return res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al crear usuario' });
+    return res.status(500).json({
+      error: 'Error al cargar personal administrativo'
+    });
+  }
+});
+
+app.post('/api/usuarios', requireAdmin, async (req, res) => {
+  const { username, password, rol, estado, operacion } = req.body || {};
+  const usernameFinal = typeof username === 'string' ? username.trim() : '';
+
+  if (!usernameFinal || typeof password !== 'string' || !password) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  }
+
+  const rolFinal = rol || 'supervisor';
+  if (!['admin', 'supervisor', 'ti'].includes(rolFinal)) {
+    return res.status(400).json({ error: 'Rol no válido' });
+  }
+
+  const operacionFinal = rolFinal === 'supervisor'
+    ? String(operacion || '').trim()
+    : null;
+
+  if (rolFinal === 'supervisor' && !operacionFinal) {
+    return res.status(400).json({
+      error: 'Debe asignar una operación al supervisor'
+    });
+  }
+
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      `INSERT INTO usuarios
+         (username, password_hash, rol, permisos, estado, operacion)
+       SELECT p.dni, $2, $3, $4, $5, $6
+       FROM personal p
+       WHERE p.dni = $1
+         AND LOWER(BTRIM(COALESCE(p.modalidad, ''))) = 'administrativo'
+       RETURNING id`,
+      [
+        usernameFinal, hash, rolFinal, ROLE_PERMISSIONS[rolFinal],
+        estado || 'activo', operacionFinal
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(400).json({
+        error: 'Seleccione un trabajador con modalidad de contrato Administrativo'
+      });
+    }
+
+    await logAction(
+      req.user.id,
+      `Usuario creado: ${usernameFinal}`,
+      'usuarios'
+    );
+
+    return res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'El usuario ya existe' });
+    }
+
+    console.error(err);
+    return res.status(500).json({ error: 'Error al crear usuario' });
   }
 });
 
@@ -444,7 +497,7 @@ app.delete('/api/usuarios/:id', requireAdmin, async (req, res) => {
     await pool.query('DELETE FROM usuarios WHERE id=$1', [id]);
     await logAction(req.user.id, `Usuario eliminado ID: ${id}`, 'usuarios');
     res.json({ success: true });
-  }  catch (err) {
+  } catch (err) {
     console.error(err);
 
     if (err.code === '23503') {
@@ -457,7 +510,7 @@ app.delete('/api/usuarios/:id', requireAdmin, async (req, res) => {
       error: 'Error al eliminar usuario'
     });
   }
-  }
+}
 );
 
 //
@@ -471,7 +524,7 @@ app.get('/api/public/stats', async (req, res) => {
   try {
     const veh = await pool.query('SELECT COUNT(*) FROM vehiculos');
 
-    const result = await pool.query('SELECT placa, fecha, hora, tablet, radio, camaras FROM inspecciones_flota ORDER BY id DESC LIMIT 500');
+    const result = await pool.query('SELECT placa, fecha::text AS fecha, hora, tablet, radio, camaras FROM inspecciones_flota ORDER BY id DESC LIMIT 500');
 
     const today1 = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const todayParts = today1.split('-');
@@ -515,7 +568,7 @@ app.get('/api/public/stats', async (req, res) => {
 app.get('/api/public/consulta/:placa', async (req, res) => {
   const { placa } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 1', [placa]);
+    const result = await pool.query('SELECT *, fecha::text AS fecha FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 1', [placa]);
     const insp = result.rows[0];
 
     if (!insp) return res.status(404).json({ error: 'Unidad no encontrada' });
@@ -528,7 +581,7 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
     const estado_general = (isOkOrNaStr(insp.tablet) && isOkOrNaStr(insp.radio) && isOkOrNaStr(insp.camaras)) ? 'APROBADO' : 'OBSERVADO';
 
     // Timeline: Últimas 3 inspecciones
-    const timelineResult = await pool.query('SELECT fecha, hora, tablet, radio, camaras FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 3', [placa]);
+    const timelineResult = await pool.query('SELECT fecha::text AS fecha, hora, tablet, radio, camaras FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 3', [placa]);
     const timeline = timelineResult.rows.map(t => ({
       fecha: t.fecha,
       hora: t.hora,
@@ -562,64 +615,204 @@ app.get('/api/public/consulta/:placa', async (req, res) => {
 });
 
 // Crear ticket desde el portal público o desde la administración
-const createSupportTicket = async (req, res) => {
+const OPERACIONES_INVALIDAS_TICKET = [
+  '', 'test', 'text', 'null', 'undefined',
+  'sin operacion', 'sin operación', 'falta identificar'
+];
+
+async function contextoTicket(req, accion = 'ver') {
+  if (!req.user) return { rol: 'publico', operacion: null };
+
+  const { rows } = await pool.query(
+    `SELECT rol, estado, operacion FROM usuarios WHERE id = $1`,
+    [req.user.id]
+  );
+
+  const user = rows[0];
+  let rol = String(user?.rol || '').trim().toLowerCase();
+  if (rol === 'administrador') rol = 'admin';
+
+  const operacion = String(user?.operacion || '').trim();
+
+  if (
+    String(user?.estado || '').trim().toLowerCase() !== 'activo'
+    || !ROLE_PERMISSIONS[rol]?.tickets?.[accion]
+    || (
+      rol === 'supervisor'
+      && OPERACIONES_INVALIDAS_TICKET.includes(operacion.toLowerCase())
+    )
+  ) {
+    throw Object.assign(
+      new Error('Cuenta sin permiso o sin operación válida'),
+      { status: 403 }
+    );
+  }
+
+  return {
+    rol,
+    operacion: rol === 'supervisor' ? operacion : null
+  };
+}
+
+async function opcionesTickets(req, res) {
+  try {
+    const contexto = await contextoTicket(req);
+
+    const { rows } = await pool.query(
+      `SELECT placa, BTRIM(operacion) AS operacion FROM vehiculos
+       WHERE LOWER(BTRIM(COALESCE(operacion, ''))) <> ALL($2::text[])
+         AND (
+           $1::text IS NULL
+           OR LOWER(BTRIM(operacion)) = LOWER(BTRIM($1))
+         )
+       ORDER BY placa`,
+      [contexto.operacion, OPERACIONES_INVALIDAS_TICKET]
+    );
+
+    const operaciones = [...new Map(rows.map(v =>
+      [v.operacion.toLowerCase(), v.operacion]
+    )).values()].sort((a, b) => a.localeCompare(b, 'es'));
+
+    return res.json({
+      vehiculos: rows,
+      operaciones,
+      operacionAsignada: contexto.operacion
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(err.status || 500).json({
+      error: err.status === 403
+        ? err.message
+        : 'Error al cargar opciones de tickets'
+    });
+  }
+}
+
+async function createSupportTicket(req, res) {
   const {
-    placa, tipo_solicitud, descripcion,
-    operador, categoria, prioridad
+    placa, tipo_solicitud, descripcion, operador, categoria, prioridad
   } = req.body || {};
 
-  const placaFinal =
-    typeof placa === 'string' ? placa.trim().toUpperCase() : '';
-
-  if (!placaFinal) {
+  if (placa != null && typeof placa !== 'string') {
     return res.status(400).json({
-      error: 'Debe indicar una placa del maestro de vehiculos'
+      error: 'La placa debe ser texto o quedar vacía'
     });
   }
 
-  if (!tipo_solicitud || !descripcion || !operador) {
+  const placaFinal = placa?.trim().toUpperCase() || null;
+
+  if (
+    (placaFinal && placaFinal.length > 20)
+    || ![tipo_solicitud, descripcion, operador].every(
+      v => typeof v === 'string' && v.trim()
+    )
+  ) {
     return res.status(400).json({
-      error: 'Faltan datos obligatorios'
+      error: 'Revise los datos obligatorios y la placa'
     });
   }
 
   try {
-    await pool.query(
-      `INSERT INTO incidentes_soporte
-       (placa, tipo_solicitud, descripcion, operador, categoria, prioridad)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        placaFinal, tipo_solicitud, descripcion, operador,
-        categoria || 'General', prioridad || 'Media'
-      ]
-    );
+    const contexto = await contextoTicket(req, 'crear');
 
-    await logAction(
-      req.user?.id || null,
-      `Solicitud de soporte para ${placaFinal}`,
-      'incidentes_soporte'
-    );
+    const operacionSinPlaca = contexto.rol === 'supervisor'
+      ? contexto.operacion
+      : contexto.rol === 'admin' && typeof req.body.operacion === 'string'
+        ? req.body.operacion.trim()
+        : null;
 
-    return res.status(201).json({ success: true });
-  } catch (err) {
-    if (
-      err.code === '23503' &&
-      err.constraint === 'incidentes_soporte_placa_fkey'
-    ) {
+    if (!placaFinal && !operacionSinPlaca) {
       return res.status(400).json({
-        error: 'La placa no existe en el maestro de vehiculos. Seleccione una placa registrada.'
+        error: contexto.rol === 'publico'
+          ? 'En el portal público debe indicar una placa'
+          : 'Seleccione una operación para el ticket sin placa'
       });
     }
 
+    const result = await pool.query(
+      `WITH destino AS (
+         SELECT v.placa, BTRIM(v.operacion) AS operacion
+         FROM vehiculos v
+         WHERE v.placa = $1
+           AND (
+             $7::text IS NULL
+             OR LOWER(BTRIM(v.operacion)) = LOWER(BTRIM($7))
+           )
+
+         UNION ALL
+
+         SELECT NULL::varchar, $8::text
+         WHERE $1::text IS NULL
+           AND (
+             $7::text IS NOT NULL
+             OR EXISTS (
+               SELECT 1 FROM vehiculos
+               WHERE LOWER(BTRIM(operacion)) = LOWER(BTRIM($8))
+             )
+           )
+       )
+       INSERT INTO incidentes_soporte
+         (placa, tipo_solicitud, descripcion, operador,
+          categoria, prioridad, operacion)
+       SELECT placa, $2, $3, $4, $5, $6, operacion
+       FROM destino
+       WHERE LOWER(BTRIM(COALESCE(operacion, ''))) <> ALL($9::text[])
+       RETURNING id`,
+      [
+        placaFinal,
+        tipo_solicitud.trim(),
+        descripcion.trim(),
+        operador.trim(),
+        categoria || 'General',
+        prioridad || 'Media',
+        contexto.operacion,
+        operacionSinPlaca,
+        OPERACIONES_INVALIDAS_TICKET
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(contexto.rol === 'supervisor' ? 403 : 400).json({
+        error: 'La placa o la operación no son válidas o no están autorizadas para su cuenta'
+      });
+    }
+
+    await logAction(
+      req.user?.id || null,
+      'Solicitud de soporte: ' + (placaFinal || 'sin placa'),
+      'incidentes_soporte'
+    );
+
+    return res.status(201).json({
+      success: true,
+      id: result.rows[0].id
+    });
+  } catch (err) {
     console.error(err);
-    return res.status(500).json({
-      error: 'Error al registrar la solicitud'
+    return res.status(err.status || (err.code === '23503' ? 400 : 500)).json({
+      error: err.status === 403
+        ? err.message
+        : err.code === '23503'
+          ? 'La placa ya no está disponible'
+          : 'Error al registrar el ticket'
     });
   }
-};
+}
+
+app.get('/api/incidentes/opciones', opcionesTickets);
 
 app.post('/api/public/incidentes-soporte', createSupportTicket);
-app.post('/api/incidentes_soporte', requireAdmin, createSupportTicket);
+
+app.post(
+  '/api/incidentes_soporte',
+  requirePermiso('tickets', 'crear'),
+  createSupportTicket
+);
+  
+    
+
+  
+
 
 // APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
 // Endpoint para recibir la telemetría del Core Desktop local (Sin JWT, usa secret interno)
@@ -746,7 +939,7 @@ app.get('/vehiculos/', async (req, res) => {
     const query = `
       SELECT 
         v.placa, v.programa, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.operacion, v.cliente,
-        i.tablet, i.radio, i.camaras, i.fecha, i.observaciones
+        i.tablet, i.radio, i.camaras, i.fecha::text AS fecha, i.observaciones
       FROM vehiculos v
       LEFT JOIN (
         SELECT placa, tablet, radio, camaras, fecha, observaciones,
@@ -1164,21 +1357,24 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 // Listar Incidentes (Para el Dashboard Interno)
 app.get('/api/incidentes', async (req, res) => {
   try {
-    const rol = String(req.user?.rol || '').toLowerCase();
+    const contexto = await contextoTicket(req);
 
-    if (rol === 'supervisor') {
-      const operacion = String(req.user?.operacion || '').trim();
-      if (!operacion) return res.status(403).json({ error: 'El supervisor no tiene una operación asignada' });
+    const { rows } = await pool.query(
+      `SELECT * FROM incidentes_soporte
+       WHERE $1::text IS NULL
+          OR LOWER(BTRIM(operacion)) = LOWER(BTRIM($1))
+       ORDER BY id DESC`,
+      [contexto.operacion]
+    );
 
-      const result = await pool.query("SELECT i.* FROM incidentes_soporte i INNER JOIN vehiculos v ON UPPER(TRIM(v.placa)) = UPPER(TRIM(i.placa)) WHERE LOWER(TRIM(v.operacion)) = LOWER(TRIM($1)) ORDER BY i.id DESC", [operacion]);
-      return res.json(result.rows);
-    }
-
-    const result = await pool.query('SELECT * FROM incidentes_soporte ORDER BY id DESC');
-    res.json(result.rows);
+    return res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al obtener incidentes' });
+    return res.status(err.status || 500).json({
+      error: err.status === 403
+        ? err.message
+        : 'Error al obtener tickets'
+    });
   }
 });
 
@@ -1208,7 +1404,7 @@ app.put('/api/incidentes/:id', upload.single('evidencia'), async (req, res) => {
       const ticket = ticketResult.rows[0];
 
       if (ticket && ticket.placa) {
-        const ultimaInsp = await pool.query('SELECT * FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 1', [ticket.placa]);
+        const ultimaInsp = await pool.query('SELECT *, fecha::text AS fecha FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC LIMIT 1', [ticket.placa]);
 
         if (ultimaInsp.rows.length > 0) {
           const insp = ultimaInsp.rows[0];
@@ -1257,12 +1453,92 @@ app.delete('/api/incidentes/:id', requireAdmin, async (req, res) => {
   }
 });
 // ==========================================
+function fechaISOValida(valor) {
+  if (
+    typeof valor !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(valor) ||
+    valor.startsWith('0000-')
+  ) return false;
 
+  const fecha = new Date(`${valor}T00:00:00.000Z`);
+
+  return Number.isFinite(fecha.getTime()) &&
+    fecha.toISOString().slice(0, 10) === valor;
+}
+
+async function validarDatosInspeccion(req, res, next) {
+  const datos = req.body || {};
+  const esNueva = req.method === 'POST';
+
+  for (const campo of ['fecha', 'hora']) {
+    if (datos[campo] != null && typeof datos[campo] !== 'string') {
+      return res.status(400).json({
+        error: `${campo}: se esperaba texto.`
+      });
+    }
+
+    datos[campo] = datos[campo]?.trim() || null;
+  }
+
+  if (
+    (esNueva && !datos.fecha) ||
+    (datos.fecha && !fechaISOValida(datos.fecha))
+  ) {
+    return res.status(400).json({
+      error: 'Indica una fecha real con formato AAAA-MM-DD.'
+    });
+  }
+
+  if (
+    (esNueva && !datos.hora) ||
+    (datos.hora &&
+      !/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(datos.hora))
+  ) {
+    return res.status(400).json({
+      error: 'Indica una hora valida con formato HH:MM.'
+    });
+  }
+
+  if (esNueva) {
+    if (
+      typeof datos.placa !== 'string' ||
+      !datos.placa.trim() ||
+      datos.placa.trim().length > 20
+    ) {
+      return res.status(400).json({
+        error: 'Selecciona una placa del maestro de vehiculos.'
+      });
+    }
+
+    datos.placa = datos.placa.trim().toUpperCase();
+
+    try {
+      const result = await pool.query(
+        'SELECT placa FROM public.vehiculos WHERE placa = $1',
+        [datos.placa]
+      );
+
+      if (!result.rows.length) {
+        return res.status(400).json({
+          error: 'La placa no existe en el maestro de vehiculos.'
+        });
+      }
+    } catch (error) {
+      console.error('Error verificando placa:', error);
+      return res.status(500).json({
+        error: 'No se pudo verificar la placa.'
+      });
+    }
+  }
+
+  req.body = datos;
+  return next();
+}
 // Obtener inspecciones de un vehÃ­culo (Historial)
 app.get('/inspecciones/:placa', async (req, res) => {
   try {
     const { placa } = req.params;
-    const result = await pool.query('SELECT * FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC', [placa]);
+    const result = await pool.query('SELECT *, fecha::text AS fecha FROM inspecciones_flota WHERE placa = $1 ORDER BY id DESC', [placa]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -1280,9 +1556,9 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
   let img_camaras = '';
 
   try {
-    if (req.files['img_tablet']) img_tablet = await uploadToCloudinary(req.files['img_tablet'][0].buffer, 'flotas_inspecciones');
-    if (req.files['img_radio']) img_radio = await uploadToCloudinary(req.files['img_radio'][0].buffer, 'flotas_inspecciones');
-    if (req.files['img_camaras']) img_camaras = await uploadToCloudinary(req.files['img_camaras'][0].buffer, 'flotas_inspecciones');
+    if (req.files?.['img_tablet']?.length) img_tablet = await uploadToCloudinary(req.files['img_tablet'][0].buffer, 'flotas_inspecciones');
+    if (req.files?.['img_radio']?.length) img_radio = await uploadToCloudinary(req.files['img_radio'][0].buffer, 'flotas_inspecciones');
+    if (req.files?.['img_camaras']?.length) img_camaras = await uploadToCloudinary(req.files['img_camaras'][0].buffer, 'flotas_inspecciones');
   } catch (e) {
     console.error("Error subiendo a Cloudinary:", e);
     return res.status(500).json({ error: 'Error al subir imÃ¡genes a la nube' });
@@ -1295,24 +1571,23 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
   try {
     client = await pool.connect();
     await client.query('BEGIN');
-
-    await client.query(
-      'INSERT INTO vehiculos (placa, operacion) VALUES ($1, $2) ON CONFLICT (placa) DO UPDATE SET operacion = $2',
-      [placa, programa]
-    );
-
     result = await client.query(
       `INSERT INTO inspecciones_flota (placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *, fecha::text AS fecha`,
       [placa, fecha, hora, tablet, radio, camaras, img_tablet, img_radio, img_camaras, observaciones || '']
     );
 
     await client.query('COMMIT');
   } catch (err) {
     if (client) {
-      try { await client.query('ROLLBACK'); } catch { descartar = true; }
+      try { await client.query('ROLLBACK'); } catch { descartar = true;
+        if (err.code === '23503') {
+  return res.status(400).json({
+    error: 'La placa ya no existe en el maestro de vehiculos.'
+  });
+}
+       }
     }
-
     console.error('Error al registrar inspeccion:', err);
     return res.status(500).json({ error: 'Error al registrar inspeccion' });
   } finally {
@@ -1403,10 +1678,21 @@ app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img
 
   try {
     // Primero obtener los datos actuales para no borrar las fotos que no se actualizaron
-    const currentInsp = await pool.query('SELECT * FROM inspecciones_flota WHERE id = $1', [id]);
+    const currentInsp = await pool.query('SELECT *, fecha::text AS fecha FROM inspecciones_flota WHERE id = $1', [id]);
     if (currentInsp.rows.length === 0) return res.status(404).json({ error: 'No encontrado' });
 
     const curr = currentInsp.rows[0];
+    if (String(curr.fecha ?? '').trim() && !fecha) {
+  return res.status(400).json({
+    error: 'No puedes vaciar una fecha ya registrada.'
+  });
+}
+
+if (String(curr.hora ?? '').trim() && !hora) {
+  return res.status(400).json({
+    error: 'No puedes vaciar una hora ya registrada.'
+  });
+}
     let img_tablet = curr.img_tablet;
     let img_radio = curr.img_radio;
     let img_camaras = curr.img_camaras;
@@ -1495,7 +1781,7 @@ app.get('/stats/', async (req, res) => {
 app.get('/stats/charts', async (req, res) => {
   try {
     // 1. Obtener todas las inspecciones para procesar en memoria (seguro contra formatos raros)
-    const all = await pool.query('SELECT fecha FROM inspecciones_flota');
+    const all = await pool.query('SELECT fecha::text AS fecha FROM inspecciones_flota');
 
     // Agrupar por fecha
     const conteoFechas = {};
@@ -1608,7 +1894,44 @@ app.get('/stats/charts', async (req, res) => {
 // ==========================================
 // ENDPOINTS ENTREGAS TI
 // ==========================================
+app.get('/api/entregas/personal/:dni', async (req, res) => {
+  const tipo = String(req.query.tipo || 'Entrega').trim().toLowerCase();
 
+  if (!['entrega', 'devolucion', 'devolución'].includes(tipo)) {
+    return res.status(400).json({ error: 'Tipo de movimiento no válido' });
+  }
+
+  const modulo = getModuloMovimiento(tipo);
+
+  if (!hasPermiso(req, modulo, 'ver') || !hasPermiso(req, modulo, 'editar')) {
+    return res.status(403).json({
+      error: 'No tienes permiso para registrar o editar este movimiento'
+    });
+  }
+
+  const dni = String(req.params.dni || '').trim();
+
+  if (!/^[0-9]{1,20}$/.test(dni)) {
+    return res.status(400).json({
+      error: 'Ingrese un DNI válido, solo con números'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT dni, nombre_completo, cargo, area FROM public.personal WHERE dni = $1',
+      [dni]
+    );
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({ persona: result.rows[0] || null });
+  } catch (err) {
+    console.error('Error buscando personal para entrega:', err);
+    return res.status(500).json({
+      error: 'No se pudo consultar al trabajador'
+    });
+  }
+});
 app.get('/api/entregas', async (req, res) => {
   try {
     const puedeVerEntregas = hasPermiso(req, 'entregas', 'ver');
@@ -1735,7 +2058,7 @@ app.delete('/api/entregas/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/entregas/upload-excel', (req, res, next) => {
+app.post('/api/entregas/upload-excel', requireAdmin, (req, res, next) => {
   if (!hasPermiso(req, 'entregas', 'editar') || !hasPermiso(req, 'devoluciones', 'editar')) return res.status(403).json({ error: 'No tienes permiso para realizar cargas masivas de inventario' });
   next();
 }, upload.single('file'), async (req, res) => {

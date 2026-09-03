@@ -19,12 +19,109 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [resolvingTicketId, setResolvingTicketId] = useState(null);
   const [resolveFormData, setResolveFormData] = useState({ resolucion_desc: '', evidencia: null });
   const [formData, setFormData] = useState({
-    placa: '',
-    operador: '',
-    tipo_solicitud: 'Soporte Técnico',
-    descripcion: ''
-  });
+  placa: '',
+  operacion: '',
+  operador: '',
+  tipo_solicitud: 'Soporte Técnico',
+  descripcion: ''
+});
   const canCreate = permisos?.crear === true;
+  const [opcionesTicket, setOpcionesTicket] = useState(null);
+
+useEffect(() => {
+  if (!showModal || !canCreate) return;
+
+  let vigente = true;
+  setOpcionesTicket(null);
+
+  api.getOpcionesTickets()
+    .then(datos => {
+      if (vigente) setOpcionesTicket(datos);
+    })
+    .catch(() => {
+      if (vigente) {
+        toast.error('No se pudieron cargar las opciones del ticket');
+      }
+    });
+
+  return () => { vigente = false; };
+}, [showModal, canCreate]);
+
+const renderDestinoTicket = () => {
+  const placa = formData.placa.trim().toUpperCase();
+  const vehiculo = opcionesTicket?.vehiculos.find(v => v.placa === placa);
+
+  const operacionAutomatica = vehiculo?.operacion
+    || opcionesTicket?.operacionAsignada
+    || '';
+
+  const estilo = {
+    width: '100%',
+    padding: '0.75rem',
+    borderRadius: '0.5rem',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color)',
+    color: 'var(--text-primary)'
+  };
+
+  return (
+    <>
+      <input
+        type="text"
+        list="placas-ticket"
+        autoComplete="off"
+        maxLength={20}
+        value={formData.placa}
+        onChange={e => setFormData(actual => ({
+          ...actual,
+          placa: e.target.value.toUpperCase(),
+          operacion: ''
+        }))}
+        placeholder="Opcional: escriba para buscar"
+        style={estilo}
+      />
+
+      <datalist id="placas-ticket">
+        {opcionesTicket?.vehiculos.map(v => (
+          <option key={v.placa} value={v.placa} label={v.operacion} />
+        ))}
+      </datalist>
+
+      <small>Ejemplo: V0R-721. Puede dejar la placa vacía.</small>
+
+      <label style={{ display: 'block', margin: '0.75rem 0 0.4rem' }}>
+        Operación
+      </label>
+
+      {placa || opcionesTicket?.operacionAsignada ? (
+        <input
+          type="text"
+          readOnly
+          value={operacionAutomatica}
+          placeholder="Se obtiene al seleccionar una placa"
+          style={estilo}
+        />
+      ) : (
+        <select
+          required
+          value={formData.operacion || ''}
+          onChange={e => setFormData(actual => ({
+            ...actual,
+            operacion: e.target.value
+          }))}
+          style={estilo}
+          disabled={!opcionesTicket}
+        >
+          <option value="">Seleccione una operación</option>
+
+          {opcionesTicket?.operaciones.map(op => (
+            <option key={op} value={op}>{op}</option>
+          ))}
+        </select>
+      )}
+    </>
+  );
+};  
   const canManage = permisos?.gestionar === true;
   const isAdmin = ['admin', 'administrador'].includes(String(usuario?.rol || '').toLowerCase());
 
@@ -111,24 +208,49 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   };
 
   const handleSaveTicket = async (e) => {
-    e.preventDefault();
-    if (!canCreate) {
-      toast.error('No tienes permiso para crear tickets');
-      return;
-    }
-    try {
-      await api.createIncidente({
-        ...formData,
-        fecha: new Date().toISOString()
-      });
-      toast.success('Ticket creado exitosamente');
-      setShowModal(false);
-      fetchTickets();
-      setFormData({ placa: '', operador: '', tipo_solicitud: 'Soporte Técnico', descripcion: '' });
-    } catch (error) {
-      toast.error('Error al crear el ticket');
-    }
-  };
+  e.preventDefault();
+
+  if (!canCreate) {
+    return toast.error('No tienes permiso para crear tickets');
+  }
+
+  if (!opcionesTicket) {
+    return toast.error('Espere a que se carguen las opciones');
+  }
+
+  const placa = formData.placa.trim().toUpperCase();
+
+  if (placa && !opcionesTicket.vehiculos.some(v => v.placa === placa)) {
+    return toast.error(
+      'Seleccione una placa de las sugerencias o deje el campo vacío'
+    );
+  }
+
+  if (!placa && !opcionesTicket.operacionAsignada && !formData.operacion) {
+    return toast.error('Seleccione una operación');
+  }
+
+  try {
+    await api.createIncidente({
+      ...formData,
+      placa: placa || null
+    });
+
+    toast.success('Ticket creado exitosamente');
+    setShowModal(false);
+    fetchTickets();
+
+    setFormData({
+      placa: '',
+      operacion: '',
+      operador: '',
+      tipo_solicitud: 'Soporte Técnico',
+      descripcion: ''
+    });
+  } catch (error) {
+    toast.error(error.message || 'Error al crear el ticket');
+  }
+};
 
   const pendientes = tickets.filter(t => t.estado === 'Pendiente');
   const enProceso = tickets.filter(t => t.estado === 'En Proceso');
@@ -254,7 +376,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #BFDBFE' }}>{ticket.placa || 'N/A'}</span>
+                  <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid #BFDBFE' }}>{ticket.placa || ('Sin placa · ' + ticket.operacion)}</span>
                   {ticket.prioridad && (
                     <span style={{ backgroundColor: ticket.prioridad === 'Alta' ? '#FEE2E2' : ticket.prioridad === 'Media' ? '#FEF3C7' : '#E0E7FF', color: ticket.prioridad === 'Alta' ? '#991B1B' : ticket.prioridad === 'Media' ? '#92400E' : '#3730A3', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: '800', fontSize: '0.7rem' }}>🔥 {ticket.prioridad}</span>
                   )}
@@ -369,7 +491,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Placa de Vehículo</label>
-                    <input type="text" value={formData.placa} onChange={e => setFormData({ ...formData, placa: e.target.value.toUpperCase() })} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+                    {renderDestinoTicket()}
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Nombre del Solicitante</label>
@@ -502,7 +624,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                     <tr key={ticket.id} style={{ borderBottom: '1px solid #E5E7EB', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                       <td style={{ padding: '1rem', fontWeight: 'bold', color: '#111827' }}>#{ticket.id}</td>
                       <td style={{ padding: '1rem', color: '#4B5563', fontSize: '0.9rem' }}>{formatDate(ticket.fecha)}</td>
-                      <td style={{ padding: '1rem' }}><span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || 'N/A'}</span></td>
+                      <td style={{ padding: '1rem' }}><span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || ('Sin placa · ' + ticket.operacion)}</span></td>
                       <td style={{ padding: '1rem' }}>
                         <div style={{ fontWeight: '600', color: '#111827', fontSize: '0.9rem' }}>{ticket.tipo_solicitud}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>👤 {ticket.operador || 'S/N'}</div>
@@ -545,7 +667,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Placa de Vehículo</label>
-                  <input type="text" value={formData.placa} onChange={e => setFormData({ ...formData, placa: e.target.value.toUpperCase() })} placeholder="Opcional" style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+                  {renderDestinoTicket()}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Nombre del Solicitante</label>
@@ -603,7 +725,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                           <span style={{ fontWeight: '800', color: '#111827', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
-                          <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.1rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || 'N/A'}</span>
+                          <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.1rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || ('Sin placa · ' + ticket.operacion)}</span>
                           <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{formatDate(ticket.fecha)}</span>
                         </div>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#4B5563' }}>{ticket.descripcion}</p>

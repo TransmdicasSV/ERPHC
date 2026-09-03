@@ -7,10 +7,12 @@ import { Document, Page, pdfjs } from 'react-pdf';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export function EntregasTIDashboard({ vista, permisos, usuario }) {
-    const rolUsuario = String(usuario?.rol || '').toLowerCase();
+  const rolUsuario = String(usuario?.rol || '').toLowerCase();
   const isAdmin = rolUsuario === 'admin' || rolUsuario === 'administrador';
   const canEdit = permisos?.editar === true;
-  const canBulkUpload = isAdmin || rolUsuario === 'ti';
+  const canBulkUpload = isAdmin;
+  const canCrearPersonal =
+    isAdmin || usuario?.permisos?.personal?.editar === true;
   const [entregas, setEntregas] = useState([]);
   const [personalList, setPersonalList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,8 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   const loadPersonal = async () => {
+    if (!isAdmin && usuario?.permisos?.personal?.ver !== true) return;
+
     try {
       const data = await api.getPersonal();
       setPersonalList(Array.isArray(data) ? data : []);
@@ -60,8 +64,8 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
     loadPersonal();
   }, []);
 
-    const handleFileUpload = async (e) => {
-    if (!canBulkUpload) { toast.error('Solo TI y Administrador pueden realizar cargas masivas'); e.target.value = ''; return; }
+  const handleFileUpload = async (e) => {
+    if (!canBulkUpload) { toast.error('Solo el administrador puede cargar archivos Excel'); e.target.value = ''; return; }
     const file = e.target.files[0];
     if (!file) return;
 
@@ -91,7 +95,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   const sortedData = [...entregas].sort((a, b) => {
     let aValue = a[sortConfig.key] || '';
     let bValue = b[sortConfig.key] || '';
-    
+
     if (sortConfig.key === 'fecha') {
       aValue = a.fecha ? new Date(a.fecha).getTime() : 0;
       bValue = b.fecha ? new Date(b.fecha).getTime() : 0;
@@ -99,20 +103,20 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       if (typeof aValue === 'string') aValue = aValue.toLowerCase();
       if (typeof bValue === 'string') bValue = bValue.toLowerCase();
     }
-    
+
     if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;
   });
 
   const filteredData = sortedData.filter(e => {
-    const matchesSearch = (e.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (e.dni || '').includes(searchTerm) ||
-                          (e.equipo_tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (e.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.dni || '').includes(searchTerm) ||
+      (e.equipo_tipo || '').toLowerCase().includes(searchTerm.toLowerCase());
     const itemTipo = e.tipo_movimiento || 'Entrega';
     const matchesVista = !vista || itemTipo === vista;
     const matchesCategoria = !categoriaFilter || (e.equipo_tipo || '').toUpperCase().includes(categoriaFilter.toUpperCase());
-    
+
     return matchesSearch && matchesVista && matchesCategoria;
   });
 
@@ -155,39 +159,52 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   const handleSearchDNI = async () => {
-    const searchDni = formData.dni.trim();
-    if (!searchDni) {
-      toast.error('Ingrese un DNI para buscar');
+    const dni = String(formData.dni || '').trim();
+
+    if (!/^[0-9]{1,20}$/.test(dni)) {
+      toast.error('Ingrese el DNI, solo con números');
       return;
     }
-    
+
     setDniSearchStatus('loading');
-    
-    // Simulate tiny network delay for UX
-    setTimeout(() => {
-      const person = personalList.find(p => p.dni === searchDni);
+    setIsNewPersonal(false);
+
+    try {
+      const person = await api.getPersonalParaEntrega(
+        dni,
+        vista || formData.tipo_movimiento || 'Entrega'
+      );
+
+      setFormData(prev => ({
+        ...prev,
+        dni,
+        nombre: person?.nombre_completo || '',
+        cargo: person?.cargo || '',
+        operacion: person?.area || ''
+      }));
+
       if (person) {
-        setFormData(prev => ({ 
-          ...prev, 
-          nombre: person.nombre_completo, 
-          cargo: person.cargo || '', 
-          operacion: person.area || '' 
-        }));
-        setIsNewPersonal(false);
         setDniSearchStatus('found');
         toast.success('¡Personal encontrado!');
       } else {
-        setFormData(prev => ({ ...prev, nombre: '', cargo: '', operacion: '' }));
-        setIsNewPersonal(true);
+        setIsNewPersonal(canCrearPersonal);
         setDniSearchStatus('not_found');
-        toast.error('DNI no registrado. Complete los datos para agregarlo automáticamente.');
+
+        toast.error(
+          canCrearPersonal
+            ? 'DNI no registrado. Complete los datos para agregarlo.'
+            : 'El trabajador no está registrado. Solicita su registro a TI o al administrador.'
+        );
       }
-    }, 400);
+    } catch (error) {
+      setDniSearchStatus('error');
+      toast.error(error.message || 'No se pudo buscar al trabajador');
+    }
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.dni || !formData.nombre) {
       toast.error('El DNI y Nombre del receptor son obligatorios');
       return;
@@ -195,9 +212,21 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
     try {
       toast.loading('Guardando...', { id: 'save-entrega' });
-      
+      if (!canCrearPersonal) {
+        const persona = await api.getPersonalParaEntrega(
+          String(formData.dni || '').trim(),
+          vista || formData.tipo_movimiento || 'Entrega'
+        );
+
+        if (!persona) {
+          throw new Error(
+            'El trabajador debe estar registrado en Personal. Solicita su registro a TI o al administrador.'
+          );
+        }
+      }
+
       // Auto-create personnel if it's new
-      if (isNewPersonal) {
+      if (isNewPersonal && canCrearPersonal) {
         try {
           await api.createPersonal({
             dni: formData.dni,
@@ -219,6 +248,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
           dataToSend.append(key, formData[key]);
         }
       });
+      dataToSend.set('dni', String(formData.dni || '').trim());
       if (actaFile) dataToSend.append('acta', actaFile);
 
       if (isEditing) {
@@ -236,7 +266,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   const handleDelete = async (id) => {
-        if (!isAdmin) { toast.error('Solo el Administrador puede eliminar registros'); return; }
+    if (!isAdmin) { toast.error('Solo el Administrador puede eliminar registros'); return; }
     if (window.confirm('¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.')) {
       toast.loading('Eliminando...', { id: 'delete' });
       try {
@@ -282,13 +312,13 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button 
+          <button
             onClick={() => api.exportExcelEntregas(vista, categoriaFilter)}
             style={{ backgroundColor: '#f59e0b', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
             📥 Exportar Excel
           </button>
-                    {canEdit && (
-            <button 
+          {canEdit && (
+            <button
               onClick={openCreateModal}
               style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
               {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
@@ -296,16 +326,16 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
           )}
           {canBulkUpload && (
             <>
-              <input 
-                type="file" 
-                accept=".xlsx, .xls" 
-                style={{ display: 'none' }} 
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                style={{ display: 'none' }}
                 ref={fileInputRef}
                 onChange={handleFileUpload}
               />
-              <button 
+              <button
                 disabled={uploading}
-                onClick={() => fileInputRef.current?.click()} 
+                onClick={() => fileInputRef.current?.click()}
                 style={{ backgroundColor: '#10B981', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: uploading ? 'wait' : 'pointer', fontWeight: '600' }}>
                 {uploading ? '⏳ Subiendo...' : '📄 Cargar Excel'}
               </button>
@@ -317,9 +347,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 250px', position: 'relative' }}>
           <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>🔍</span>
-          <input 
-            type="text" 
-            placeholder="Buscar por DNI, Nombre o Tipo..." 
+          <input
+            type="text"
+            placeholder="Buscar por DNI, Nombre o Tipo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
@@ -348,127 +378,128 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
           <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No hay registros para mostrar. Usa "Cargar Excel" para importar tu base de datos.</p>
         ) : (
           <div className="table-responsive-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th onClick={() => requestSort('fecha')} style={{cursor: 'pointer', userSelect: 'none'}}>Fecha {sortConfig.key === 'fecha' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => requestSort('nombre')} style={{cursor: 'pointer', userSelect: 'none'}}>Receptor {sortConfig.key === 'nombre' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => requestSort('operacion')} style={{cursor: 'pointer', userSelect: 'none'}}>Operación {sortConfig.key === 'operacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('tipo_movimiento')}>
-                Tipo {sortConfig.key === 'tipo_movimiento' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('equipo_tipo')}>
-                Equipo {sortConfig.key === 'equipo_tipo' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-              </th>
-              <th onClick={() => requestSort('marca')} style={{cursor: 'pointer', userSelect: 'none'}}>Marca/Modelo {sortConfig.key === 'marca' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => requestSort('serie')} style={{cursor: 'pointer', userSelect: 'none'}}>Serie {sortConfig.key === 'serie' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                <th onClick={() => requestSort('condicion')} style={{cursor: 'pointer', userSelect: 'none'}}>Estado {sortConfig.key === 'condicion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                const itemsPerPage = 8;
-                const indexOfLastItem = currentPage * itemsPerPage;
-                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-                const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-                
-                return currentItems.map(item => (
-                <tr key={item.id}>
-                  <td>
-                    {item.fecha ? (() => {
-                      const [year, month, day] = item.fecha.split('T')[0].split('-');
-                      return `${day}-${month}-${year}`;
-                    })() : '-'}
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 'bold' }}>{item.nombre}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>DNI: {item.dni}</div>
-                  </td>
-                  <td>{item.operacion}</td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <span style={{ backgroundColor: item.tipo_movimiento === 'Devolución' ? '#fce7f3' : '#d1fae5', color: item.tipo_movimiento === 'Devolución' ? '#9d174d' : '#065f46', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      {item.tipo_movimiento === 'Devolución' ? '📥 Devolución' : '📤 Entrega'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <div style={{ fontWeight: '500' }}>{item.equipo_tipo}</div>
-                    {item.laptop && <div style={{ fontSize: '0.75rem' }}>💻 {item.laptop}</div>}
-                    {item.mouse && <div style={{ fontSize: '0.75rem' }}>🖱️ {item.mouse}</div>}
-                  </td>
-                  <td>
-                    <div>{item.marca}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.modelo}</div>
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{item.serie}</td>
-                  <td>
-                    <span className={`badge ${item.condicion === 'NUEVO' ? 'badge-success' : 'badge-warning'}`}>
-                      {item.condicion}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <button 
-                        onClick={() => { setSelectedEntrega(item); setShowDetailModal(true); }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#3b82f6' }}
-                        title="Ver Detalles"
-                      >
-                        👁️
-                      </button>
-                      {item.documento_url && (
-                        <button onClick={(e) => { e.stopPropagation(); setDocUrlViewer(item.documento_url); }} title="Ver Acta" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                          📄
-                        </button>
-                      )}
-                                            {canEdit && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
-                          style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                      )}
-                      {isAdmin && (
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  </td>
+            <table>
+              <thead>
+                <tr>
+                  <th onClick={() => requestSort('fecha')} style={{ cursor: 'pointer', userSelect: 'none' }}>Fecha {sortConfig.key === 'fecha' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th onClick={() => requestSort('nombre')} style={{ cursor: 'pointer', userSelect: 'none' }}>Receptor {sortConfig.key === 'nombre' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th onClick={() => requestSort('operacion')} style={{ cursor: 'pointer', userSelect: 'none' }}>Operación {sortConfig.key === 'operacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('tipo_movimiento')}>
+                    Tipo {sortConfig.key === 'tipo_movimiento' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('equipo_tipo')}>
+                    Equipo {sortConfig.key === 'equipo_tipo' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => requestSort('marca')} style={{ cursor: 'pointer', userSelect: 'none' }}>Marca/Modelo {sortConfig.key === 'marca' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th onClick={() => requestSort('serie')} style={{ cursor: 'pointer', userSelect: 'none' }}>Serie {sortConfig.key === 'serie' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th onClick={() => requestSort('condicion')} style={{ cursor: 'pointer', userSelect: 'none' }}>Estado {sortConfig.key === 'condicion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th>Acciones</th>
                 </tr>
-              ))})()}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(() => {
+                  const itemsPerPage = 8;
+                  const indexOfLastItem = currentPage * itemsPerPage;
+                  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+
+                  return currentItems.map(item => (
+                    <tr key={item.id}>
+                      <td>
+                        {item.fecha ? (() => {
+                          const [year, month, day] = item.fecha.split('T')[0].split('-');
+                          return `${day}-${month}-${year}`;
+                        })() : '-'}
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 'bold' }}>{item.nombre}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>DNI: {item.dni}</div>
+                      </td>
+                      <td>{item.operacion}</td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span style={{ backgroundColor: item.tipo_movimiento === 'Devolución' ? '#fce7f3' : '#d1fae5', color: item.tipo_movimiento === 'Devolución' ? '#9d174d' : '#065f46', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          {item.tipo_movimiento === 'Devolución' ? '📥 Devolución' : '📤 Entrega'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <div style={{ fontWeight: '500' }}>{item.equipo_tipo}</div>
+                        {item.laptop && <div style={{ fontSize: '0.75rem' }}>💻 {item.laptop}</div>}
+                        {item.mouse && <div style={{ fontSize: '0.75rem' }}>🖱️ {item.mouse}</div>}
+                      </td>
+                      <td>
+                        <div>{item.marca}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.modelo}</div>
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{item.serie}</td>
+                      <td>
+                        <span className={`badge ${item.condicion === 'NUEVO' ? 'badge-success' : 'badge-warning'}`}>
+                          {item.condicion}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            onClick={() => { setSelectedEntrega(item); setShowDetailModal(true); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#3b82f6' }}
+                            title="Ver Detalles"
+                          >
+                            👁️
+                          </button>
+                          {item.documento_url && (
+                            <button onClick={(e) => { e.stopPropagation(); setDocUrlViewer(item.documento_url); }} title="Ver Acta" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                              📄
+                            </button>
+                          )}
+                          {canEdit && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
+                              style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
+                              title="Eliminar"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                })()}
+              </tbody>
+            </table>
           </div>
         )}
-        
+
         {!loading && filteredData.length > 0 && (() => {
           const itemsPerPage = 8;
           const totalPages = Math.ceil(filteredData.length / itemsPerPage);
           const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
           const indexOfLastItem = Math.min(currentPage * itemsPerPage, filteredData.length);
-          
+
           return (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                 Mostrando {filteredData.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {filteredData.length} registros
               </span>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  disabled={currentPage === 1} 
-                  onClick={() => setCurrentPage(prev => prev - 1)} 
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
                   style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
                 >
                   Anterior
                 </button>
-                <button 
-                  disabled={currentPage >= totalPages} 
-                  onClick={() => setCurrentPage(prev => prev + 1)} 
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
                   style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
                 >
                   Siguiente
@@ -484,9 +515,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
             <button onClick={() => setShowDetailModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
-            
+
             <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Detalles de Entrega TI</h3>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', color: '#374151' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                 <p style={{ margin: 0 }}><strong>Fecha:</strong> {selectedEntrega.fecha ? (() => {
@@ -500,9 +531,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <p style={{ margin: 0 }}><strong>Cargo:</strong> {selectedEntrega.cargo || '-'}</p>
                 <p style={{ margin: 0 }}><strong>Operación:</strong> {selectedEntrega.operacion || '-'}</p>
               </div>
-              
+
               <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0.5rem 0' }} />
-              
+
               <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Información del Equipo</h4>
               <p style={{ margin: 0 }}><strong>Tipo:</strong> {selectedEntrega.equipo_tipo}</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -511,7 +542,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
               </div>
               <p style={{ margin: 0 }}><strong>N° Serie:</strong> <span style={{ fontFamily: 'monospace' }}>{selectedEntrega.serie || '-'}</span></p>
               <p style={{ margin: 0 }}><strong>Condición:</strong> <span className={`badge ${selectedEntrega.condicion === 'NUEVO' ? 'badge-success' : 'badge-warning'}`}>{selectedEntrega.condicion}</span></p>
-              
+
               {(selectedEntrega.laptop || selectedEntrega.mouse || selectedEntrega.cargador) && (
                 <div style={{ backgroundColor: 'var(--bg-color)', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
                   <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>Accesorios / Periféricos:</p>
@@ -522,9 +553,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                   </ul>
                 </div>
               )}
-              
+
               <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0.5rem 0' }} />
-              
+
               <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Datos Finales</h4>
               <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedEntrega.motivo || '-'}</p>
               <p style={{ margin: 0 }}><strong>Precio:</strong> {selectedEntrega.precio ? `$${selectedEntrega.precio}` : '-'}</p>
@@ -571,25 +602,26 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--text-primary)', borderBottom: '2px solid #e5e7eb', paddingBottom: '0.5rem' }}>
                   Receptor (Usuario)
                 </h3>
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>DNI *</label>
                     <div style={{ display: 'flex' }}>
-                      <input 
-                        type="text" 
-                        name="dni" 
-                        value={formData.dni} 
+                      <input
+                        type="text"
+                        name="dni"
+                        disabled={dniSearchStatus === 'loading'}
+                        value={formData.dni}
                         onChange={(e) => {
                           handleFormChange(e);
                           setDniSearchStatus(null); // Reset status if user changes DNI
-                        }} 
-                        placeholder="Buscar DNI" 
-                        required 
-                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem 0 0 0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                        }}
+                        placeholder="Buscar DNI"
+                        required
+                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem 0 0 0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
                       />
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={handleSearchDNI}
                         disabled={dniSearchStatus === 'loading'}
                         style={{ padding: '0 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0 0.375rem 0.375rem 0', cursor: 'pointer', fontWeight: 'bold' }}
@@ -598,20 +630,31 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                       </button>
                     </div>
                     {dniSearchStatus === 'found' && <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'block', marginTop: '0.25rem' }}>✓ Personal encontrado</span>}
-                    {dniSearchStatus === 'not_found' && <span style={{ fontSize: '0.75rem', color: '#ef4444', display: 'block', marginTop: '0.25rem' }}>⚠ DNI nuevo. Llene los datos.</span>}
+                    {dniSearchStatus === 'not_found' && (
+                      <span style={{
+                        fontSize: '0.75rem',
+                        color: '#ef4444',
+                        display: 'block',
+                        marginTop: '0.25rem'
+                      }}>
+                        {canCrearPersonal
+                          ? '⚠ DNI nuevo. Llene los datos.'
+                          : 'Solicita el registro del trabajador a TI o al administrador.'}
+                      </span>
+                    )}
                   </div>
-                  
+
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>Nombre Completo *</label>
-                    <input 
-                      type="text" 
-                      name="nombre" 
-                      value={formData.nombre} 
-                      onChange={handleFormChange} 
-                      placeholder="Nombre del trabajador" 
-                      required 
+                    <input
+                      type="text"
+                      name="nombre"
+                      value={formData.nombre}
+                      onChange={handleFormChange}
+                      placeholder="Nombre del trabajador"
+                      required
                       disabled={dniSearchStatus === 'found' && !isEditing}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
                 </div>
@@ -619,26 +662,26 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cargo</label>
-                    <input 
-                      type="text" 
-                      name="cargo" 
-                      value={formData.cargo} 
-                      onChange={handleFormChange} 
-                      placeholder="Ej. Conductor, Administrador" 
+                    <input
+                      type="text"
+                      name="cargo"
+                      value={formData.cargo}
+                      onChange={handleFormChange}
+                      placeholder="Ej. Conductor, Administrador"
                       disabled={dniSearchStatus === 'found' && !isEditing}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Operación / Área</label>
-                    <input 
-                      type="text" 
-                      name="operacion" 
-                      value={formData.operacion} 
-                      onChange={handleFormChange} 
-                      placeholder="Ej. Lima, Callao, Mina" 
+                    <input
+                      type="text"
+                      name="operacion"
+                      value={formData.operacion}
+                      onChange={handleFormChange}
+                      placeholder="Ej. Lima, Callao, Mina"
                       disabled={dniSearchStatus === 'found' && !isEditing}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }} 
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }}
                     />
                   </div>
                 </div>
@@ -727,8 +770,8 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
             <div style={{ flex: 1, backgroundColor: 'var(--bg-color)', borderRadius: '0.25rem', overflow: 'hidden' }}>
               {(docUrlViewer.toLowerCase().includes('.pdf') || docUrlViewer.includes('/raw/')) ? (
                 <div style={{ height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', backgroundColor: '#525659', padding: '1rem' }}>
-                  <Document 
-                    file={docUrlViewer} 
+                  <Document
+                    file={docUrlViewer}
                     loading={<p style={{ color: 'white' }}>Cargando documento PDF...</p>}
                     error={<p style={{ color: 'white' }}>Error al cargar el PDF. Intenta descargarlo directamente.</p>}
                   >
