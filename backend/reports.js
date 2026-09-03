@@ -16,41 +16,93 @@ const optimizeCloudinaryUrl = (url) => {
 
 // Helper para obtener buffer de imagen (Remoto o Local)
 const fetchImage = async (urlOrFileName) => {
-  if (!urlOrFileName) return null;
-  if (urlOrFileName.startsWith('http')) {
-    try {
-      const response = await fetch(urlOrFileName);
-      if (!response.ok) return null;
-      const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
-    } catch (e) {
-      return null;
+  if (typeof urlOrFileName !== 'string' || !urlOrFileName.trim()) {
+    return null;
+  }
+
+  const origen = urlOrFileName.trim();
+
+  try {
+    if (/^https?:\/\//i.test(origen)) {
+      const response = await fetch(origen, {
+        signal: AbortSignal.timeout(12000)
+      });
+
+      if (!response.ok || !response.body) {
+  const detalle =
+    response.headers.get('x-cld-error') || response.statusText;
+
+  await response.body?.cancel();
+
+  throw new Error(
+    'HTTP ' + response.status + ': ' +
+    (detalle || 'Respuesta sin imagen')
+  );
+}
+
+      const partes = [];
+      let bytes = 0;
+
+      for await (const parte of response.body) {
+        bytes += parte.byteLength;
+
+        if (bytes > 8 * 1024 * 1024) {
+          throw new Error('Imagen mayor a 8 MB');
+        }
+
+        partes.push(Buffer.from(parte));
+      }
+
+      return Buffer.concat(partes);
     }
-  } else {
-    const localPath = path.join(__dirname, 'uploads', urlOrFileName);
-    if (fs.existsSync(localPath)) return localPath;
+
+    const carpeta = path.resolve(__dirname, 'uploads');
+    const archivo = path.resolve(carpeta, origen);
+
+    if (!archivo.startsWith(carpeta + path.sep)) return null;
+
+    return fs.existsSync(archivo) ? archivo : null;
+  } catch (error) {
+    console.warn(
+  '[PDF: descarga de foto]',
+  error.cause?.code || error.code || error.name,
+  error.message
+);
     return null;
   }
 };
 
-// Helper para formatear fechas a DD-MM-YYYY
-const formatDMY = (dateObj) => {
-  if (!dateObj) return '';
-  const dObj = new Date(dateObj);
-  const d = dObj.getDate().toString().padStart(2, '0');
-  const m = (dObj.getMonth() + 1).toString().padStart(2, '0');
-  const y = dObj.getFullYear();
-  return `${d}-${m}-${y}`;
-};
+function formatDMY(valor) {
+  if (!valor) return '';
+
+  if (
+    typeof valor === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(valor.trim())
+  ) {
+    return valor.trim().split('-').reverse().join('-');
+  }
+
+  const fecha = valor instanceof Date ? valor : new Date(valor);
+  if (!Number.isFinite(fecha.getTime())) return '';
+
+  return new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(fecha).replaceAll('/', '-');
+}
 
 // ==========================================
 // GENERADOR DE PDF (PROFESIONAL)
 // ==========================================
 export const generatePDF = async (pool, queryParams, res) => {
+  let doc;
+
   try {
     const { filtro, valor, fecha, operacion } = queryParams || {};
-    
-    let query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
+
+    let query = 'SELECT i.*, i.fecha::text AS fecha, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
     let params = [];
     let paramIndex = 1;
 
@@ -84,17 +136,28 @@ export const generatePDF = async (pool, queryParams, res) => {
     }
 
     if (fecha === 'hoy') {
-      query += ` AND i.fecha = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')`;
+      query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
     } else if (fecha === 'semana') {
-      query += ` AND i.fecha >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')`;
+      query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
     }
-    
-    query += ' ORDER BY i.fecha DESC, i.hora DESC';
+
+    query += ' ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, i.id DESC';
     const result = await pool.query(query, params);
     const inspecciones = result.rows;
 
-    const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
-    
+    if (res.destroyed) return;
+
+    doc = new PDFDocument({
+      margin: 40,
+      size: 'A4',
+      bufferPages: true
+    });
+
+    doc.on('error', error => {
+      console.error('Error en el flujo PDF:', error);
+      if (!res.destroyed) res.destroy(error);
+    });
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Reporte_Flotas.pdf`);
     doc.pipe(res);
@@ -136,7 +199,7 @@ export const generatePDF = async (pool, queryParams, res) => {
       const isOK = ['OK', 'N/A', 'NO APLICA'].includes(text.toUpperCase());
       const bgColor = isOK ? '#DEF7EC' : '#FDE8E8'; // Verde suave o Rojo suave
       const textColor = isOK ? '#03543F' : '#9B1C1C'; // Verde oscuro o Rojo oscuro
-      
+
       doc.rect(x, y - 2, 80, 16).fill(bgColor);
       doc.fillColor(textColor).fontSize(8).font('Helvetica-Bold').text(text.toUpperCase(), x, y + 2, { width: 80, align: 'center' });
       doc.fillColor('#000000'); // reset
@@ -155,20 +218,34 @@ export const generatePDF = async (pool, queryParams, res) => {
     for (let i = 0; i < inspecciones.length; i++) {
       const insp = inspecciones[i];
       const startY = doc.y;
-      
+
       // Estimar altura de la tarjeta
-      let cardHeight = 110; 
+      let cardHeight = 110;
       const imagesToRender = [];
-      
-      const tabletImg = await fetchImage(insp.img_tablet);
-      if (tabletImg) imagesToRender.push({ label: 'Tablet', data: tabletImg });
-      
-      const radioImg = await fetchImage(insp.img_radio);
-      if (radioImg) imagesToRender.push({ label: 'Radio Base', data: radioImg });
-      
-      const camarasImg = await fetchImage(insp.img_camaras);
-      if (camarasImg) imagesToRender.push({ label: 'Cámaras', data: camarasImg });
-      
+
+      const [tabletImg, radioImg, camarasImg] = await Promise.all([
+        fetchImage(insp.img_tablet),
+        fetchImage(insp.img_radio),
+        fetchImage(insp.img_camaras)
+      ]);
+
+      if (res.destroyed) {
+        doc.destroy();
+        return;
+      }
+
+      if (insp.img_tablet) {
+        imagesToRender.push({ label: 'Tablet', data: tabletImg });
+      }
+
+      if (insp.img_radio) {
+        imagesToRender.push({ label: 'Radio Base', data: radioImg });
+      }
+
+      if (insp.img_camaras) {
+        imagesToRender.push({ label: 'Cámaras', data: camarasImg });
+      }
+
       if (imagesToRender.length > 0) cardHeight += 160; // Espacio extra para fotos
 
       // Calcular altura extra por observaciones
@@ -181,15 +258,15 @@ export const generatePDF = async (pool, queryParams, res) => {
 
       // Dibujar fondo de tarjeta
       doc.rect(40, cardY, doc.page.width - 80, cardHeight).fill('#F8FAFC').lineWidth(1).strokeColor('#E2E8F0').stroke();
-      
+
       // Cabecera de la tarjeta
       doc.rect(40, cardY, doc.page.width - 80, 25).fill('#F1F5F9');
       doc.fillColor('#0F172A').fontSize(11).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}   |   Placa: ${insp.placa}`, 50, cardY + 7);
       doc.fontSize(9).font('Helvetica').text(`${formatDMY(insp.fecha)} ${insp.hora}`, 40, cardY + 7, { align: 'right', width: doc.page.width - 90 });
-      
+
       doc.fillColor('#334155');
       let currentY = cardY + 35;
-      
+
       // Fila 1: Programa
       doc.fontSize(9).font('Helvetica-Bold').text('Programa:', 50, currentY, { continued: true }).font('Helvetica').text(` ${insp.programa || 'Sin Operación'}`);
       currentY += 20;
@@ -212,14 +289,15 @@ export const generatePDF = async (pool, queryParams, res) => {
         imagesToRender.forEach(img => {
           // Borde de la foto
           doc.rect(imgX, currentY, 150, 110).fill('#FFFFFF').strokeColor('#CBD5E1').lineWidth(1).stroke();
-          
           try {
+            if (!img.data) throw new Error('Foto no disponible');
             // fit centra la imagen gracias a align y valign
             doc.image(img.data, imgX + 2, currentY + 2, { width: 146, height: 106, fit: [146, 106], align: 'center', valign: 'center' });
-          } catch(e) {
-            doc.fillColor('#94A3B8').fontSize(8).text('(Error de Formato)', imgX, currentY + 50, { width: 150, align: 'center' });
+          } catch (e) {
+            console.warn('[PDF: insertar foto]', insp.id, img.label, e.message);
+            doc.fillColor('#94A3B8').fontSize(8).text('(Foto no disponible)', imgX, currentY + 50, { width: 150, align: 'center' });
           }
-          
+
           // Etiqueta debajo
           doc.fillColor('#64748B').fontSize(8).font('Helvetica-Bold').text(img.label.toUpperCase(), imgX, currentY + 115, { width: 150, align: 'center' });
           imgX += 160;
@@ -241,7 +319,21 @@ export const generatePDF = async (pool, queryParams, res) => {
 
   } catch (error) {
     console.error('Error generando PDF', error);
-    if (!res.headersSent) res.status(500).json({ error: `Error generando PDF: ${error.message}` });
+
+    doc?.unpipe(res);
+    doc?.destroy();
+
+    if (res.destroyed) return;
+
+    if (!res.headersSent) {
+      res.removeHeader('Content-Disposition');
+
+      res.status(500).json({
+        error: 'No se pudo generar el PDF. Revisa la terminal del backend.'
+      });
+    } else {
+      res.destroy(error);
+    }
   }
 };
 
@@ -251,7 +343,7 @@ export const generatePDF = async (pool, queryParams, res) => {
 export const generateExcel = async (pool, queryParams, res) => {
   try {
     const { filtro, valor, fecha, operacion } = queryParams || {};
-    
+
     let query = '';
     let params = [];
     let paramIndex = 1;
@@ -260,12 +352,12 @@ export const generateExcel = async (pool, queryParams, res) => {
       query = `
         SELECT 
           v.placa, v.tipo_vehiculo as tipo, v.operacion as programa, 'Activo' as estado_vehiculo,
-          i.fecha, i.hora, i.tablet, i.radio, i.camaras, i.img_tablet, i.img_radio, i.img_camaras, i.observaciones
+          i.fecha::text AS fecha, i.hora, i.tablet, i.radio, i.camaras, i.img_tablet, i.img_radio, i.img_camaras, i.observaciones
         FROM vehiculos v
         LEFT JOIN inspecciones_flota i ON v.placa = i.placa
         WHERE 1=1
       `;
-      
+
       // New combination filters for gerencial
       if (operacion && operacion !== 'todas') {
         if (operacion === 'Falta identificar') {
@@ -280,14 +372,14 @@ export const generateExcel = async (pool, queryParams, res) => {
       }
 
       if (fecha === 'hoy') {
-        query += ` AND i.fecha = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')`;
+        query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
       } else if (fecha === 'semana') {
-        query += ` AND i.fecha >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')`;
+        query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
       }
-      
+
       query += ` ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, v.placa ASC`;
     } else {
-      query = 'SELECT i.*, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
+      query = 'SELECT i.*, i.fecha::text AS fecha, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
       if (filtro === 'placa') {
         query += ` AND i.placa = $${paramIndex++}`;
         params.push(valor.toUpperCase());
@@ -302,7 +394,7 @@ export const generateExcel = async (pool, queryParams, res) => {
           params.push(valor.toLowerCase());
         }
       }
-      
+
       // New combination filters
       if (operacion && operacion !== 'todas') {
         if (operacion === 'Falta identificar') {
@@ -317,12 +409,12 @@ export const generateExcel = async (pool, queryParams, res) => {
       }
 
       if (fecha === 'hoy') {
-        query += ` AND i.fecha = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')`;
+        query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
       } else if (fecha === 'semana') {
-        query += ` AND i.fecha >= TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYY-MM-DD')`;
+        query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
       }
-      
-      query += ' ORDER BY i.fecha DESC, i.hora DESC';
+
+      query += ' ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, i.id DESC';
     }
     const result = await pool.query(query, params);
     const inspecciones = result.rows;
@@ -368,10 +460,10 @@ export const generateExcel = async (pool, queryParams, res) => {
 
       // 3. Cabecera de la tabla
       const headerRow = worksheet.addRow([
-        'Operación', 'Placa', 'Tipo Unidad', 'Estado Unidad', 
+        'Operación', 'Placa', 'Tipo Unidad', 'Estado Unidad',
         'Última Insp.', 'Hora', 'Tablet', 'Radio Base', 'Cámaras', 'Foto Tablet', 'Foto Radio', 'Foto Cámaras', 'Observaciones'
       ]);
-      
+
       headerRow.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
       headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } }; // Verde esmeralda
       headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -380,7 +472,7 @@ export const generateExcel = async (pool, queryParams, res) => {
       // Bordes para la cabecera
       headerRow.eachCell(cell => {
         cell.border = {
-          top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'medium'}, right: {style:'thin'}
+          top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'medium' }, right: { style: 'thin' }
         };
       });
 
@@ -405,10 +497,10 @@ export const generateExcel = async (pool, queryParams, res) => {
         // Estilos de filas de datos
         row.font = { name: 'Arial', size: 10 };
         row.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        
+
         // Alineación izquierda para observaciones
         row.getCell(10).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-        
+
         // Colores alternados (Zebra striping)
         if (index % 2 === 0) {
           row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
@@ -416,7 +508,7 @@ export const generateExcel = async (pool, queryParams, res) => {
 
         row.eachCell(cell => {
           cell.border = {
-            top: {style:'hair'}, left: {style:'hair'}, bottom: {style:'hair'}, right: {style:'hair'}
+            top: { style: 'hair' }, left: { style: 'hair' }, bottom: { style: 'hair' }, right: { style: 'hair' }
           };
         });
       });
@@ -439,7 +531,7 @@ export const generateExcel = async (pool, queryParams, res) => {
       ];
 
       worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      worksheet.getRow(1).fill = { type: 'pattern', pattern:'solid', fgColor:{ argb:'FF1E3A8A' } };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
 
       inspecciones.forEach(insp => {
         worksheet.addRow({

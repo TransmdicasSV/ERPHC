@@ -39,7 +39,7 @@ const TEMPLATES = {
     tickets: {
       ver: true,
       editar: false,
-      crear: false,
+      crear: true,
       gestionar: false
     },
     entregas: { ver: true, editar: true },
@@ -76,15 +76,16 @@ export function GestionUsuariosDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [busquedaPersonal, setBusquedaPersonal] = useState('');
 
- const [formData, setFormData] = useState({
-  username: '',
-  password: '',
-  rol: 'supervisor',
-  operacion: '',
-  estado: 'activo',
-  permisos: TEMPLATES.supervisor
-});
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    rol: 'supervisor',
+    operacion: '',
+    estado: 'activo',
+    permisos: TEMPLATES.supervisor
+  });
 
   const [selectedPersonalId, setSelectedPersonalId] = useState('');
 
@@ -115,7 +116,7 @@ export function GestionUsuariosDashboard() {
   const fetchPersonal = async () => {
     try {
       const token = localStorage.getItem('nexus_token');
-      const res = await fetch(`${BASE_API_URL}/api/personal`, {
+      const res = await fetch(`${BASE_API_URL}/api/usuarios/personal-administrativo`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -127,21 +128,22 @@ export function GestionUsuariosDashboard() {
     }
   };
   const fetchOperaciones = async () => {
-  try {
-    const token = localStorage.getItem('nexus_token');
-    const res = await fetch(`${BASE_API_URL}/api/usuarios/operaciones`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setOperaciones(data);
+    try {
+      const token = localStorage.getItem('nexus_token');
+      const res = await fetch(`${BASE_API_URL}/api/usuarios/operaciones`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOperaciones(data);
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
-};
+  };
 
   const handleOpenModal = (user = null) => {
+    setBusquedaPersonal('');
     if (user) {
       setEditingId(user.id);
       setFormData({
@@ -169,34 +171,44 @@ export function GestionUsuariosDashboard() {
   };
 
   const handlePersonalChange = (e) => {
-    const pId = e.target.value;
-    setSelectedPersonalId(pId);
-    if (pId) {
-      const persona = personal.find(p => p.id.toString() === pId);
-      if (persona) {
-        setFormData({ ...formData, username: persona.dni });
-      }
-    }
+    const texto = e.target.value;
+    setBusquedaPersonal(texto);
+
+    const persona = personal.find(p =>
+      texto === String(p.dni)
+      || texto === p.dni + ' - ' + p.nombre_completo
+    );
+
+    setSelectedPersonalId(persona ? String(persona.id) : '');
+
+    setFormData(actual => ({
+      ...actual,
+      username: persona?.dni || ''
+    }));
   };
 
   const handleRolChange = (e) => {
-  const newRol = e.target.value;
-  setFormData({
-    ...formData,
-    rol: newRol,
-    operacion: newRol === 'supervisor' ? formData.operacion : '',
-    permisos: TEMPLATES[newRol] || TEMPLATES.supervisor
-  });
-};
+    const newRol = e.target.value;
+    setFormData({
+      ...formData,
+      rol: newRol,
+      operacion: newRol === 'supervisor' ? formData.operacion : '',
+      permisos: TEMPLATES[newRol] || TEMPLATES.supervisor
+    });
+  };
 
- 
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!editingId && !selectedPersonalId) {
+  alert('Seleccione un trabajador de las sugerencias');
+  return;
+}
     const token = localStorage.getItem('nexus_token');
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId ? `${BASE_API_URL}/api/usuarios/${editingId}` : `${BASE_API_URL}/api/usuarios`;
-
+  
     try {
       const res = await fetch(url, {
         method,
@@ -355,17 +367,32 @@ export function GestionUsuariosDashboard() {
 
                   {!editingId && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Vincular con Personal (opcional)</label>
-                      <select
-                        value={selectedPersonalId}
+                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Seleccionar trabajador administrativo</label>
+                      <input
+                        type="text"
+                        required
+                        autoComplete="off"
+                        list="personal-administrativo"
+                        value={busquedaPersonal}
                         onChange={handlePersonalChange}
-                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
-                      >
-                        <option value="">-- Seleccionar Trabajador --</option>
+                        placeholder="Busque por nombre o DNI y seleccione"
+                        style={{
+                          padding: '0.75rem',
+                          borderRadius: '0.5rem',
+                          background: '#1F2937',
+                          color: 'white',
+                          border: '1px solid #374151'
+                        }}
+                      />
+
+                      <datalist id="personal-administrativo">
                         {personal.map(p => (
-                          <option key={p.id} value={p.id}>{p.dni} - {p.nombre_completo}</option>
+                          <option
+                            key={p.id}
+                            value={p.dni + ' - ' + p.nombre_completo}
+                          />
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                   )}
 
@@ -375,6 +402,7 @@ export function GestionUsuariosDashboard() {
                       type="text"
                       required
                       value={formData.username}
+                      readOnly
                       onChange={e => setFormData({ ...formData, username: e.target.value })}
                       disabled={!!editingId}
                       style={{ padding: '0.75rem', borderRadius: '0.5rem', background: editingId ? '#111827' : '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
@@ -417,7 +445,7 @@ export function GestionUsuariosDashboard() {
                       </select>
                     </div>
                   </div>
-                     {formData.rol === 'supervisor' && (
+                  {formData.rol === 'supervisor' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Operación asignada</label>
                       <select

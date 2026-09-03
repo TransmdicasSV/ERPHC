@@ -61,9 +61,6 @@ export const api = {  // ==========================================
     if (!response.ok) throw new Error('Error al cargar tractos');
     return response.json();
   },
-  
-
-  
   updateVehiculo: async (placa, data) => {
     const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, {
       method: 'PUT',
@@ -203,7 +200,17 @@ export const api = {  // ==========================================
     if (!response.ok) throw new Error('Error al actualizar inspeccion');
     return response.json();
   },
+  getOpcionesTickets: async () => {
+  const response = await fetchWithAuth(
+    BASE_API_URL + '/api/incidentes/opciones'
+  );
 
+  if (!response.ok) {
+    throw new Error('Error al cargar las opciones de tickets');
+  }
+
+  return response.json();
+},
   // === INCIDENTES ===
   getIncidentes: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/incidentes`);
@@ -216,7 +223,10 @@ export const api = {  // ==========================================
       method: 'POST',
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Error al crear incidente');
+    if (!response.ok) {
+  const detalle = await response.json().catch(() => ({}));
+  throw new Error(detalle.error || 'Error al crear el ticket');
+}
     return response.json();
   },
 
@@ -311,7 +321,21 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
   return response.blob();
 },
 
+    getPersonalParaEntrega: async (dni, tipo = 'Entrega') => {
+    const params = new URLSearchParams({ tipo });
 
+    const response = await fetchWithAuth(
+      `${BASE_URL}/api/entregas/personal/${encodeURIComponent(String(dni).trim())}?${params}`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Error al buscar al trabajador');
+    }
+
+    return data.persona;
+  },
   // === ENTREGAS ===
   getEntregas: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/entregas`);
@@ -405,7 +429,8 @@ downloadFlotasReport: async ({
   filtro = 'todos',
   valor = '',
   fecha = 'siempre',
-  operacion = 'todas'
+  operacion = 'todas',
+  signal
 }) => {
   const params = new URLSearchParams({
     filtro,
@@ -415,8 +440,9 @@ downloadFlotasReport: async ({
   });
 
   const response = await fetchWithAuth(
-    `${BASE_URL}/reportes/${formato}?${params.toString()}`
-  );
+  `${BASE_URL}/reportes/${formato}?${params.toString()}`,
+  { signal }
+);
 
   if (!response.ok) {
     let mensaje = 'Error al generar el reporte';

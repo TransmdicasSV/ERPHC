@@ -42,7 +42,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   workbook.created = new Date();
   
     const result = await pool.query(`
-    SELECT i.*, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
+    SELECT i.*, i.fecha::text AS fecha, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
       CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END AS operacion,
       i.fecha::text AS fecha_ejecutada_raw,
       COALESCE(m.frecuencia_dias, 180) AS frecuencia_dias,
