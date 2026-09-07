@@ -2176,8 +2176,18 @@ app.post('/api/entregas/upload-excel', requireAdmin, (req, res, next) => {
 
 app.get('/api/entregas/export-excel', async (req, res) => {
   try {
-    const { tipo, categoria } = req.query;
+    const { tipo, categoria, fechaInicio, fechaFin } = req.query;
     const tipoNormalizado = String(tipo || '').trim().toLowerCase();
+
+    const isValidISODate = (value) => {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const date = new Date(`${value}T00:00:00Z`);
+      return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+    };
+
+    if (!isValidISODate(fechaInicio) || !isValidISODate(fechaFin) || fechaInicio > fechaFin) {
+      return res.status(400).json({ error: 'El rango de fechas no es válido' });
+    }
 
     if (tipoNormalizado && !['entrega', 'devolución', 'devolucion'].includes(tipoNormalizado)) {
       return res.status(400).json({ error: 'Tipo de movimiento no válido' });
@@ -2211,6 +2221,9 @@ app.get('/api/entregas/export-excel', async (req, res) => {
       params.push(`%${categoria}%`);
       query += ` AND equipo_tipo ILIKE $${params.length}`;
     }
+
+    params.push(fechaInicio, fechaFin);
+    query += ` AND NULLIF(BTRIM(fecha::text), '')::date BETWEEN $${params.length - 1}::date AND $${params.length}::date`;
 
     query += ' ORDER BY id ASC';
 
@@ -2327,7 +2340,9 @@ app.get('/api/entregas/export-excel', async (req, res) => {
 
     const buffer = await workbook.xlsx.writeBuffer();
 
-    const filename = tipo === 'Devolución' ? 'Devoluciones_Equipos_TI_Premium.xlsx' : 'Entrega_Equipos_TI_Premium.xlsx';
+    const filename = tipoAutorizado === 'Devolución'
+      ? `Devoluciones_TI_${fechaInicio}_al_${fechaFin}.xlsx`
+      : `Entregas_TI_${fechaInicio}_al_${fechaFin}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(buffer);

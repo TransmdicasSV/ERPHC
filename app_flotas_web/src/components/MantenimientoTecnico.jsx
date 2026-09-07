@@ -81,8 +81,8 @@ export function MantenimientoTecnico({ permisos }) {
     return (
       <span style={{
         padding: '0.2rem 0.5rem', borderRadius: '0.375rem', fontSize: '0.8rem', fontWeight: '500',
-        backgroundColor: val === 'OK' ? '#D1FAE5' : val === 'N/A' ? '#F3F4F6' : '#FEE2E2',
-        color: val === 'OK' ? '#065F46' : val === 'N/A' ? '#4B5563' : '#991B1B'
+        backgroundColor: val === 'OK' ? '#e7f9f1' : val === 'N/A' ? '#eef0f5' : '#fdeae8',
+        color: val === 'OK' ? '#0e9f6e' : val === 'N/A' ? '#6b7280' : '#dc3b2a'
       }}>
         {val}
       </span>
@@ -92,7 +92,7 @@ export function MantenimientoTecnico({ permisos }) {
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando mantenimientos...</div>;
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div className="erp-module-page erp-maintenance-page" style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Mantenimiento de Equipos Tecnológicos</h2>
@@ -108,7 +108,7 @@ export function MantenimientoTecnico({ permisos }) {
           )}
           <button 
             onClick={handleDownloadExcel}
-            style={{ padding: '0.5rem 1rem', background: '#10B981', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            style={{ padding: '0.5rem 1rem', background: '#0e9f6e', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>📊</span> Descargar Excel a Jefe
           </button>
         </div>
@@ -117,7 +117,7 @@ export function MantenimientoTecnico({ permisos }) {
       <div className="card" style={{ overflowX: 'auto' }}>
         
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span style={{ color: '#9CA3AF' }}>🔍</span>
+          <span style={{ color: '#9ca3af' }}>🔍</span>
           <input 
             type="text" 
             placeholder="Buscar por placa..."
@@ -139,11 +139,11 @@ export function MantenimientoTecnico({ permisos }) {
         <table style={{ minWidth: '1500px', fontSize: '0.8rem' }}>
           <thead>
             <tr style={{ textAlign: 'center' }}>
-              <th colSpan="8" style={{ borderRight: '1px solid white', backgroundColor: '#1E3A8A', color: 'white', padding: '0.75rem' }}>DATOS</th>
-              <th colSpan="3" style={{ borderRight: '1px solid white', backgroundColor: '#F59E0B', color: 'white', padding: '0.75rem' }}>PROGRAMADO</th>
-              <th colSpan="11" style={{ backgroundColor: '#10B981', color: 'white', padding: '0.75rem' }}>EJECUTADO</th>
+              <th colSpan="8" style={{ borderRight: '1px solid white', backgroundColor: '#101b33', color: 'white', padding: '0.75rem' }}>DATOS</th>
+              <th colSpan="3" style={{ borderRight: '1px solid white', backgroundColor: '#db8b0b', color: 'white', padding: '0.75rem' }}>PROGRAMADO</th>
+              <th colSpan="11" style={{ backgroundColor: '#0e9f6e', color: 'white', padding: '0.75rem' }}>EJECUTADO</th>
             </tr>
-            <tr style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
+            <tr style={{ backgroundColor: '#e7f9f1', color: '#0e9f6e' }}>
               <th>N°</th>
               <th>Tipo Vehículo</th>
               <th>Placa</th>
@@ -217,9 +217,9 @@ export function MantenimientoTecnico({ permisos }) {
                     <td>{vehiculo.anio_fabricacion || '-'}</td>
                     <td>{vehiculo.operacion || '-'}</td>
                     <td>{vehiculo.cliente || '-'}</td>
-                    <td>{f ? formatDMY(f) : <span style={{color: '#9CA3AF'}}>Sin registro</span>}</td>
+                    <td>{f ? formatDMY(f) : <span style={{color: '#9ca3af'}}>Sin registro</span>}</td>
                     <td>{m.frecuencia_dias === 180 ? 'Semestral' : `${m.frecuencia_dias}d`}</td>
-                    <td style={{ color: '#1D4ED8', fontWeight: '500' }}>{fp ? formatDMY(fp) : <span style={{color: '#9CA3AF'}}>-</span>}</td>
+                    <td style={{ color: '#2458e8', fontWeight: '500' }}>{fp ? formatDMY(fp) : <span style={{color: '#9ca3af'}}>-</span>}</td>
                     <td>{renderStatus(m.dvr)}</td>
                     <td>{renderStatus(m.copiloto)}</td>
                     <td>{renderStatus(m.radio_base)}</td>
@@ -230,7 +230,7 @@ export function MantenimientoTecnico({ permisos }) {
                     <td>{renderStatus(m.sensores_retroceso)}</td>
                     <td>{renderStatus(m.sensores_delanteros)}</td>
                     <td>{renderStatus(m.sistema_adas)}</td>
-                    <td>{f ? formatDMY(f) : <span style={{color: '#9CA3AF'}}>-</span>}</td>
+                    <td>{f ? formatDMY(f) : <span style={{color: '#9ca3af'}}>-</span>}</td>
                   </tr>
                 );
               })}
@@ -257,7 +257,7 @@ export function MantenimientoTecnico({ permisos }) {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+        <div className="modal-overlay" onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', maxWidth: '700px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>Registrar Mantenimiento Técnico</h3>
             
@@ -266,7 +266,7 @@ export function MantenimientoTecnico({ permisos }) {
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Placa</label>
                   <select 
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB' }}
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e5ed' }}
                     value={formData.placa} 
                     onChange={e => setFormData({...formData, placa: e.target.value})}
                     required
@@ -277,11 +277,11 @@ export function MantenimientoTecnico({ permisos }) {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Fecha Ejecutada</label>
-                  <input type="date" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB' }} value={formData.fecha_ejecutada} onChange={e => setFormData({...formData, fecha_ejecutada: e.target.value})} />
+                  <input type="date" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e5ed' }} value={formData.fecha_ejecutada} onChange={e => setFormData({...formData, fecha_ejecutada: e.target.value})} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Frecuencia (días)</label>
-                  <input type="number" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB' }} value={formData.frecuencia_dias} onChange={e => setFormData({...formData, frecuencia_dias: parseInt(e.target.value)})} />
+                  <input type="number" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e5ed' }} value={formData.frecuencia_dias} onChange={e => setFormData({...formData, frecuencia_dias: parseInt(e.target.value)})} />
                 </div>
               </div>
 
@@ -294,7 +294,7 @@ export function MantenimientoTecnico({ permisos }) {
                     <select 
                       value={formData[key]}
                       onChange={e => setFormData({...formData, [key]: e.target.value})}
-                      style={{ padding: '0.25rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB' }}
+                      style={{ padding: '0.25rem', borderRadius: '0.375rem', border: '1px solid #e2e5ed' }}
                     >
                       <option value="OK">OK</option>
                       <option value="FALLO">FALLO</option>

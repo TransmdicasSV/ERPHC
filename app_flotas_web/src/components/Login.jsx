@@ -1,102 +1,148 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
+import { BASE_API_URL } from "../services/api";
+import transmdicasLogo from "../assets/transmdicas-logo.png";
 
-import { BASE_API_URL } from '../services/api';
+const LoginIcon = ({ name, size = 18 }) => {
+  const paths = {
+    user: <><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></>,
+    lock: <><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
+    alert: <><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4.5M12 17h.01"/></>,
+    arrow: <><path d="M5 12h14M14 7l5 5-5 5"/></>,
+  };
 
-export function Login({ onLoginSuccess }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+};
+
+const CompanyBrand = ({ mobile = false }) => (
+  <div className={mobile ? "erphc-login-mobile-brand" : "erphc-login-brand"}>
+    <span className="company-logo-crop"><img src={transmdicasLogo} alt="Transmdicas S.R.L." /></span>
+    <span><strong>ERPHSE</strong><small>Gestión operativa</small></span>
+  </div>
+);
+
+export function Login({ onLoginSuccess, onPublicClick }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [stats, setStats] = useState({ totalFlota: "—", inspeccionesHoy: "—" });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  useEffect(() => {
+    const rememberedUser = localStorage.getItem("erphc_remembered_user");
+    if (rememberedUser) {
+      setUsername(rememberedUser);
+      setRemember(true);
+    }
+
+    const controller = new AbortController();
+    fetch(`${BASE_API_URL}/api/public/stats`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data) {
+          setStats({
+            totalFlota: data.totalFlota ?? "—",
+            inspeccionesHoy: data.inspeccionesHoy ?? "—",
+          });
+        }
+      })
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") console.warn("No se pudieron cargar las métricas públicas", requestError);
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
     setLoading(true);
 
     try {
       const response = await fetch(`${BASE_API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password }),
       });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "No se pudo iniciar sesión");
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al iniciar sesión');
-      }
-
-      // Guardar token y datos del usuario en localStorage
-      localStorage.setItem('nexus_token', data.token);
-      localStorage.setItem('nexus_user', JSON.stringify(data.user));
-      
+      localStorage.setItem("nexus_token", data.token);
+      localStorage.setItem("nexus_user", JSON.stringify(data.user));
+      if (remember) localStorage.setItem("erphc_remembered_user", username.trim());
+      else localStorage.removeItem("erphc_remembered_user");
       onLoginSuccess(data.user);
-    } catch (err) {
-      setError(err.message);
+    } catch (requestError) {
+      setError(requestError.message || "No se pudo conectar con el servidor");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a', backgroundImage: 'radial-gradient(circle at 50% -20%, #1e3a8a, #0a0a0a 70%)' }}>
-      <div style={{ backgroundColor: 'rgba(17, 24, 39, 0.8)', padding: '3rem', borderRadius: '1rem', border: '1px solid #1f2937', boxShadow: '0 0 30px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', width: '400px', maxWidth: '90%', textAlign: 'center' }}>
-        
-        {/* LOGO */}
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ width: '60px', height: '60px', backgroundColor: '#1e3a8a', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', boxShadow: '0 4px 20px rgba(30, 58, 138, 0.5)' }}>
-            <span style={{ fontSize: '2rem' }}>🔒</span>
+    <main className="erphc-login-screen">
+      <section className="erphc-login-visual" aria-label="Presentación de ERPHSE">
+        <svg className="erphc-route-art" viewBox="0 0 600 760" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M-20 700C140 635 118 460 265 408C405 358 385 176 575 86" />
+          <circle cx="265" cy="408" r="5" />
+          <circle cx="575" cy="86" r="5" />
+        </svg>
+        <CompanyBrand />
+        <div className="erphc-login-hero">
+          <span className="erphc-login-badge">Acceso corporativo</span>
+          <h1>Supervisa tu flota, la seguridad y el soporte TI desde un solo panel.</h1>
+          <div className="erphc-login-main-stat">{stats.totalFlota}</div>
+          <p>unidades registradas en la flota</p>
+          <div className="erphc-login-stats">
+            <div><strong>{stats.inspeccionesHoy}</strong><span>Inspecciones de hoy</span></div>
+            <div><strong>24/7</strong><span>Portal de incidencias</span></div>
+            <div><strong>100%</strong><span>Gestión centralizada</span></div>
           </div>
-          <h1 style={{ color: 'white', margin: 0, fontSize: '1.5rem', letterSpacing: '2px' }}>JDCALI <span style={{ color: '#00f3ff' }}>OMNI O.S. 👑</span></h1>
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>Autenticación Táctica Requerida</p>
         </div>
+      </section>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {error && (
-            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '0.875rem' }}>
-              {error}
+      <section className="erphc-login-form-panel">
+        <div className="erphc-login-form-card">
+          <CompanyBrand mobile />
+          <h2>Inicia sesión</h2>
+          <p className="erphc-login-subtitle">Ingresa tus credenciales corporativas para continuar.</p>
+          <form onSubmit={handleSubmit}>
+            {error && <div className="erphc-login-error" role="alert">{error}</div>}
+            <label className="erphc-login-field">
+              <span>Usuario</span>
+              <span className="erphc-login-input-wrap">
+                <LoginIcon name="user" />
+                <input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="DNI o usuario" autoComplete="username" required />
+              </span>
+            </label>
+            <label className="erphc-login-field">
+              <span>Contraseña</span>
+              <span className="erphc-login-input-wrap">
+                <LoginIcon name="lock" />
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete="current-password" required />
+              </span>
+            </label>
+            <div className="erphc-login-options">
+              <label><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Recordarme</label>
+              <button type="button" onClick={() => setError("Si olvidaste tu contraseña, solicita el restablecimiento al área de TI.")}>¿Olvidaste tu contraseña?</button>
             </div>
-          )}
-          
-          <div style={{ textAlign: 'left' }}>
-            <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Usuario / ID Operativo</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={e => setUsername(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid #374151', color: 'white', outline: 'none' }} 
-              placeholder="Ej. admin"
-            />
-          </div>
-          
-          <div style={{ textAlign: 'left' }}>
-            <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Contraseña de Seguridad</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid #374151', color: 'white', outline: 'none' }} 
-              placeholder="••••••••"
-            />
-          </div>
+            <button className="erphc-login-submit" type="submit" disabled={loading}>
+              <span>{loading ? "Verificando…" : "Ingresar al sistema"}</span>
+              {!loading && <LoginIcon name="arrow" />}
+            </button>
+          </form>
+          <p className="erphc-login-foot">Acceso exclusivo para personal autorizado de Transmdicas.</p>
+        </div>
+      </section>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{ width: '100%', padding: '1rem', marginTop: '1rem', borderRadius: '0.5rem', backgroundColor: '#1e3a8a', color: 'white', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 15px rgba(30,58,138,0.4)' }}
-            onMouseEnter={e => { if(!loading) e.currentTarget.style.backgroundColor = '#2563eb' }}
-            onMouseLeave={e => { if(!loading) e.currentTarget.style.backgroundColor = '#1e3a8a' }}
-          >
-            {loading ? 'VERIFICANDO...' : 'INICIAR SESIÓN'}
-          </button>
-        </form>
-        
-        <p style={{ marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          Sistema de Control de Flotas JDCALI OMNI O.S.<br/>Uso exclusivo de personal autorizado.
-        </p>
-      </div>
-    </div>
+      <button className="erphc-public-report-button" type="button" onClick={onPublicClick}>
+        <LoginIcon name="alert" />
+        <span>Reportar falla en mi unidad</span>
+      </button>
+    </main>
   );
 }
