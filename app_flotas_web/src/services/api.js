@@ -396,10 +396,12 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     return response.json();
   },
 
-    exportExcelEntregas: async (vista, categoria) => {
+    exportExcelEntregas: async (vista, categoria, fechaInicio, fechaFin) => {
     const params = new URLSearchParams();
     if (vista) params.set('tipo', vista);
     if (categoria) params.set('categoria', categoria);
+    if (fechaInicio) params.set('fechaInicio', fechaInicio);
+    if (fechaFin) params.set('fechaFin', fechaFin);
 
     const query = params.toString();
     const endpoint = `${BASE_URL}/api/entregas/export-excel${query ? `?${query}` : ''}`;
@@ -414,7 +416,10 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = vista === 'Devolución' ? 'devoluciones_ti.xlsx' : 'entregas_ti.xlsx';
+    const periodo = fechaInicio && fechaFin ? `_${fechaInicio}_al_${fechaFin}` : '';
+    link.download = vista === 'Devolución'
+      ? `devoluciones_ti${periodo}.xlsx`
+      : `entregas_ti${periodo}.xlsx`;
 
     try {
       document.body.appendChild(link);
@@ -429,6 +434,8 @@ downloadFlotasReport: async ({
   filtro = 'todos',
   valor = '',
   fecha = 'siempre',
+  fechaInicio = '',
+  fechaFin = '',
   operacion = 'todas',
   signal
 }) => {
@@ -438,6 +445,8 @@ downloadFlotasReport: async ({
     fecha,
     operacion
   });
+  if (fechaInicio) params.set('fechaInicio', fechaInicio);
+  if (fechaFin) params.set('fechaFin', fechaFin);
 
   const response = await fetchWithAuth(
   `${BASE_URL}/reportes/${formato}?${params.toString()}`,

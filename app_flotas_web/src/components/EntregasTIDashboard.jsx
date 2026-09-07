@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { api, BASE_API_URL } from '../services/api';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { UiIcon } from './UiIcon';
 
 // Configurar el worker de PDF.js
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -22,6 +23,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   const [selectedEntrega, setSelectedEntrega] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isNewPersonal, setIsNewPersonal] = useState(false);
   const [dniSearchStatus, setDniSearchStatus] = useState(null); // null | 'loading' | 'found' | 'not_found'
@@ -301,29 +303,22 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   return (
-    <div>
+    <div className="erp-module-page erp-inventory-page">
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-            {vista === 'Devolución' ? '📥 Devoluciones TI' : '📤 Entregas TI'}
+            {vista === 'Devolución' ? 'Devoluciones TI' : 'Entregas TI'}
           </h2>
           <p style={{ color: 'var(--text-secondary)' }}>
             {vista === 'Devolución' ? 'Control de equipos retornados por los usuarios.' : 'Control de inventario y actas de equipos entregados.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="ui-toolbar-actions">
           <button
-            onClick={() => api.exportExcelEntregas(vista, categoriaFilter)}
-            style={{ backgroundColor: '#f59e0b', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-            📥 Exportar Excel
+            onClick={() => setShowExportModal(true)}
+            className="ui-button ui-button-secondary">
+            <UiIcon name="download" /> Exportar Excel
           </button>
-          {canEdit && (
-            <button
-              onClick={openCreateModal}
-              style={{ backgroundColor: vista === 'Devolución' ? '#ec4899' : '#3b82f6', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-              {vista === 'Devolución' ? '➕ Registrar Devolución' : '➕ Nueva Entrega'}
-            </button>
-          )}
           {canBulkUpload && (
             <>
               <input
@@ -336,17 +331,24 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
               <button
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
-                style={{ backgroundColor: '#10B981', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none', cursor: uploading ? 'wait' : 'pointer', fontWeight: '600' }}>
-                {uploading ? '⏳ Subiendo...' : '📄 Cargar Excel'}
+                className="ui-button ui-button-secondary">
+                <UiIcon name="upload" /> {uploading ? 'Subiendo...' : 'Cargar Excel'}
               </button>
             </>
+          )}
+          {canEdit && (
+            <button
+              onClick={openCreateModal}
+              className="ui-button ui-button-primary">
+              <UiIcon name="plus" /> {vista === 'Devolución' ? 'Registrar Devolución' : 'Nueva Entrega'}
+            </button>
           )}
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 250px', position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>🔍</span>
+          <span className="ui-search-icon"><UiIcon name="search" /></span>
           <input
             type="text"
             placeholder="Buscar por DNI, Nombre o Tipo..."
@@ -417,14 +419,14 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                       </td>
                       <td>{item.operacion}</td>
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        <span style={{ backgroundColor: item.tipo_movimiento === 'Devolución' ? '#fce7f3' : '#d1fae5', color: item.tipo_movimiento === 'Devolución' ? '#9d174d' : '#065f46', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          {item.tipo_movimiento === 'Devolución' ? '📥 Devolución' : '📤 Entrega'}
+                        <span style={{ backgroundColor: item.tipo_movimiento === 'Devolución' ? 'var(--purple-bg)' : 'var(--blue-bg)', color: item.tipo_movimiento === 'Devolución' ? 'var(--purple-text)' : 'var(--blue-text)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          {item.tipo_movimiento === 'Devolución' ? 'Devolución' : 'Entrega'}
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <div style={{ fontWeight: '500' }}>{item.equipo_tipo}</div>
-                        {item.laptop && <div style={{ fontSize: '0.75rem' }}>💻 {item.laptop}</div>}
-                        {item.mouse && <div style={{ fontSize: '0.75rem' }}>🖱️ {item.mouse}</div>}
+                        {item.laptop && <div className="ui-inline-detail"><UiIcon name="laptop" size={13} /> {item.laptop}</div>}
+                        {item.mouse && <div className="ui-inline-detail"><UiIcon name="mouse" size={13} /> {item.mouse}</div>}
                       </td>
                       <td>
                         <div>{item.marca}</div>
@@ -440,32 +442,32 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <button
                             onClick={() => { setSelectedEntrega(item); setShowDetailModal(true); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#3b82f6' }}
+                            className="ui-icon-button"
                             title="Ver Detalles"
                           >
-                            👁️
+                            <UiIcon name="eye" />
                           </button>
                           {item.documento_url && (
-                            <button onClick={(e) => { e.stopPropagation(); setDocUrlViewer(item.documento_url); }} title="Ver Acta" style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                              📄
+                            <button onClick={(e) => { e.stopPropagation(); setDocUrlViewer(item.documento_url); }} title="Ver Acta" className="ui-icon-button">
+                              <UiIcon name="file" />
                             </button>
                           )}
                           {canEdit && (
                             <button
                               onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
-                              style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}
+                              className="ui-icon-button"
                               title="Editar"
                             >
-                              ✏️
+                              <UiIcon name="edit" />
                             </button>
                           )}
                           {isAdmin && (
                             <button
                               onClick={() => handleDelete(item.id)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#ef4444' }}
+                              className="ui-icon-button ui-icon-button-danger"
                               title="Eliminar"
                             >
-                              🗑️
+                              <UiIcon name="trash" />
                             </button>
                           )}
                         </div>
@@ -493,14 +495,14 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => prev - 1)}
-                  style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#9ca3af' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
                 >
                   Anterior
                 </button>
                 <button
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage(prev => prev + 1)}
-                  style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#9ca3af' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
                 >
                   Siguiente
                 </button>
@@ -510,11 +512,19 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
         })()}
       </div>
 
+      {showExportModal && (
+        <InventoryExportModal
+          vista={vista}
+          categoria={categoriaFilter}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+
       {/* MODAL DE DETALLE */}
       {showDetailModal && selectedEntrega && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
-            <button onClick={() => setShowDetailModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 20px 50px -14px rgba(16,27,51,0.18)' }}>
+            <button onClick={() => setShowDetailModal(false)} className="ui-icon-button" style={{ position: 'absolute', top: '1rem', right: '1rem' }} aria-label="Cerrar"><UiIcon name="close" /></button>
 
             <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>Detalles de Entrega TI</h3>
 
@@ -559,9 +569,9 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
               <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Datos Finales</h4>
               <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedEntrega.motivo || '-'}</p>
               <p style={{ margin: 0 }}><strong>Precio:</strong> {selectedEntrega.precio ? `$${selectedEntrega.precio}` : '-'}</p>
-              <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
+              <div style={{ backgroundColor: '#fff6e4', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
                 <p style={{ margin: 0 }}><strong>Observaciones:</strong></p>
-                <p style={{ margin: '0.25rem 0 0 0', color: '#92400e' }}>{selectedEntrega.observaciones || 'Ninguna.'}</p>
+                <p style={{ margin: '0.25rem 0 0 0', color: '#a8650a' }}>{selectedEntrega.observaciones || 'Ninguna.'}</p>
               </div>
             </div>
           </div>
@@ -569,11 +579,11 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       )}
       {/* MODAL FORMULARIO CRUD */}
       {showFormModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="responsive-modal" style={{ backgroundColor: 'var(--card-bg)', padding: '2rem', borderRadius: '0.5rem', width: '800px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
-            <button onClick={() => setShowFormModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✖</button>
+            <button onClick={() => setShowFormModal(false)} className="ui-icon-button" style={{ position: 'absolute', top: '1rem', right: '1rem' }} aria-label="Cerrar"><UiIcon name="close" /></button>
             <h3 style={{ marginTop: 0, borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-              {isEditing ? `✏️ Editar ${vista || 'Registro'}` : `➕ Nuevo Registro de ${vista || 'Entrega'}`}
+              {isEditing ? `Editar ${vista || 'Registro'}` : `Nuevo Registro de ${vista || 'Entrega'}`}
             </h3>
 
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -582,8 +592,8 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Tipo Movimiento</label>
                     <select name="tipo_movimiento" value={formData.tipo_movimiento} onChange={handleFormChange} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', fontWeight: 'bold' }}>
-                      <option value="Entrega">📤 Entrega</option>
-                      <option value="Devolución">📥 Devolución</option>
+                      <option value="Entrega">Entrega</option>
+                      <option value="Devolución">Devolución</option>
                     </select>
                   </div>
                 )}
@@ -624,21 +634,21 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                         type="button"
                         onClick={handleSearchDNI}
                         disabled={dniSearchStatus === 'loading'}
-                        style={{ padding: '0 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0 0.375rem 0.375rem 0', cursor: 'pointer', fontWeight: 'bold' }}
+                        style={{ padding: '0 1rem', backgroundColor: '#2458e8', color: 'white', border: 'none', borderRadius: '0 0.375rem 0.375rem 0', cursor: 'pointer', fontWeight: 'bold' }}
                       >
-                        {dniSearchStatus === 'loading' ? '⌛' : '🔍'}
+                        {dniSearchStatus === 'loading' ? <span className="ui-spinner" /> : <UiIcon name="search" />}
                       </button>
                     </div>
-                    {dniSearchStatus === 'found' && <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'block', marginTop: '0.25rem' }}>✓ Personal encontrado</span>}
+                    {dniSearchStatus === 'found' && <span style={{ fontSize: '0.75rem', color: '#0e9f6e', display: 'block', marginTop: '0.25rem' }}>✓ Personal encontrado</span>}
                     {dniSearchStatus === 'not_found' && (
                       <span style={{
                         fontSize: '0.75rem',
-                        color: '#ef4444',
+                        color: '#dc3b2a',
                         display: 'block',
                         marginTop: '0.25rem'
                       }}>
                         {canCrearPersonal
-                          ? '⚠ DNI nuevo. Llene los datos.'
+                          ? 'DNI nuevo. Llene los datos.'
                           : 'Solicita el registro del trabajador a TI o al administrador.'}
                       </span>
                     )}
@@ -741,14 +751,14 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                   <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Puedes subir el acta escaneada (PDF o Imagen JPG/PNG).</label>
                   <input type="file" accept=".pdf,image/*" onChange={(e) => setActaFile(e.target.files[0])} style={{ padding: '0.5rem', border: '1px dashed #d1d5db', borderRadius: '0.375rem', backgroundColor: 'var(--bg-color)' }} />
                   {formData.documento_url && !actaFile && (
-                    <div style={{ fontSize: '0.85rem', color: '#10b981', marginTop: '0.25rem' }}>📄 Ya existe un documento adjunto en este registro. (Si subes uno nuevo, se reemplazará).</div>
+                    <div className="ui-inline-detail" style={{ color: '#0e9f6e', marginTop: '0.35rem' }}><UiIcon name="file" size={15} /> Ya existe un documento adjunto en este registro. Si subes uno nuevo, se reemplazará.</div>
                   )}
                 </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" onClick={() => setShowFormModal(false)} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--card-bg)', cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#10b981', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+                <button type="submit" style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', backgroundColor: '#0e9f6e', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
                   {isEditing ? 'Guardar Cambios' : 'Registrar Entrega'}
                 </button>
               </div>
@@ -758,13 +768,13 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
       )}
       {/* MODAL VISOR DE DOCUMENTOS */}
       {docUrlViewer && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'var(--card-bg)', padding: '1rem', borderRadius: '0.5rem', width: '800px', maxWidth: '95%', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>📄 Visor de Acta</h3>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '.5rem' }}><UiIcon name="file" /> Visor de Acta</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={handleDownloadViewer} style={{ padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.875rem' }}>Descargar</button>
-                <button onClick={() => setDocUrlViewer(null)} style={{ padding: '0.5rem 1rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.875rem' }}>Cerrar</button>
+                <button onClick={handleDownloadViewer} className="ui-button ui-button-primary"><UiIcon name="download" /> Descargar</button>
+                <button onClick={() => setDocUrlViewer(null)} className="ui-button ui-button-secondary">Cerrar</button>
               </div>
             </div>
             <div style={{ flex: 1, backgroundColor: 'var(--bg-color)', borderRadius: '0.25rem', overflow: 'hidden' }}>
@@ -785,6 +795,79 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InventoryExportModal({ vista, categoria, onClose }) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const haceTreintaDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const [fechaInicio, setFechaInicio] = useState(haceTreintaDias);
+  const [fechaFin, setFechaFin] = useState(hoy);
+  const [exportando, setExportando] = useState(false);
+
+  const handleExport = async () => {
+    if (!fechaInicio || !fechaFin) {
+      toast.error('Seleccione la fecha de inicio y la fecha de fin');
+      return;
+    }
+    if (fechaInicio > fechaFin) {
+      toast.error('La fecha de inicio no puede ser posterior a la fecha de fin');
+      return;
+    }
+
+    setExportando(true);
+    const aviso = toast.loading(`Generando Excel de ${vista === 'Devolución' ? 'devoluciones' : 'entregas'}...`);
+    try {
+      await api.exportExcelEntregas(vista, categoria, fechaInicio, fechaFin);
+      toast.success('Descarga iniciada correctamente', { id: aviso });
+      onClose();
+    } catch (error) {
+      toast.error(error.message || 'No se pudo generar el Excel', { id: aviso });
+    } finally {
+      setExportando(false);
+    }
+  };
+
+  return (
+    <div className="ui-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inventory-export-title">
+      <div className="ui-modal-card inventory-export-modal">
+        <div className="ui-modal-heading">
+          <div>
+            <h3 id="inventory-export-title">Exportar {vista === 'Devolución' ? 'devoluciones' : 'entregas'} TI</h3>
+            <p>El archivo Excel incluirá únicamente los registros del período seleccionado.</p>
+          </div>
+          <button type="button" className="ui-icon-button" onClick={onClose} disabled={exportando} aria-label="Cerrar">
+            <UiIcon name="close" />
+          </button>
+        </div>
+
+        <div className="report-date-grid inventory-export-dates">
+          <label>
+            <span>Fecha de inicio</span>
+            <input type="date" value={fechaInicio} max={fechaFin || undefined} onChange={event => setFechaInicio(event.target.value)} />
+          </label>
+          <label>
+            <span>Fecha de fin</span>
+            <input type="date" value={fechaFin} min={fechaInicio || undefined} onChange={event => setFechaFin(event.target.value)} />
+          </label>
+        </div>
+
+        {categoria && (
+          <div className="report-period-summary">
+            <span>Categoría aplicada</span>
+            <strong>{categoria}</strong>
+          </div>
+        )}
+
+        <div className="ui-modal-actions">
+          <button type="button" className="ui-button ui-button-secondary" onClick={onClose} disabled={exportando}>Cancelar</button>
+          <button type="button" className="ui-button ui-button-primary" onClick={handleExport} disabled={exportando}>
+            {exportando ? <span className="ui-spinner" /> : <UiIcon name="download" />}
+            {exportando ? 'Generando...' : 'Descargar Excel'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
