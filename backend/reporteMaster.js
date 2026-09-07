@@ -38,7 +38,7 @@ const downloadImage = async (source) => {
 };
 export const generateMasterReport = async (pool, startDate, endDate,operacion) => {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Sistema OMNI';
+  workbook.creator = 'ERPHC';
   workbook.created = new Date();
   
     const result = await pool.query(`
@@ -101,7 +101,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     ];
 
     ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E9F6E' } };
     ws.getRow(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
     const rows = inspecciones;
@@ -162,7 +162,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   ws1.mergeCells('A1:U1');
   const f1 = ws1.getCell('A1');
   f1.value = 'PROGRAMA';
-  f1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E99' } };
+  f1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF101B33' } };
   f1.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Arial' };
   f1.alignment = centerAlign;
   f1.border = borderAll;
@@ -180,7 +180,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   titulo.border = borderAll;
 
   ws1.mergeCells('A2:C5');
-  ws1.getCell('A2').value = 'TRANSMEDICAS S.R.L.';
+  ws1.getCell('A2').value = 'TRANSMDICAS S.R.L.';
   ws1.getCell('A2').alignment = centerAlign;
   ws1.getCell('A2').font = fontBold;
   ws1.getCell('A2').border = borderAll;
@@ -193,7 +193,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     c.font = fontNormal;
   }
 
-  const greenHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00FF99' } };
+  const greenHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E9F6E' } };
   ws1.mergeCells('A6:H6');
   ws1.getCell('A6').value = 'DATOS';
   ws1.mergeCells('I6:K6');
@@ -295,7 +295,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     { header: 'OBSERVACIONES', key: 'observaciones', width: 45 }
   ];
   ws2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+  ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2458E8' } };
 
   inspecciones.forEach(r => ws2.addRow({...r, tipo: r.tipo_vehiculo, programa:r.operacion, estado_vehiculo:r.estado_operativo || ''}));
 

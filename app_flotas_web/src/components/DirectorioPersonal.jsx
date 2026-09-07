@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { UiIcon } from './UiIcon';
 
 export function DirectorioPersonal({ permisos }) {
   const [personal, setPersonal] = useState([]);
@@ -106,32 +107,30 @@ export function DirectorioPersonal({ permisos }) {
   );
 
   return (
-    <div style={{ padding: '2rem', height: '100%', overflow: 'hidden', display: 'flex', gap: '2rem' }}>
+    <div className="erp-module-page erp-personal-page">
       {/* Contenido Principal */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="personal-main-content">
+      <div className="module-page-header personal-page-header">
         <div>
-          <h1 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '2rem' }}>👤</span> Directorio de Personal
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
+          <h1>Directorio de personal</h1>
+          <p>
             Gestión centralizada de colaboradores de la empresa.
           </p>
         </div>
         {(!permisos || permisos.editar !== false) && (
           <button 
             onClick={() => handleOpenModal()}
-            style={{ padding: '0.75rem 1.5rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#059669'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#10b981'}
+            className="ui-button ui-button-primary"
           >
-            + Añadir Personal
+            <UiIcon name="plus" size={17} /> Añadir colaborador
           </button>
         )}
       </div>
 
       {/* Buscador */}
-      <div style={{ marginBottom: '2rem' }}>
+      <div className="personal-search-card">
+        <label className="ui-search-field personal-search-field">
+          <UiIcon name="search" size={18} />
         <input 
           type="text" 
           placeholder="Buscar por nombre, DNI, cargo o área..." 
@@ -140,25 +139,25 @@ export function DirectorioPersonal({ permisos }) {
             setSearchTerm(e.target.value);
             setCurrentPage(1); // Reset page on search
           }}
-          style={{ width: '100%', padding: '1rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '1rem' }}
         />
+        </label>
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Cargando directorio...</div>
       ) : (
-        <div style={{ border: '1px solid var(--border-color)', borderRadius: '0.5rem', overflow: 'hidden', backgroundColor: 'var(--bg-secondary)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-primary)' }}>
-              <thead style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>DNI</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Nombres y Apellidos</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Cargo</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Área</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Teléfono</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Estado</th>
-                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Acciones</th>
+        <div className="table-container personal-table-card">
+          <div className="personal-table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>DNI</th>
+                  <th>Nombres y apellidos</th>
+                  <th>Cargo</th>
+                  <th>Área</th>
+                  <th>Teléfono</th>
+                  <th>Estado</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,47 +167,42 @@ export function DirectorioPersonal({ permisos }) {
                   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
                   const currentItems = filteredPersonal.slice(indexOfFirstItem, indexOfLastItem);
                   
-                  return currentItems.map((p, i) => (
+                  return currentItems.map((p) => (
                   <tr 
                     key={p.id} 
                     onClick={() => setSelectedItem(p)}
-                    style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-hover)', cursor: 'pointer', transition: 'background 0.2s' }}
+                    className="personal-table-row"
                   >
-                    <td style={{ padding: '1rem', fontWeight: 'bold' }}>{p.dni}</td>
-                    <td style={{ padding: '1rem' }}>{p.nombre_completo}</td>
-                    <td style={{ padding: '1rem' }}>{p.cargo || '-'}</td>
-                    <td style={{ padding: '1rem' }}>{p.area || '-'}</td>
-                    <td style={{ padding: '1rem' }}>{p.telefono || '-'}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '9999px', 
-                        fontSize: '0.875rem', 
-                        fontWeight: 'bold',
-                        backgroundColor: p.estado === 'Activo' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                        color: p.estado === 'Activo' ? '#10b981' : '#ef4444'
-                      }}>
+                    <td className="personal-dni">{p.dni}</td>
+                    <td className="personal-name">{p.nombre_completo}</td>
+                    <td>{p.cargo || '-'}</td>
+                    <td>{p.area || '-'}</td>
+                    <td>{p.telefono || '-'}</td>
+                    <td>
+                      <span className={`directory-status ${p.estado === 'Activo' ? 'is-active' : 'is-inactive'}`}>
                         {p.estado}
                       </span>
                     </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                    <td className="personal-actions-cell">
                       {(!permisos || permisos.editar !== false) && (
-                        <>
+                        <div className="personal-row-actions">
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleOpenModal(p); }}
-                            style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '1rem' }}
+                            className="ui-icon-button"
                             title="Editar"
+                            aria-label={`Editar ${p.nombre_completo}`}
                           >
-                            ✏️
+                            <UiIcon name="edit" size={16} />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                            className="ui-icon-button ui-icon-button-danger"
                             title="Eliminar"
+                            aria-label={`Eliminar ${p.nombre_completo}`}
                           >
-                            🗑️
+                            <UiIcon name="trash" size={16} />
                           </button>
-                        </>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -233,22 +227,22 @@ export function DirectorioPersonal({ permisos }) {
             const indexOfLastItem = Math.min(currentPage * itemsPerPage, filteredPersonal.length);
             
             return (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>
+              <div className="personal-pagination">
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                   Mostrando {filteredPersonal.length > 0 ? indexOfFirstItem + 1 : 0} a {indexOfLastItem} de {filteredPersonal.length} registros
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button 
+                  <button
+                    className="ui-button ui-button-secondary ui-button-compact"
                     disabled={currentPage === 1} 
                     onClick={() => setCurrentPage(prev => prev - 1)} 
-                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
                   >
                     Anterior
                   </button>
-                  <button 
+                  <button
+                    className="ui-button ui-button-secondary ui-button-compact"
                     disabled={currentPage >= totalPages} 
                     onClick={() => setCurrentPage(prev => prev + 1)} 
-                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
                   >
                     Siguiente
                   </button>
@@ -286,11 +280,12 @@ export function DirectorioPersonal({ permisos }) {
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               Ficha Técnica: Personal
             </h2>
-            <button 
+            <button
               onClick={() => setSelectedItem(null)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}
+              className="ui-icon-button"
+              aria-label="Cerrar ficha"
             >
-              ✕
+              <UiIcon name="close" size={18} />
             </button>
           </div>
 
@@ -389,11 +384,12 @@ export function DirectorioPersonal({ permisos }) {
               <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
                 {editingPersonal ? 'Editar Personal' : 'Nuevo Personal'}
               </h2>
-              <button 
+              <button
                 onClick={() => setShowModal(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}
+                className="ui-icon-button"
+                aria-label="Cerrar formulario"
               >
-                ✕
+                <UiIcon name="close" size={18} />
               </button>
             </div>
 
@@ -473,16 +469,16 @@ export function DirectorioPersonal({ permisos }) {
               </div>
 
               <div style={{ gridColumn: '1 / -1', marginTop: '1rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ padding: '0.75rem 1.5rem', backgroundColor: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '0.5rem', cursor: 'pointer' }}
+                  className="ui-button ui-button-secondary"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit"
-                  style={{ padding: '0.75rem 1.5rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}
+                  className="ui-button ui-button-primary"
                 >
                   Guardar Registro
                 </button>

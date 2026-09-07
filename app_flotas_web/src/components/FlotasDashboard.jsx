@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { api, BASE_API_URL } from '../services/api';
 import toast from 'react-hot-toast';
+import { UiIcon } from './UiIcon';
 function compararInspecciones(a, b) {
   const fechaA = typeof a.fecha === 'string' ? a.fecha.trim() : '';
   const fechaB = typeof b.fecha === 'string' ? b.fecha.trim() : '';
@@ -102,7 +103,7 @@ function MobileCameraInput({ label, onSelect, preview, setPreview }) {
           onClick={() => fileInputRef.current.click()}
           style={{
             flex: 1, padding: '0.8rem',
-            background: preview ? '#4B5563' : '#10B981',
+            background: preview ? '#4B5563' : '#0e9f6e',
             color: 'white', border: 'none', borderRadius: '0.5rem',
             fontWeight: '600', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem',
             fontSize: '1rem'
@@ -111,7 +112,7 @@ function MobileCameraInput({ label, onSelect, preview, setPreview }) {
           {preview ? 'Cambiar Foto' : `Tomar Foto`}
         </button>
         {preview && (
-          <img src={preview} alt="Preview" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '0.25rem', border: '2px solid #10B981' }} />
+          <img src={preview} alt="Preview" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '0.25rem', border: '2px solid #0e9f6e' }} />
         )}
       </div>
     </div>
@@ -253,9 +254,9 @@ export function FlotasDashboard({ permisos }) {
 
   const getStatusColor = (estado) => {
     switch (estado) {
-      case 'Operativa': return { bg: '#D1FAE5', text: '#065F46', border: '#34D399' };
-      case 'Observada': return { bg: '#FEE2E2', text: '#991B1B', border: '#F87171' };
-      default: return { bg: '#FEF3C7', text: '#92400E', border: '#FBBF24' }; // Falta de revisión
+      case 'Operativa': return { bg: '#e7f9f1', text: '#0e9f6e', border: '#34D399' };
+      case 'Observada': return { bg: '#fdeae8', text: '#dc3b2a', border: '#F87171' };
+      default: return { bg: '#fff6e4', text: '#a8650a', border: '#FBBF24' }; // Falta de revisión
     }
   };
 
@@ -268,117 +269,97 @@ export function FlotasDashboard({ permisos }) {
   const faltaRevision = vehiculos.filter(v => v.estado === 'Falta de revisión' || v.estado === 'N/A').length;
 
   return (
-    <div>
+    <div className="erp-module-page erp-inspections-page">
       {/* HEADER Y ACCIONES */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem' }}>
+      <div className="module-page-header inspections-page-header">
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Registro de Inspecciones</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Gestión de unidades y reportes fotográficos.</p>
+          <h2>Registro de inspecciones</h2>
+          <p>Checklist físico y evidencia fotográfica por unidad.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="ui-toolbar-actions">
           <button
             type="button"
             onClick={() => setShowExportModal(true)}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#1E3A8A',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
+            className="ui-button ui-button-secondary"
           >
-            Exportar
+            <UiIcon name="download" size={17} /> Exportar
           </button>
           {(!permisos || permisos.editar !== false) && (
             <button
               onClick={() => setShowInspectionModal(true)}
-              style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: '600', cursor: 'pointer' }}>
-              + Nueva Inspección
+              className="ui-button ui-button-primary">
+              <UiIcon name="plus" size={17} /> Nueva inspección
             </button>
           )}
         </div>
       </div>
 
       {/* TARJETAS DE RESUMEN (KPIs) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #3B82F6' }}>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>Total Flota</p>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{totalVehiculos}</p>
+      <div className="inspection-kpi-grid">
+        <div className="inspection-kpi-card">
+          <span className="inspection-kpi-icon is-blue"><UiIcon name="truck" size={20} /></span>
+          <p>Total flota</p>
+          <strong>{totalVehiculos}</strong>
         </div>
-        <div className="card" onClick={() => setFiltroEstado('Operativa')} style={{ padding: '1.25rem', borderLeft: '4px solid #10B981', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>✅ Operativas</p>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#10B981' }}>{operativas}</p>
-        </div>
-        <div className="card" onClick={() => setFiltroEstado('Observada')} style={{ padding: '1.25rem', borderLeft: '4px solid #EF4444', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>🚨 Observadas</p>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#EF4444' }}>{observadas}</p>
-        </div>
-        <div className="card" onClick={() => setFiltroEstado('Falta de revisión')} style={{ padding: '1.25rem', borderLeft: '4px solid #F59E0B', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
-          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600' }}>⚠️ Falta Revisión</p>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color: '#F59E0B' }}>{faltaRevision}</p>
-        </div>
+        <button type="button" className="inspection-kpi-card" onClick={() => setFiltroEstado('Operativa')}>
+          <span className="inspection-kpi-icon is-green"><UiIcon name="check" size={20} /></span>
+          <p>Operativas</p>
+          <strong>{operativas}</strong>
+        </button>
+        <button type="button" className="inspection-kpi-card" onClick={() => setFiltroEstado('Observada')}>
+          <span className="inspection-kpi-icon is-red"><UiIcon name="alert" size={20} /></span>
+          <p>Observadas</p>
+          <strong>{observadas}</strong>
+        </button>
+        <button type="button" className="inspection-kpi-card" onClick={() => setFiltroEstado('Falta de revisión')}>
+          <span className="inspection-kpi-icon is-amber"><UiIcon name="clipboard" size={20} /></span>
+          <p>Falta revisión</p>
+          <strong>{faltaRevision}</strong>
+        </button>
       </div>
 
       {/* FILTROS AVANZADOS */}
-      <div className="card" style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', padding: '1rem' }}>
-
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--bg-color)', padding: '0.25rem', borderRadius: '0.5rem' }}>
+      <div className="inspection-filter-card">
+        <div className="inspection-filter-rows">
+          <div className="inspection-chip-row">
             {['Todos', 'Primax', 'Bambas', 'Industrias', 'Repsol', 'Mantenimiento', 'GLP', 'Falta identificar'].map(cat => (
               <button
                 key={cat}
                 onClick={() => setCategoria(cat)}
-                style={{
-                  padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer',
-                  fontWeight: '500', fontSize: '0.875rem',
-                  backgroundColor: categoria === cat ? 'white' : 'transparent',
-                  color: categoria === cat ? 'black' : '#4B5563',
-                  boxShadow: categoria === cat ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                }}>
-                {cat}
+                className={`inspection-chip ${categoria === cat ? 'active' : ''}`}>
+                {cat === 'Falta identificar' ? 'Sin identificar' : cat}
               </button>
             ))}
           </div>
 
           {/* FILTROS DE ESTADO */}
-          <div style={{ display: 'flex', gap: '0.5rem', backgroundColor: 'var(--bg-color)', padding: '0.25rem', borderRadius: '0.5rem' }}>
+          <div className="inspection-chip-row">
             {['Todos', 'Operativa', 'Observada', 'Falta de revisión'].map(est => (
               <button
                 key={est}
                 onClick={() => setFiltroEstado(est)}
-                style={{
-                  padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer',
-                  fontWeight: '500', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  backgroundColor: filtroEstado === est ? 'white' : 'transparent',
-                  color: filtroEstado === est ? 'black' : '#4B5563',
-                  boxShadow: filtroEstado === est ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                }}>
-                {est === 'Operativa' && <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10B981' }}></span>}
-                {est === 'Observada' && <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#EF4444' }}></span>}
-                {est === 'Falta de revisión' && <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#F59E0B' }}></span>}
+                className={`inspection-chip ${filtroEstado === est ? 'active' : ''}`}>
+                {est !== 'Todos' && <span className={`inspection-filter-dot is-${est === 'Operativa' ? 'green' : est === 'Observada' ? 'red' : 'amber'}`} />}
                 {est}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ flex: '1 1 250px', position: 'relative' }}>
-          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>🔍</span>
+        <label className="ui-search-field inspection-search-field">
+          <UiIcon name="search" size={18} />
           <input
             type="text"
             placeholder="Buscar por placa..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', outline: 'none' }}
           />
-        </div>
+        </label>
       </div>
 
 
       {/* TABLA PRINCIPAL DE VEHÍCULOS */}
-      <div className="table-container">
+      <div className="table-container inspection-table-card">
         {loading ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando vehículos...</div>
         ) : (
@@ -399,9 +380,9 @@ export function FlotasDashboard({ permisos }) {
                     }}
                     title="Clic para ordenar por fecha"
                   >
-                    Última Inspección {sortFecha === 'desc' ? '⬇️' : sortFecha === 'asc' ? '⬆️' : '↕️'}
+                    <span className="sortable-heading">Última inspección <UiIcon name="arrows" size={14} className={`sort-${sortFecha}`} /></span>
                   </th>
-                  <th style={{ textAlign: 'right' }}>Historial / Reportes</th>
+                  <th style={{ textAlign: 'right' }}>Reportes</th>
                 </tr>
               </thead>
               <tbody>
@@ -412,31 +393,28 @@ export function FlotasDashboard({ permisos }) {
                     const colors = getStatusColor(v.estado);
                     return (
                       <tr key={v.placa}>
-                        <td style={{ fontWeight: '700', color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <td className="inspection-plate-cell">
                           {v.placa}
                         </td>
-                        <td><span className="badge" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid #E5E7EB' }}>{v.programa || 'Sin Categoría'}</span></td>
+                        <td><span className="inspection-operation-pill">{v.programa || 'Sin categoría'}</span></td>
                         <td>
-                          <span style={{
-                            backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}`,
-                            padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase'
-                          }}>
+                          <span className="inspection-status-pill" style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}>
                             {v.estado}
                           </span>
                         </td>
                         <td>
                           {v.tablet || v.radio || v.camaras ? (
-                            <div style={{ display: 'flex', gap: '0.3rem' }}>
-                              <span title={`Tablet: ${v.tablet}`} style={{ opacity: v.tablet === 'N/A' ? 0.3 : 1, filter: v.tablet === 'Error' || v.tablet === 'Falta' ? 'drop-shadow(0 0 2px red)' : 'none' }}>{v.tablet === 'Error' || v.tablet === 'Falta' ? '🔴' : '📱'}</span>
-                              <span title={`Radio: ${v.radio}`} style={{ opacity: v.radio === 'N/A' ? 0.3 : 1, filter: v.radio === 'Error' || v.radio === 'Falta' ? 'drop-shadow(0 0 2px red)' : 'none' }}>{v.radio === 'Error' || v.radio === 'Falta' ? '🔴' : '📻'}</span>
-                              <span title={`Cámaras: ${v.camaras}`} style={{ opacity: v.camaras === 'N/A' ? 0.3 : 1, filter: v.camaras === 'Error' || v.camaras === 'Falta' ? 'drop-shadow(0 0 2px red)' : 'none' }}>{v.camaras === 'Error' || v.camaras === 'Falta' ? '🔴' : '📹'}</span>
+                            <div className="inspection-components">
+                              <span className={v.tablet === 'N/A' ? 'is-muted' : ''} title={`Tablet: ${v.tablet}`}><UiIcon name="tablet" size={16} /></span>
+                              <span className={v.radio === 'N/A' ? 'is-muted' : ''} title={`Radio: ${v.radio}`}><UiIcon name="radio" size={16} /></span>
+                              <span className={v.camaras === 'N/A' ? 'is-muted' : ''} title={`Cámaras: ${v.camaras}`}><UiIcon name="camera" size={16} /></span>
                             </div>
                           ) : <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>Sin datos</span>}
                         </td>
                         <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
                           {(() => {
                             const f = v.fecha;
-                            if (!f || f === '--/--/----' || f.trim() === '') return <span style={{ color: '#EF4444' }}>⚠️ Sin registro</span>;
+                            if (!f || f === '--/--/----' || f.trim() === '') return <span className="inspection-date-alert"><UiIcon name="alert" size={14} /> Sin registro</span>;
 
                             let formattedDate = f;
                             let dateObj = null;
@@ -458,7 +436,7 @@ export function FlotasDashboard({ permisos }) {
                               const diffTime = Math.abs(new Date() - dateObj);
                               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                               if (diffDays > 7) {
-                                return <span style={{ color: '#EF4444', fontWeight: 'bold' }}>{formattedDate} <span title={`Hace ${diffDays} días`}>⚠️ Vencida</span></span>;
+                                return <span className="inspection-date-alert">{formattedDate} <span title={`Hace ${diffDays} días`}><UiIcon name="alert" size={14} /> Vencida</span></span>;
                               }
                             }
 
@@ -466,18 +444,18 @@ export function FlotasDashboard({ permisos }) {
                           })()}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <div className="inspection-report-actions">
                             <button
                               onClick={() => handleDirectPdf(v.placa)}
-                              style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.4rem 0.8rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
+                              className="ui-button ui-button-danger ui-button-compact"
                             >
-                              PDF Directo
+                              <UiIcon name="file" size={15} /> PDF directo
                             </button>
                             <button
                               onClick={() => setHistoryPlaca(v.placa)}
-                              style={{ backgroundColor: '#EFF6FF', color: 'var(--accent-color)', border: '1px solid #BFDBFE', padding: '0.4rem 0.8rem', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
+                              className="ui-button ui-button-secondary ui-button-compact"
                             >
-                              Ver Historial
+                              <UiIcon name="history" size={15} /> Ver historial
                             </button>
                           </div>
                         </td>
@@ -515,10 +493,13 @@ export function FlotasDashboard({ permisos }) {
 // MODAL: GENERADOR DE REPORTES
 // ==========================================
 function ExportModal({ onClose }) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const haceTreintaDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const [formato, setFormato] = useState('pdf');
   const [filtro, setFiltro] = useState('todos');
   const [valor, setValor] = useState('');
-  const [fecha, setFecha] = useState('siempre');
+  const [fechaInicio, setFechaInicio] = useState(haceTreintaDias);
+  const [fechaFin, setFechaFin] = useState(hoy);
   const [operacion, setOperacion] = useState('todas');
   const [generando, setGenerando] = useState(false);
   const descargaEnCurso = useRef(false);
@@ -528,6 +509,16 @@ function ExportModal({ onClose }) {
 
     if (filtro === 'placa' && !valor.trim()) {
       toast.error('Debe ingresar una placa');
+      return;
+    }
+
+    if (!fechaInicio || !fechaFin) {
+      toast.error('Seleccione la fecha de inicio y la fecha de fin');
+      return;
+    }
+
+    if (fechaInicio > fechaFin) {
+      toast.error('La fecha de inicio no puede ser posterior a la fecha de fin');
       return;
     }
 
@@ -545,7 +536,8 @@ function ExportModal({ onClose }) {
         formato,
         filtro,
         valor: valor.trim(),
-        fecha,
+        fechaInicio,
+        fechaFin,
         operacion,
         signal: controller.signal
       });
@@ -558,7 +550,7 @@ function ExportModal({ onClose }) {
       const enlace = document.createElement('a');
 
       enlace.href = url;
-      enlace.download = `Reporte_Flotas.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+      enlace.download = `Reporte_Flotas_${fechaInicio}_al_${fechaFin}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
       document.body.appendChild(enlace);
 
       try {
@@ -585,7 +577,7 @@ function ExportModal({ onClose }) {
   };
 
   return (
-    <div onClick={generando ? undefined : onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
+    <div onClick={generando ? undefined : onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
       <div className="card" onClick={e => e.stopPropagation()} style={{ width: '450px', transform: 'scale(1)', animation: 'scaleUp 0.2s ease-out' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>Generador de Reportes</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -621,17 +613,19 @@ function ExportModal({ onClose }) {
             </div>
           )}
 
+          <div className="report-date-grid inspection-export-dates">
+            <label>
+              <span>Fecha de inicio</span>
+              <input type="date" value={fechaInicio} max={fechaFin || undefined} onChange={e => setFechaInicio(e.target.value)} />
+            </label>
+            <label>
+              <span>Fecha de fin</span>
+              <input type="date" value={fechaFin} min={fechaInicio || undefined} onChange={e => setFechaFin(e.target.value)} />
+            </label>
+          </div>
+
           {filtro !== 'placa' && (
             <>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Filtro de Fecha</label>
-                <select value={fecha} onChange={e => setFecha(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
-                  <option value="siempre">Siempre (Histórico completo)</option>
-                  <option value="hoy">Hoy</option>
-                  <option value="semana">Últimos 7 días</option>
-                </select>
-              </div>
-
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Filtro de Operación</label>
                 <select value={operacion} onChange={e => setOperacion(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #ddd' }}>
@@ -651,7 +645,7 @@ function ExportModal({ onClose }) {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" onClick={onClose} style={{ padding: '0.5rem', background: 'none', border: 'none', cursor: 'pointer' }}>Cancelar</button>
-            <button onClick={handleExport} style={{ padding: '0.5rem 1rem', background: '#1E3A8A', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: '600' }}>Descargar Reporte</button>
+            <button onClick={handleExport} style={{ padding: '0.5rem 1rem', background: '#101b33', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: '600' }}>Descargar Reporte</button>
           </div>
         </div>
       </div>
@@ -751,7 +745,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
       <div className="card" onClick={e => e.stopPropagation()} style={{ width: '95vw', maxWidth: '1200px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out', padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -759,8 +753,8 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
             <p style={{ color: 'var(--accent-color)', fontWeight: '700', fontSize: '1rem', margin: '0.2rem 0 0 0' }}>Vehículo: {placa}</p>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <button onClick={descargarPdfHistorial} style={{ backgroundColor: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>⬇ PDF Directo</button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: '#6B7280' }}>&times;</button>
+            <button onClick={descargarPdfHistorial} className="ui-button ui-button-danger"><UiIcon name="download" size={16} /> PDF directo</button>
+            <button onClick={onClose} className="ui-icon-button" aria-label="Cerrar historial"><UiIcon name="close" size={18} /></button>
           </div>
         </div>
 
@@ -768,7 +762,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
 
           {/* Columna Izquierda: Inspecciones Físicas */}
           <div>
-            <h4 style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 10, paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid #E5E7EB', color: 'var(--text-primary)' }}>📋 Inspecciones de Campo</h4>
+            <h4 className="history-section-title"><UiIcon name="clipboard" size={17} /> Inspecciones de campo</h4>
             {loading ? <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}><p>Cargando historial...</p></div> : (
               inspecciones.length === 0 ? <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}><p>No hay inspecciones registradas.</p></div> : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
@@ -793,11 +787,11 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
                               <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>⏰ {insp.hora}</span>
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => setSelectedInsp(insp)} style={{ backgroundColor: 'var(--accent-color)', color: 'white', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} title="Ver Detalle y Fotos">👁️</button>
+                              <button onClick={() => setSelectedInsp(insp)} className="ui-icon-button" title="Ver detalle y fotos"><UiIcon name="eye" size={16} /></button>
                               {(!permisos || permisos.editar !== false) && (
                                 <>
-                                  <button onClick={() => handleEdit(insp)} style={{ backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Editar Datos">✏️</button>
-                                  <button onClick={() => handleDelete(insp.id)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px' }} title="Eliminar Permanente">🗑️</button>
+                                  <button onClick={() => handleEdit(insp)} className="ui-icon-button" title="Editar datos"><UiIcon name="edit" size={16} /></button>
+                                  <button onClick={() => handleDelete(insp.id)} className="ui-icon-button ui-icon-button-danger" title="Eliminar permanentemente"><UiIcon name="trash" size={16} /></button>
                                 </>
                               )}
                             </div>
@@ -805,15 +799,15 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
 
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📱 Tablet</span>
+                              <span className="history-component-label"><UiIcon name="tablet" size={15} /> Tablet</span>
                               {renderBadge(insp.tablet)}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📻 Radio Base</span>
+                              <span className="history-component-label"><UiIcon name="radio" size={15} /> Radio base</span>
                               {renderBadge(insp.radio)}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-color)', borderRadius: '0.5rem', alignItems: 'center', border: '1px solid #F3F4F6' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>📹 Cámaras</span>
+                              <span className="history-component-label"><UiIcon name="camera" size={15} /> Cámaras</span>
                               {renderBadge(insp.camaras)}
                             </div>
                           </div>
@@ -825,7 +819,7 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
                   {visibleLimit < inspecciones.length && (
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
                       <button onClick={() => setVisibleLimit(prev => prev + 10)} style={{ padding: '0.75rem 2rem', backgroundColor: '#F3F4F6', color: '#4B5563', border: '1px solid #D1D5DB', borderRadius: '2rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E5E7EB'} onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F3F4F6'}>
-                        ⬇️ Cargar Más Antiguos ({inspecciones.length - visibleLimit} restantes)
+                        <UiIcon name="download" size={15} /> Cargar más antiguos ({inspecciones.length - visibleLimit} restantes)
                       </button>
                     </div>
                   )}
@@ -836,18 +830,18 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
 
           {/* Columna Derecha: Trabajos Técnicos / Soporte TI */}
           <div style={{ paddingLeft: '1rem', borderLeft: '1px solid #E5E7EB' }}>
-            <h4 style={{ position: 'sticky', top: 0, backgroundColor: 'var(--card-bg)', zIndex: 10, paddingBottom: '1rem', marginBottom: '1rem', borderBottom: '1px solid #E5E7EB', color: '#10B981' }}>🛠️ Historial de Reparaciones (Soporte TI)</h4>
+            <h4 className="history-section-title is-support"><UiIcon name="history" size={17} /> Historial de reparaciones (Soporte TI)</h4>
             {loading ? <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}><p>Cargando tickets...</p></div> : (
               tickets.length === 0 ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)', backgroundColor: '#F9FAFB', borderRadius: '0.5rem', border: '2px dashed #E5E7EB' }}><p>No hay tickets de soporte para este vehículo.</p></div> : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {tickets.map(ticket => (
-                    <div key={ticket.id} style={{ border: '1px solid #E5E7EB', borderRadius: '0.75rem', padding: '1rem', backgroundColor: ticket.estado === 'Resuelto' ? '#F0FDF4' : 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div key={ticket.id} style={{ border: '1px solid #E5E7EB', borderRadius: '0.75rem', padding: '1rem', backgroundColor: ticket.estado === 'Resuelto' ? '#e7f9f1' : 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <span style={{ fontWeight: '800', color: '#111827', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
+                        <span style={{ fontWeight: '800', color: '#101b33', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
                         <span style={{
                           padding: '0.2rem 0.6rem', borderRadius: '1rem', fontWeight: 'bold', fontSize: '0.7rem',
-                          backgroundColor: ticket.estado === 'Pendiente' ? '#FEE2E2' : ticket.estado === 'En Proceso' ? '#FEF3C7' : '#D1FAE5',
-                          color: ticket.estado === 'Pendiente' ? '#991B1B' : ticket.estado === 'En Proceso' ? '#92400E' : '#065F46'
+                          backgroundColor: ticket.estado === 'Pendiente' ? '#fdeae8' : ticket.estado === 'En Proceso' ? '#fff6e4' : '#e7f9f1',
+                          color: ticket.estado === 'Pendiente' ? '#dc3b2a' : ticket.estado === 'En Proceso' ? '#a8650a' : '#0e9f6e'
                         }}>
                           {ticket.estado}
                         </span>
@@ -856,25 +850,25 @@ function HistoryModal({ placa, onClose, onEdit, refreshTrigger, permisos }) {
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <span>📅 {ticket.fecha ? ticket.fecha.split('T')[0] : 'S/F'}</span>
                         <span style={{ color: '#E5E7EB' }}>|</span>
-                        <span>👤 {ticket.operador || 'Sistema'}</span>
+                        <span className="history-user"><UiIcon name="user" size={14} /> {ticket.operador || 'Sistema'}</span>
                       </div>
 
                       <div style={{ marginBottom: '0.5rem' }}>
-                        <span style={{ backgroundColor: '#DBEAFE', color: '#1E3A8A', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.tipo_solicitud}</span>
+                        <span style={{ backgroundColor: 'var(--blue-bg)', color: 'var(--accent-color)', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.tipo_solicitud}</span>
                       </div>
 
-                      <div style={{ fontSize: '0.85rem', color: '#4B5563', backgroundColor: '#F9FAFB', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #E5E7EB', marginBottom: ticket.resolucion_desc ? '0.5rem' : '0' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', marginBottom: ticket.resolucion_desc ? '0.5rem' : '0' }}>
                         <strong>Prob:</strong> {ticket.descripcion}
                       </div>
 
                       {ticket.resolucion_desc && (
-                        <div style={{ fontSize: '0.85rem', color: '#065F46', backgroundColor: '#D1FAE5', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid #A7F3D0' }}>
+                        <div style={{ fontSize: '0.85rem', color: '#0e9f6e', backgroundColor: '#e7f9f1', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid rgba(14,159,110,0.3)' }}>
                           <strong>Solución:</strong> {ticket.resolucion_desc}
                         </div>
                       )}
 
                       {ticket.evidencia && (
-                        <button onClick={() => window.open(ticket.evidencia, '_blank')} style={{ marginTop: '0.75rem', width: '100%', padding: '0.5rem', backgroundColor: 'white', color: '#166534', border: '1px solid #BBF7D0', borderRadius: '0.3rem', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }} title="Ver Foto de Reparación">
+                        <button onClick={() => window.open(ticket.evidencia, '_blank')} style={{ marginTop: '0.75rem', width: '100%', padding: '0.5rem', backgroundColor: 'white', color: '#0e9f6e', border: '1px solid rgba(14,159,110,0.3)', borderRadius: '0.3rem', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }} title="Ver Foto de Reparación">
                           📸 Ver Evidencia
                         </button>
                       )}
@@ -911,7 +905,7 @@ function InspectionDetailModal({ insp, placa, onBack }) {
   const imageStyle = { width: '100%', height: '150px', objectFit: 'cover', borderRadius: '0.25rem', cursor: 'zoom-in', border: '1px solid #ddd', transition: 'transform 0.2s' };
 
   return (
-    <div onClick={onBack} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+    <div onClick={onBack} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
       <div className="card" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'scaleUp 0.2s ease-out' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
           <button onClick={onBack} style={{ background: 'none', border: '1px solid var(--border-color)', padding: '0.2rem 0.5rem', borderRadius: '0.3rem', cursor: 'pointer', marginRight: '1rem' }}>← Volver</button>
@@ -937,17 +931,17 @@ function InspectionDetailModal({ insp, placa, onBack }) {
         </div>
 
         {insp.observaciones && (
-          <div style={{ marginTop: '1.5rem', backgroundColor: '#FEF3C7', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #FDE68A' }}>
-            <h4 style={{ color: '#D97706', marginBottom: '0.5rem', fontWeight: 'bold' }}>📝 Observaciones</h4>
-            <p style={{ color: '#92400E', whiteSpace: 'pre-wrap', margin: 0 }}>{insp.observaciones}</p>
+          <div style={{ marginTop: '1.5rem', backgroundColor: '#fff6e4', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #f5deac' }}>
+            <h4 style={{ color: '#db8b0b', marginBottom: '0.5rem', fontWeight: 'bold' }}>📝 Observaciones</h4>
+            <p style={{ color: '#a8650a', whiteSpace: 'pre-wrap', margin: 0 }}>{insp.observaciones}</p>
           </div>
         )}
       </div>
 
       {/* Visor de Imagen Grande (Lightbox) */}
       {zoomImage && (
-        <div onClick={() => setZoomImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', flexDirection: 'column' }}>
-          <img src={zoomImage} alt="Zoom" style={{ maxHeight: '90vh', maxWidth: '90vw', borderRadius: '0.5rem', border: '2px solid white', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }} />
+        <div onClick={() => setZoomImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11,21,38,0.9)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', flexDirection: 'column' }}>
+          <img src={zoomImage} alt="Zoom" style={{ maxHeight: '90vh', maxWidth: '90vw', borderRadius: '0.5rem', border: '2px solid white', boxShadow: '0 25px 50px -12px rgba(16,27,51,0.3)' }} />
           <p style={{ color: 'white', marginTop: '1rem', fontWeight: 'bold' }}>Clic en cualquier lugar para cerrar</p>
         </div>
       )}
@@ -1077,11 +1071,11 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
       await api.createIncidente({
         placa: placaInput.trim().toUpperCase(),
         tipo_solicitud: 'Técnico Externo',
-        descripcion: `🔴 Reporte automático desde campo. Fallas detectadas: ${pendingTechRequest.fallas.join(', ')}.${textoDetalle}\nObservaciones del inspector: ${observaciones}`,
+        descripcion: `Reporte automático desde campo. Fallas detectadas: ${pendingTechRequest.fallas.join(', ')}.${textoDetalle}\nObservaciones del inspector: ${observaciones}`,
         operador: 'Sistema Inspecciones',
         fecha: new Date().toISOString()
       });
-      toast.success('✅ Ticket de Técnico Externo creado y derivado a Soporte TI.');
+      toast.success('Ticket de Técnico Externo creado y derivado a Soporte TI.');
     } catch (ticketError) {
       toast.error('No se pudo crear el ticket para el técnico externo.');
     }
@@ -1097,7 +1091,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
+    <div onClick={onClose} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
       <div className="card" onClick={e => e.stopPropagation()} style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'scaleUp 0.2s ease-out' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{editInsp ? 'Editar Inspección Física' : 'Nueva Inspección Física'}</h3>
@@ -1116,12 +1110,12 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                 placeholder="Escribe o selecciona..."
                 type="text"
                 readOnly={!!editInsp}
-                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: `1px solid ${vehiculoSeleccionado ? '#10B981' : '#ddd'}`, textTransform: 'uppercase' }}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: `1px solid ${vehiculoSeleccionado ? '#0e9f6e' : '#ddd'}`, textTransform: 'uppercase' }}
               />
               <datalist id="placas-datalist">
                 {vehiculosExistentes.map(v => <option key={v.placa} value={v.placa} />)}
               </datalist>
-              {!vehiculoSeleccionado && placaInput && <p style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>Placa no registrada.</p>}
+              {!vehiculoSeleccionado && placaInput && <p style={{ color: '#dc3b2a', fontSize: '0.75rem', marginTop: '0.25rem' }}>Placa no registrada.</p>}
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem' }}>Operación Heredada</label>
@@ -1194,11 +1188,11 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
 
         {/* Modal de Solicitud Técnico Externo (Intercept) */}
         {pendingTechRequest && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-            <div style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', animation: 'scaleUp 0.2s ease-out' }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
+            <div style={{ backgroundColor: 'var(--bg-color)', padding: '2rem', borderRadius: '1rem', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(16,27,51,0.3)', animation: 'scaleUp 0.2s ease-out' }}>
               <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🚨</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#DC2626', margin: 0 }}>Fallas Detectadas</h3>
+                <div className="inspection-alert-icon"><UiIcon name="alert" size={26} /></div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#dc3b2a', margin: 0 }}>Fallas Detectadas</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem' }}>El vehículo presenta fallas o faltantes en: <br /><strong>{pendingTechRequest.fallas.join(', ')}</strong></p>
               </div>
 
@@ -1217,7 +1211,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                 <button type="button" onClick={handleTechSkip} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#F3F4F6', color: '#4B5563', border: '1px solid #D1D5DB', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
                   Omitir Solicitud
                 </button>
-                <button type="button" onClick={handleTechConfirm} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(220, 38, 38, 0.2)' }}>
+                <button type="button" onClick={handleTechConfirm} style={{ flex: 1, padding: '0.75rem', backgroundColor: '#dc3b2a', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(220,59,42,0.25)' }}>
                   Solicitar Técnico
                 </button>
               </div>

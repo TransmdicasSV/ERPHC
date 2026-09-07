@@ -93,6 +93,27 @@ function formatDMY(valor) {
   }).format(fecha).replaceAll('/', '-');
 }
 
+function getValidatedDateRange(queryParams = {}) {
+  const fechaInicio = String(queryParams.fechaInicio || '').trim();
+  const fechaFin = String(queryParams.fechaFin || '').trim();
+
+  if (!fechaInicio && !fechaFin) return null;
+
+  const isValidISODate = (value) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  };
+
+  if (!isValidISODate(fechaInicio) || !isValidISODate(fechaFin) || fechaInicio > fechaFin) {
+    const error = new Error('El rango de fechas no es válido');
+    error.status = 400;
+    throw error;
+  }
+
+  return { fechaInicio, fechaFin };
+}
+
 // ==========================================
 // GENERADOR DE PDF (PROFESIONAL)
 // ==========================================
@@ -101,6 +122,7 @@ export const generatePDF = async (pool, queryParams, res) => {
 
   try {
     const { filtro, valor, fecha, operacion } = queryParams || {};
+    const rangoFechas = getValidatedDateRange(queryParams);
 
     let query = 'SELECT i.*, i.fecha::text AS fecha, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
     let params = [];
@@ -135,7 +157,10 @@ export const generatePDF = async (pool, queryParams, res) => {
       }
     }
 
-    if (fecha === 'hoy') {
+    if (rangoFechas) {
+      query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date BETWEEN $${paramIndex++}::date AND $${paramIndex++}::date`;
+      params.push(rangoFechas.fechaInicio, rangoFechas.fechaFin);
+    } else if (fecha === 'hoy') {
       query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
     } else if (fecha === 'semana') {
       query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
@@ -165,7 +190,10 @@ export const generatePDF = async (pool, queryParams, res) => {
     let subtitle = 'Todas las unidades';
     if (filtro === 'placa') subtitle = `Filtro: Placa ${valor}`;
     else if (filtro === 'programa') subtitle = `Filtro: Programa ${valor}`;
-    else if (fecha || operacion) {
+    if (rangoFechas) {
+      subtitle += ` | Periodo: ${formatDMY(rangoFechas.fechaInicio)} al ${formatDMY(rangoFechas.fechaFin)}`;
+      if (operacion && operacion !== 'todas') subtitle += ` | Op: ${operacion}`;
+    } else if (fecha || operacion) {
       let ops = [];
       if (fecha === 'hoy') ops.push('Hoy');
       else if (fecha === 'semana') ops.push('Últimos 7 días');
@@ -175,7 +203,7 @@ export const generatePDF = async (pool, queryParams, res) => {
 
     // Dibujar Cabecera en una página
     const drawHeader = (pageNum) => {
-      doc.rect(0, 0, doc.page.width, 80).fill('#0F172A'); // Slate 900
+      doc.rect(0, 0, doc.page.width, 80).fill('#101B33'); // Navy ERPHC
       doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(20).text('REPORTE DE INSPECCIONES TI', 40, 25, { align: 'left' });
       doc.fontSize(10).font('Helvetica').text(subtitle, 40, 50, { align: 'left' });
       doc.fontSize(10).font('Helvetica').text(`Generado: ${formatDMY(new Date())}`, 0, 50, { align: 'right', width: doc.page.width - 40 });
@@ -197,8 +225,8 @@ export const generatePDF = async (pool, queryParams, res) => {
     // Helpers de dibujo
     const drawBadge = (text, x, y) => {
       const isOK = ['OK', 'N/A', 'NO APLICA'].includes(text.toUpperCase());
-      const bgColor = isOK ? '#DEF7EC' : '#FDE8E8'; // Verde suave o Rojo suave
-      const textColor = isOK ? '#03543F' : '#9B1C1C'; // Verde oscuro o Rojo oscuro
+      const bgColor = isOK ? '#E7F9F1' : '#FDEAE8'; // Verde suave o Rojo suave
+      const textColor = isOK ? '#0E9F6E' : '#DC3B2A'; // Verde oscuro o Rojo oscuro
 
       doc.rect(x, y - 2, 80, 16).fill(bgColor);
       doc.fillColor(textColor).fontSize(8).font('Helvetica-Bold').text(text.toUpperCase(), x, y + 2, { width: 80, align: 'center' });
@@ -261,7 +289,7 @@ export const generatePDF = async (pool, queryParams, res) => {
 
       // Cabecera de la tarjeta
       doc.rect(40, cardY, doc.page.width - 80, 25).fill('#F1F5F9');
-      doc.fillColor('#0F172A').fontSize(11).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}   |   Placa: ${insp.placa}`, 50, cardY + 7);
+      doc.fillColor('#101B33').fontSize(11).font('Helvetica-Bold').text(`Inspección ID: ${insp.id}   |   Placa: ${insp.placa}`, 50, cardY + 7);
       doc.fontSize(9).font('Helvetica').text(`${formatDMY(insp.fecha)} ${insp.hora}`, 40, cardY + 7, { align: 'right', width: doc.page.width - 90 });
 
       doc.fillColor('#334155');
@@ -328,8 +356,10 @@ export const generatePDF = async (pool, queryParams, res) => {
     if (!res.headersSent) {
       res.removeHeader('Content-Disposition');
 
-      res.status(500).json({
-        error: 'No se pudo generar el PDF. Revisa la terminal del backend.'
+      res.status(error.status || 500).json({
+        error: error.status === 400
+          ? error.message
+          : 'No se pudo generar el PDF. Revisa la terminal del backend.'
       });
     } else {
       res.destroy(error);
@@ -343,6 +373,7 @@ export const generatePDF = async (pool, queryParams, res) => {
 export const generateExcel = async (pool, queryParams, res) => {
   try {
     const { filtro, valor, fecha, operacion } = queryParams || {};
+    const rangoFechas = getValidatedDateRange(queryParams);
 
     let query = '';
     let params = [];
@@ -371,7 +402,10 @@ export const generateExcel = async (pool, queryParams, res) => {
         }
       }
 
-      if (fecha === 'hoy') {
+      if (rangoFechas) {
+        query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date BETWEEN $${paramIndex++}::date AND $${paramIndex++}::date`;
+        params.push(rangoFechas.fechaInicio, rangoFechas.fechaFin);
+      } else if (fecha === 'hoy') {
         query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
       } else if (fecha === 'semana') {
         query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
@@ -408,7 +442,10 @@ export const generateExcel = async (pool, queryParams, res) => {
         }
       }
 
-      if (fecha === 'hoy') {
+      if (rangoFechas) {
+        query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date BETWEEN $${paramIndex++}::date AND $${paramIndex++}::date`;
+        params.push(rangoFechas.fechaInicio, rangoFechas.fechaFin);
+      } else if (fecha === 'hoy') {
         query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
       } else if (fecha === 'semana') {
         query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
@@ -444,14 +481,14 @@ export const generateExcel = async (pool, queryParams, res) => {
       const titleRow = worksheet.addRow(['REPORTE GERENCIAL DE FLOTAS E INSPECCIONES']);
       worksheet.mergeCells('A1:J1');
       titleRow.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Azul oscuro muy profesional
+      titleRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF101B33' } }; // Navy ERPHC
       titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
       titleRow.height = 30;
 
       // 2. Subtítulo (Fecha de Generación)
       const dateRow = worksheet.addRow([`Fecha de Emisión: ${new Date().toLocaleString('es-PE')}`]);
       worksheet.mergeCells('A2:J2');
-      dateRow.font = { name: 'Arial', size: 11, italic: true, color: { argb: 'FF333333' } };
+      dateRow.font = { name: 'Arial', size: 11, italic: true, color: { argb: 'FF101B33' } };
       dateRow.alignment = { vertical: 'middle', horizontal: 'right' };
       dateRow.height = 20;
 
@@ -465,7 +502,7 @@ export const generateExcel = async (pool, queryParams, res) => {
       ]);
 
       headerRow.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } }; // Verde esmeralda
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0E9F6E' } }; // Verde ERPHC
       headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
       headerRow.height = 25;
 
@@ -531,7 +568,7 @@ export const generateExcel = async (pool, queryParams, res) => {
       ];
 
       worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+      worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF101B33' } };
 
       inspecciones.forEach(insp => {
         worksheet.addRow({
@@ -557,6 +594,9 @@ export const generateExcel = async (pool, queryParams, res) => {
     res.end();
   } catch (error) {
     console.error('Error generando Excel', error);
-    res.status(500).send('Error interno');
+    if (res.headersSent) return res.end();
+    res.status(error.status || 500).json({
+      error: error.status === 400 ? error.message : 'Error interno generando el Excel'
+    });
   }
 };

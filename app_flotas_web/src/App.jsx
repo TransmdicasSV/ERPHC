@@ -1,39 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { FlotasDashboard } from './components/FlotasDashboard';
-import { ResumenDashboard } from './components/ResumenDashboard';
-import { EntregasTIDashboard } from './components/EntregasTIDashboard';
-import { MantenimientoTecnico } from './components/MantenimientoTecnico';
-import { SoporteTicketsDashboard } from './components/SoporteTicketsDashboard';
-import { PublicPortal } from './components/PublicPortal';
-import { Login } from './components/Login';
-import { MaestroFlotaDashboard } from './components/MaestroFlotaDashboard';
-import { DirectorioPersonal } from './components/DirectorioPersonal';
-import { ReportesDashboard } from './components/ReportesDashboard';
-import { GestionUsuariosDashboard } from './components/GestionUsuariosDashboard';
-import { Toaster } from 'react-hot-toast';
-import './index.css';
+import React, { useState, useEffect } from "react";
+import { FlotasDashboard } from "./components/FlotasDashboard";
+import { ResumenDashboard } from "./components/ResumenDashboard";
+import { EntregasTIDashboard } from "./components/EntregasTIDashboard";
+import { MantenimientoTecnico } from "./components/MantenimientoTecnico";
+import { SoporteTicketsDashboard } from "./components/SoporteTicketsDashboard";
+import { PublicPortal } from "./components/PublicPortal";
+import { Login } from "./components/Login";
+import { MaestroFlotaDashboard } from "./components/MaestroFlotaDashboard";
+import { DirectorioPersonal } from "./components/DirectorioPersonal";
+import { ReportesDashboard } from "./components/ReportesDashboard";
+import { GestionUsuariosDashboard } from "./components/GestionUsuariosDashboard";
+import { Toaster } from "react-hot-toast";
+import "./index.css";
+import transmdicasLogo from "./assets/transmdicas-logo.png";
+
+const APP_ICONS = {
+  dashboard: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="2" />
+      <rect x="14" y="3" width="7" height="7" rx="2" />
+      <rect x="3" y="14" width="7" height="7" rx="2" />
+      <rect x="14" y="14" width="7" height="7" rx="2" />
+    </>
+  ),
+  masters: (
+    <>
+      <path d="M4 7h16" />
+      <path d="M6 3h12l2 4v13H4V7z" />
+      <path d="M9 11h6" />
+    </>
+  ),
+  truck: (
+    <>
+      <path d="M3 6h11v10H3z" />
+      <path d="M14 9h4l3 3v4h-7z" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </>
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
+  clipboard: (
+    <>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4V2h6v2" />
+      <path d="m9 13 2 2 4-5" />
+    </>
+  ),
+  support: (
+    <>
+      <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+      <path d="M4 14h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 1-2z" />
+      <path d="M20 14h-3v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-1-2z" />
+    </>
+  ),
+  ticket: (
+    <>
+      <path d="M3 7a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-4z" />
+      <path d="M13 5v14" />
+    </>
+  ),
+  inventory: (
+    <>
+      <path d="m12 3 8 4-8 4-8-4z" />
+      <path d="m4 7 8 4 8-4v10l-8 4-8-4z" />
+      <path d="M12 11v10" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M5 20h14" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 4v12" />
+      <path d="m7 11 5 5 5-5" />
+      <path d="M5 20h14" />
+    </>
+  ),
+  wrench: (
+    <>
+      <path d="M14.7 6.3a4 4 0 0 0-5-5l2.1 2.1-2.4 2.4-2.1-2.1a4 4 0 0 0 5 5L4 17l3 3 7.7-8.3a4 4 0 0 0 0-5.4z" />
+    </>
+  ),
+  chart: (
+    <>
+      <path d="M4 20V10" />
+      <path d="M10 20V4" />
+      <path d="M16 20v-7" />
+      <path d="M22 20H2" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 3 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z" />
+      <path d="m9 12 2 2 4-5" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </>
+  ),
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </>
+  ),
+  moon: <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5z" />,
+  logout: (
+    <>
+      <path d="M10 4H5v16h5" />
+      <path d="M14 8l4 4-4 4" />
+      <path d="M8 12h10" />
+    </>
+  ),
+  close: (
+    <>
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </>
+  ),
+  chevron: <path d="m8 10 4 4 4-4" />,
+};
+
+function AppIcon({ name, size = 18 }) {
+  return (
+    <svg
+      className="app-icon"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {APP_ICONS[name]}
+    </svg>
+  );
+}
 
 function App() {
-  const [viewMode, setViewMode] = useState('public'); // 'public', 'login', 'admin'
-  const [activeTab, setActiveTabState] = useState('resumen');
+  const [viewMode, setViewMode] = useState("login"); // 'public', 'login', 'admin'
+  const [activeTab, setActiveTabState] = useState("resumen");
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  const [isTiOpen, setIsTiOpen] = useState(true);
+  const [isSeguridadOpen, setIsSeguridadOpen] = useState(false);
   const [isSoporteOpen, setIsSoporteOpen] = useState(false);
   const [isInventarioOpen, setIsInventarioOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState(null); // Para menú colapsable de maestros
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('jdcali_theme');
-    return saved === 'dark';
+    const saved = localStorage.getItem("jdcali_theme");
+    return saved === "dark";
   });
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('nexus_user');
+    const saved = localStorage.getItem("nexus_user");
     return saved ? JSON.parse(saved) : null;
   });
 
   useEffect(() => {
     if (user) {
-      setViewMode('admin');
+      setViewMode("admin");
     }
     // Pantalla de carga artificial de 1.5s
     const timer = setTimeout(() => setIsAppLoading(false), 1500);
@@ -42,360 +184,434 @@ function App() {
 
   useEffect(() => {
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('jdcali_theme', 'dark');
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("jdcali_theme", "dark");
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('jdcali_theme', 'light');
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("jdcali_theme", "light");
     }
   }, [isDarkMode]);
 
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
-    localStorage.setItem('jdcali_tab', tab);
+    localStorage.setItem("jdcali_tab", tab);
     setIsSidebarOpen(false); // Cierra en móviles al navegar
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('nexus_token');
-    localStorage.removeItem('nexus_user');
+    localStorage.removeItem("nexus_token");
+    localStorage.removeItem("nexus_user");
     setUser(null);
-    setViewMode('public');
+    setViewMode("login");
   };
 
-  const isAdmin = user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador';
+  const isAdmin =
+    user?.rol?.toLowerCase() === "admin" ||
+    user?.rol?.toLowerCase() === "administrador";
   const hasAccess = (modulo) => {
     if (isAdmin) return true;
     return user?.permisos?.[modulo]?.ver === true;
   };
 
+  const tiModules = [
+    "resumen",
+    "flota",
+    "personal",
+    "dashboard",
+    "tickets",
+    "entregas",
+    "devoluciones",
+    "mantenimiento",
+  ];
+  const hasAnyTiAccess = tiModules.some(hasAccess);
+  const isTiActive = [
+    "resumen",
+    "maestro",
+    "personal",
+    "dashboard",
+    "tickets",
+    "entregas",
+    "devoluciones",
+    "mantenimiento",
+  ].includes(activeTab);
+
   if (isAppLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0f172a', color: 'white', alignItems: 'center', justifyContent: 'center' }}>
-        <style>
-          {`
-            @keyframes pulse-ring {
-              0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-              70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-              100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-            }
-          `}
-        </style>
-        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse-ring 1.5s infinite cubic-bezier(0.66, 0, 0, 1)' }}>
-          <span style={{ fontSize: '2.5rem' }}>👑</span>
+      <div className="erp-loading-screen">
+        <div className="erp-loading-brand">
+          <span className="erp-logo-crop"><img src={transmdicasLogo} alt="Transmdicas S.R.L." /></span>
+          <div>
+            <strong>ERPHSE</strong>
+            <span>Grupo Transmdicas</span>
+          </div>
         </div>
-        <h2 style={{ margin: '1.5rem 0 0.5rem 0', fontWeight: 'bold', letterSpacing: '2px', background: 'linear-gradient(90deg, #3B82F6, #10B981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          JDCALI OMNI O.S.
-        </h2>
-        <p style={{ color: '#9CA3AF', fontSize: '0.95rem', margin: 0, letterSpacing: '1px' }}>Iniciando sistema central...</p>
+        <div className="erp-loading-bar">
+          <span />
+        </div>
+        <p>Preparando el sistema…</p>
       </div>
     );
   }
 
-  if (!user && viewMode === 'public') {
+  if (!user && viewMode === "public") {
     return (
       <>
         <Toaster position="bottom-right" />
-        <PublicPortal onAdminClick={() => setViewMode('login')} />
+        <PublicPortal
+          onAdminClick={() => setViewMode("login")}
+          openSupportOnLoad
+        />
       </>
     );
   }
 
-  if (!user && viewMode === 'login') {
+  if (!user && viewMode === "login") {
     return (
       <>
         <Toaster position="bottom-right" />
-        <Login onLoginSuccess={(u) => {
-          setUser(u);
-          setViewMode('admin');
-          setActiveTab('resumen');
-        }} />
+        <Login
+          onPublicClick={() => setViewMode("public")}
+          onLoginSuccess={(u) => {
+            setUser(u);
+            setViewMode("admin");
+            setActiveTab("resumen");
+          }}
+        />
       </>
     );
   }
+
+  const moduleTitles = {
+    resumen: "Resumen operativo",
+    maestro: "Maestro de flota",
+    personal: "Directorio de personal",
+    dashboard: "Registro de inspecciones",
+    entregas: "Entregas TI",
+    devoluciones: "Devoluciones TI",
+    tickets: "Tickets de soporte",
+    mantenimiento: "Mantenimiento técnico",
+    reportes: "Reportes gerenciales",
+    usuarios: "Usuarios y permisos",
+  };
+
+  const NavItem = ({ tab, icon, label, nested = false }) => (
+    <button
+      type="button"
+      className={`erp-nav-item ${nested ? "erp-nav-subitem" : ""} ${activeTab === tab ? "active" : ""}`}
+      onClick={() => setActiveTab(tab)}
+      title={isDesktopCollapsed ? label : undefined}
+    >
+      <AppIcon name={icon} />
+      {!isDesktopCollapsed && <span>{label}</span>}
+    </button>
+  );
+
+  const MenuToggle = ({ icon, label, open, onClick, active, nested = false }) => (
+    <button
+      type="button"
+      className={`erp-nav-item erp-nav-toggle ${nested ? "erp-nav-subitem" : ""} ${active ? "group-active" : ""}`}
+      onClick={onClick}
+      title={isDesktopCollapsed ? label : undefined}
+      aria-expanded={open}
+    >
+      <AppIcon name={icon} />
+      {!isDesktopCollapsed && (
+        <>
+          <span>{label}</span>
+          <span className={`erp-nav-chevron ${open ? "open" : ""}`}>
+            <AppIcon name="chevron" size={15} />
+          </span>
+        </>
+      )}
+    </button>
+  );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', position: 'relative' }}>
+    <div
+      className={`erp-app-shell ${isDesktopCollapsed ? "sidebar-collapsed" : ""}`}
+    >
       <Toaster position="bottom-right" />
 
-      {/* BOTÓN HAMBURGUESA (Solo visible en móviles) */}
-      <button className="hamburger-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        <span style={{ fontWeight: 'bold' }}>JDCALI OMNI O.S. 👑</span>
-        <span>{isSidebarOpen ? '✖' : '☰'}</span>
+      <button
+        className="hamburger-btn"
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        aria-label={isSidebarOpen ? "Cerrar menú" : "Abrir menú"}
+      >
+        <span className="erp-mobile-brand">
+          <span className="erp-mobile-logo"><img src={transmdicasLogo} alt="Transmdicas S.R.L." /></span> ERPHSE
+        </span>
+        <AppIcon name={isSidebarOpen ? "close" : "menu"} size={22} />
       </button>
 
-      {/* OVERLAY FONDO OSCURO EN MÓVIL AL ABRIR MENÚ */}
       {isSidebarOpen && (
-        <div
+        <button
+          className="erp-mobile-overlay"
           onClick={() => setIsSidebarOpen(false)}
-          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 998 }}
+          aria-label="Cerrar menú"
         />
       )}
 
-      {/* SIDEBAR CORPORATIVO */}
-      <aside className={`sidebar-container ${isSidebarOpen ? 'open' : ''} ${isDesktopCollapsed ? 'collapsed' : ''}`} style={{ width: isDesktopCollapsed ? '70px' : '260px', transition: 'width 0.3s ease', overflowX: 'hidden' }}>
-
-        {/* CABECERA SIDEBAR */}
-        <div style={{ padding: isDesktopCollapsed ? '1.25rem 0' : '1.25rem 1rem', borderBottom: '1px solid #1F2937', display: 'flex', flexDirection: isDesktopCollapsed ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: isDesktopCollapsed ? '1rem' : '0', transition: 'padding 0.3s' }}>
-          {!isDesktopCollapsed ? (
-            <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column' }}>
-              <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#60A5FA', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>JDCALI OMNI O.S.</h1>
-              <p style={{ fontSize: '0.7rem', color: '#9CA3AF', margin: 0 }}>by J. Alanguia</p>
+      <aside
+        className={`sidebar-container ${isSidebarOpen ? "open" : ""} ${isDesktopCollapsed ? "collapsed" : ""}`}
+      >
+        <div className="erp-sidebar-header">
+          <div className="erp-logo-crop"><img src={transmdicasLogo} alt="Transmdicas S.R.L." /></div>
+          {!isDesktopCollapsed && (
+            <div className="erp-brand-copy">
+              <strong>ERPHSE</strong>
+              <span>Grupo Transmdicas</span>
             </div>
-          ) : (
-            <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#60A5FA', margin: 0, textAlign: 'center' }}>JDC<br />👑</h1>
           )}
           <button
+            type="button"
             onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
-            className="no-print"
-            style={{ background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.25rem', borderRadius: '0.25rem' }}
+            className="erp-collapse-button no-print"
             title={isDesktopCollapsed ? "Expandir menú" : "Colapsar menú"}
           >
-            <span style={{ fontSize: '1.4rem' }}>☰</span>
+            <AppIcon name="menu" size={19} />
           </button>
         </div>
 
-        <nav style={{ flex: 1, padding: '1rem 0' }}>
-          {hasAccess('resumen') && (
-            <button
-              onClick={() => setActiveTab('resumen')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'flex-start', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: activeTab === 'resumen' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'resumen' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-              <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>📊</span>
-              {!isDesktopCollapsed && <span>Centro de Control</span>}
-            </button>
-          )}
-
-          {(hasAccess('flota') || hasAccess('personal')) && (
-            <>
-              <div
-                onClick={() => setActiveMenu(activeMenu === 'maestros' ? null : 'maestros')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: isDesktopCollapsed ? 'center' : 'space-between',
-                  padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem',
-                  cursor: 'pointer',
-                  backgroundColor: activeMenu === 'maestros' ? '#1f2937' : 'transparent',
-                  color: activeMenu === 'maestros' ? 'white' : '#9ca3af',
-                  fontSize: '0.875rem',
-                  fontWeight: '600'
+        <nav className="erp-sidebar-nav">
+          {!isDesktopCollapsed && <p className="erp-nav-section">Principal</p>}
+          {hasAnyTiAccess && (
+            <div className="erp-nav-group erp-area-group">
+              <MenuToggle
+                icon="inventory"
+                label="TI"
+                open={isTiOpen}
+                active={isTiActive}
+                onClick={() => {
+                  if (isDesktopCollapsed) setIsDesktopCollapsed(false);
+                  setIsTiOpen(!isTiOpen);
                 }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>📦</span>
-                  {!isDesktopCollapsed && <span>Maestros Generales</span>}
-                </div>
-                {!isDesktopCollapsed && (
-                  <span style={{ transform: activeMenu === 'maestros' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-                )}
-              </div>
+              />
 
-              {activeMenu === 'maestros' && !isDesktopCollapsed && (
-                <div style={{ backgroundColor: '#111827' }}>
-
-                  {hasAccess('flota') && (
-                    <button
-                      onClick={() => setActiveTab('maestro')}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0.75rem 1rem 0.75rem 3rem',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: activeTab === 'maestro' ? 'white' : '#9ca3af',
-                        backgroundColor: activeTab === 'maestro' ? '#374151' : 'transparent',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      <span style={{ fontSize: '1rem', marginRight: '0.5rem' }}>🚚</span>
-                      <span>Flota</span>
-                    </button>
+              {isTiOpen && !isDesktopCollapsed && (
+                <div className="erp-nav-submenu erp-area-submenu">
+                  {hasAccess("resumen") && (
+                    <NavItem tab="resumen" icon="dashboard" label="Centro de Control" nested />
                   )}
 
-                  {hasAccess('personal') && (
-                    <button
-                      onClick={() => setActiveTab('personal')}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0.75rem 1rem 0.75rem 3rem',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: activeTab === 'personal' ? 'white' : '#9ca3af',
-                        backgroundColor: activeTab === 'personal' ? '#374151' : 'transparent',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      <span style={{ fontSize: '1rem', marginRight: '0.5rem' }}>👤</span>
-                      <span>Personal</span>
-                    </button>
+                  {(hasAccess("flota") || hasAccess("personal")) && (
+                    <div className="erp-nav-group">
+                      <MenuToggle
+                        icon="masters"
+                        label="Maestros Generales"
+                        open={activeMenu === "maestros"}
+                        active={["maestro", "personal"].includes(activeTab)}
+                        nested
+                        onClick={() =>
+                          setActiveMenu(activeMenu === "maestros" ? null : "maestros")
+                        }
+                      />
+                      {activeMenu === "maestros" && (
+                        <div className="erp-nav-submenu erp-nav-submenu-level-2">
+                          {hasAccess("flota") && (
+                            <NavItem tab="maestro" icon="truck" label="Flota" nested />
+                          )}
+                          {hasAccess("personal") && (
+                            <NavItem tab="personal" icon="user" label="Personal" nested />
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                </div>
-              )}
-            </>
-          )}
+                  {hasAccess("dashboard") && (
+                    <NavItem tab="dashboard" icon="clipboard" label="Registro de Inspecciones" nested />
+                  )}
 
-          {hasAccess('dashboard') && (
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'flex-start', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: activeTab === 'dashboard' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'dashboard' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-              <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>📋</span>
-              {!isDesktopCollapsed && <span>Registro de Inspecciones</span>}
-            </button>
-          )}
+                  {hasAccess("tickets") && (
+                    <div className="erp-nav-group">
+                      <MenuToggle
+                        icon="support"
+                        label="Soporte TI"
+                        open={isSoporteOpen}
+                        active={activeTab === "tickets"}
+                        nested
+                        onClick={() => setIsSoporteOpen(!isSoporteOpen)}
+                      />
+                      {isSoporteOpen && (
+                        <div className="erp-nav-submenu erp-nav-submenu-level-2">
+                          <NavItem tab="tickets" icon="ticket" label="Tickets de Soporte" nested />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
+                  {(hasAccess("entregas") || hasAccess("devoluciones")) && (
+                    <div className="erp-nav-group">
+                      <MenuToggle
+                        icon="inventory"
+                        label="Inventario TI"
+                        open={isInventarioOpen}
+                        active={["entregas", "devoluciones"].includes(activeTab)}
+                        nested
+                        onClick={() => setIsInventarioOpen(!isInventarioOpen)}
+                      />
+                      {isInventarioOpen && (
+                        <div className="erp-nav-submenu erp-nav-submenu-level-2">
+                          {hasAccess("entregas") && (
+                            <NavItem tab="entregas" icon="upload" label="Entregas" nested />
+                          )}
+                          {hasAccess("devoluciones") && (
+                            <NavItem tab="devoluciones" icon="download" label="Devoluciones" nested />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-
-          {/* MENU DESPLEGABLE: SOPORTE TI */}
-          {(hasAccess('tickets') || hasAccess('entregas') || hasAccess('devoluciones') || hasAccess('mantenimiento')) && (
-            <div style={{ margin: '0.5rem 0' }}>
-              <button
-                onClick={() => setIsSoporteOpen(!isSoporteOpen)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'space-between', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>🎧</span>
-                  {!isDesktopCollapsed && <span>Soporte TI</span>}
-                </div>
-                {!isDesktopCollapsed && <span>{isSoporteOpen ? '▲' : '▼'}</span>}
-              </button>
-
-              {!isDesktopCollapsed && isSoporteOpen && (
-                <div style={{ backgroundColor: '#111827', padding: '0.5rem 0' }}>
-                  {hasAccess('tickets') && (
-                    <button
-                      onClick={() => setActiveTab('tickets')}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '0.75rem 1.5rem 0.75rem 2.5rem', background: activeTab === 'tickets' ? '#374151' : 'transparent', border: 'none', color: activeTab === 'tickets' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}>
-                      <span style={{ fontSize: '1rem', marginRight: '0.5rem' }}>🎫</span>
-                      <span>Tickets de Soporte</span>
-                    </button>
+                  {hasAccess("mantenimiento") && (
+                    <NavItem tab="mantenimiento" icon="wrench" label="Mantenimiento Técnico" nested />
                   )}
                 </div>
               )}
             </div>
           )}
 
-          {/* MENU DESPLEGABLE: INVENTARIO TI */}
-          {(hasAccess('entregas') || hasAccess('devoluciones')) && (
-            <div style={{ margin: '0.5rem 0' }}>
-              <button
-                onClick={() => setIsInventarioOpen(!isInventarioOpen)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'space-between', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>📦</span>
-                  {!isDesktopCollapsed && <span>Inventario TI</span>}
-                </div>
-                {!isDesktopCollapsed && <span>{isInventarioOpen ? '▲' : '▼'}</span>}
-              </button>
-
-              {!isDesktopCollapsed && isInventarioOpen && (
-                <div style={{ backgroundColor: '#111827', padding: '0.5rem 0' }}>
-                  {hasAccess('entregas') && (
-                    <button
-                      onClick={() => setActiveTab('entregas')}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '0.75rem 1.5rem 0.75rem 2.5rem', background: activeTab === 'entregas' ? '#374151' : 'transparent', border: 'none', color: activeTab === 'entregas' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}>
-                      <span style={{ fontSize: '1rem', marginRight: '0.5rem' }}>📤</span>
-                      <span>Entregas</span>
-                    </button>
-                  )}
-                  {hasAccess('devoluciones') && (
-                    <button
-                      onClick={() => setActiveTab('devoluciones')}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '0.75rem 1.5rem 0.75rem 2.5rem', background: activeTab === 'devoluciones' ? '#374151' : 'transparent', border: 'none', color: activeTab === 'devoluciones' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500' }}>
-                      <span style={{ fontSize: '1rem', marginRight: '0.5rem' }}>📥</span>
-                      <span>Devoluciones</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {hasAccess('mantenimiento') && (
-            <button
-              onClick={() => setActiveTab('mantenimiento')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'flex-start', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: activeTab === 'mantenimiento' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'mantenimiento' ? 'white' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-              <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>🛠️</span>
-              {!isDesktopCollapsed && <span>Mantenimiento Técnico</span>}
-            </button>
-          )}
-
-          {hasAccess('reportes') && (
-            <button
-              onClick={() => setActiveTab('reportes')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'flex-start', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: activeTab === 'reportes' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'reportes' ? '#60A5FA' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
-              <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>📈</span>
-              {!isDesktopCollapsed && <span>Reportes Gerenciales</span>}
-            </button>
-          )}
-
-          {/* NUEVO MODULO: GESTION DE USUARIOS */}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('usuarios')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isDesktopCollapsed ? 'center' : 'flex-start', padding: isDesktopCollapsed ? '1rem 0' : '1rem 1.5rem', background: activeTab === 'usuarios' ? '#1F2937' : 'transparent', border: 'none', color: activeTab === 'usuarios' ? '#FBBF24' : '#9CA3AF', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', marginTop: '1rem', borderTop: '1px solid #1F2937' }}>
-              <span style={{ fontSize: '1.2rem', marginRight: isDesktopCollapsed ? '0' : '0.5rem' }}>🔐</span>
-              {!isDesktopCollapsed && <span>Gestión de Usuarios</span>}
-            </button>
-          )}
-
-        </nav>
-
-      </aside>
-
-      {/* ÁREA DERECHA: NAVBAR + CONTENIDO */}
-      <div className="main-area-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-
-        {/* TOP NAVBAR (Gestión de Perfil y Preferencias) */}
-        <header style={{ height: '64px', backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 2rem', gap: '1.5rem', flexShrink: 0, boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 10 }}>
-
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title="Alternar Tema"
-            style={{ background: '#374151', border: 'none', borderRadius: '50%', width: '36px', height: '36px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            {isDarkMode ? '🌙' : '☀️'}
-          </button>
-
-          <div style={{ height: '30px', width: '1px', backgroundColor: 'var(--border-color)' }}></div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 'bold', textTransform: 'capitalize', color: 'var(--text-primary)' }}>{user.username}</span>
-              <span style={{ fontSize: '0.75rem', color: '#10B981', textTransform: 'uppercase', fontWeight: '600' }}>{user.rol}</span>
-            </div>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', boxShadow: '0 2px 5px rgba(79, 70, 229, 0.4)' }}>
-              {user.username.charAt(0).toUpperCase()}
-            </div>
+          <div className="erp-nav-group erp-area-group erp-security-group">
+            <MenuToggle
+              icon="shield"
+              label="Seguridad"
+              open={isSeguridadOpen}
+              active={false}
+              onClick={() => {
+                if (isDesktopCollapsed) setIsDesktopCollapsed(false);
+                setIsSeguridadOpen(!isSeguridadOpen);
+              }}
+            />
+            {isSeguridadOpen && !isDesktopCollapsed && (
+              <div className="erp-security-empty">Sin módulos registrados</div>
+            )}
           </div>
 
-          <button
-            onClick={handleLogout}
-            title="Cerrar Sesión"
-            style={{ background: 'transparent', border: '1px solid #EF4444', color: '#EF4444', fontSize: '0.875rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#EF4444'; e.currentTarget.style.color = 'white'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#EF4444'; }}
-          >
-            <span>🚪</span> Salir
-          </button>
+          {!isDesktopCollapsed && (
+            <p className="erp-nav-section erp-nav-section-spaced">Gestión</p>
+          )}
+          {hasAccess("reportes") && (
+            <NavItem tab="reportes" icon="chart" label="Reportes Gerenciales" />
+          )}
+          {isAdmin && (
+            <NavItem tab="usuarios" icon="shield" label="Gestión de Usuarios" />
+          )}
+        </nav>
+
+        {!isDesktopCollapsed && (
+          <div className="erp-sidebar-footer">
+            <span className="erp-online-dot" /> Sistema en línea
+          </div>
+        )}
+      </aside>
+
+      <div className="main-area-wrapper">
+        <header className="erp-topbar">
+          <div className="erp-breadcrumb">
+            <span>ERP Transmdicas</span>
+            <AppIcon name="chevron" size={14} />
+            <strong>{moduleTitles[activeTab]}</strong>
+          </div>
+          <div className="erp-topbar-actions">
+            <button
+              type="button"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="erp-icon-button"
+              title={
+                isDarkMode ? "Cambiar a tema claro" : "Cambiar a tema oscuro"
+              }
+            >
+              <AppIcon name={isDarkMode ? "sun" : "moon"} size={18} />
+            </button>
+            <div className="erp-user-info">
+              <div>
+                <strong>{user.username}</strong>
+                <span>{user.rol}</span>
+              </div>
+              <div className="erp-user-avatar">
+                {user.username.charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="erp-logout-button"
+              title="Cerrar sesión"
+            >
+              <AppIcon name="logout" size={17} />
+              <span>Salir</span>
+            </button>
+          </div>
         </header>
 
-        {/* CONTENIDO PRINCIPAL */}
-        <main className="main-content-admin" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-color)', margin: 0 }}>
-          {activeTab === 'resumen' && hasAccess('resumen') && <ResumenDashboard permisos={isAdmin ? { editar: true } : user?.permisos?.resumen} />}
-          {activeTab === 'maestro' && hasAccess('flota') && (<MaestroFlotaDashboard permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.flota} />)}
-          {activeTab === 'personal' && hasAccess('personal') && (<DirectorioPersonal permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.personal} />)}
-          {activeTab === 'dashboard' && hasAccess('dashboard') && <FlotasDashboard permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard} />}
-          {activeTab === 'entregas' && hasAccess('entregas') && <EntregasTIDashboard vista="Entrega" permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.entregas} usuario={user} />}
-          {activeTab === 'devoluciones' && hasAccess('devoluciones') && <EntregasTIDashboard vista="Devolución" permisos={isAdmin ? { ver: true, editar: true } : user?.permisos?.devoluciones} usuario={user} />}
-          {activeTab === 'tickets' && hasAccess('tickets') && <SoporteTicketsDashboard permisos={isAdmin ? { ver: true, editar: true, crear: true, gestionar: true } : user?.permisos?.tickets} usuario={user} />}
-          {activeTab === 'mantenimiento' && hasAccess('mantenimiento') && <MantenimientoTecnico permisos={isAdmin ? { editar: true } : user?.permisos?.mantenimiento} />}
-          {activeTab === 'reportes' && hasAccess('reportes') && <ReportesDashboard permisos={isAdmin ? { editar: true } : user?.permisos?.reportes} />}
-          {activeTab === 'usuarios' && isAdmin && <GestionUsuariosDashboard />}
+        <main className="main-content-admin">
+          {activeTab === "resumen" && hasAccess("resumen") && (
+            <ResumenDashboard
+              permisos={isAdmin ? { editar: true } : user?.permisos?.resumen}
+            />
+          )}
+          {activeTab === "maestro" && hasAccess("flota") && (
+            <MaestroFlotaDashboard
+              permisos={
+                isAdmin ? { ver: true, editar: true } : user?.permisos?.flota
+              }
+            />
+          )}
+          {activeTab === "personal" && hasAccess("personal") && (
+            <DirectorioPersonal
+              permisos={
+                isAdmin ? { ver: true, editar: true } : user?.permisos?.personal
+              }
+            />
+          )}
+          {activeTab === "dashboard" && hasAccess("dashboard") && (
+            <FlotasDashboard
+              permisos={isAdmin ? { editar: true } : user?.permisos?.dashboard}
+            />
+          )}
+          {activeTab === "entregas" && hasAccess("entregas") && (
+            <EntregasTIDashboard
+              vista="Entrega"
+              permisos={
+                isAdmin ? { ver: true, editar: true } : user?.permisos?.entregas
+              }
+              usuario={user}
+            />
+          )}
+          {activeTab === "devoluciones" && hasAccess("devoluciones") && (
+            <EntregasTIDashboard
+              vista="Devolución"
+              permisos={
+                isAdmin
+                  ? { ver: true, editar: true }
+                  : user?.permisos?.devoluciones
+              }
+              usuario={user}
+            />
+          )}
+          {activeTab === "tickets" && hasAccess("tickets") && (
+            <SoporteTicketsDashboard
+              permisos={
+                isAdmin
+                  ? { ver: true, editar: true, crear: true, gestionar: true }
+                  : user?.permisos?.tickets
+              }
+              usuario={user}
+            />
+          )}
+          {activeTab === "mantenimiento" && hasAccess("mantenimiento") && (
+            <MantenimientoTecnico
+              permisos={
+                isAdmin ? { editar: true } : user?.permisos?.mantenimiento
+              }
+            />
+          )}
+          {activeTab === "reportes" && hasAccess("reportes") && (
+            <ReportesDashboard
+              permisos={isAdmin ? { editar: true } : user?.permisos?.reportes}
+            />
+          )}
+          {activeTab === "usuarios" && isAdmin && <GestionUsuariosDashboard />}
         </main>
       </div>
     </div>

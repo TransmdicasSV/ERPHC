@@ -34,11 +34,11 @@ export function MaestroFlotaDashboard({ permisos }) {
 
 
   return (
-    <div style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
+    <div className="erp-module-page erp-fleet-page" style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '2rem' }}>👑</span> Maestro de Flotas
+            Maestro de Flotas
           </h1>
           <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
             Base de datos maestra estática de Tractos.
@@ -54,8 +54,8 @@ export function MaestroFlotaDashboard({ permisos }) {
             padding: '1rem 2rem',
             background: 'none',
             border: 'none',
-            borderBottom: '2px solid #3b82f6',
-            color: '#3b82f6',
+            borderBottom: '2px solid #2458e8',
+            color: '#2458e8',
             fontSize: '1rem',
             fontWeight: 'bold',
             cursor: 'pointer',
@@ -115,14 +115,14 @@ export function MaestroFlotaDashboard({ permisos }) {
                       <td style={{ padding: '1rem', textAlign: 'center' }}>
                         {(!permisos || permisos.editar !== false) && (
                           <>
-                            <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'tracto', data: t }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                            <button onClick={(e) => { e.stopPropagation(); setEditItem({ type: 'tracto', data: t }); setIsEditModalOpen(true); }} style={{ background: 'none', border: 'none', color: '#2458e8', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
                             <button onClick={async (e) => {
                               e.stopPropagation();
                               if (window.confirm(`¿Seguro que deseas eliminar el tracto ${t.placa}?`)) {
                                 try { await api.deleteVehiculo(t.placa); loadData(); }
                                 catch (err) { alert(err.message); }
                               }
-                            }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                            }} style={{ background: 'none', border: 'none', color: '#dc3b2a', cursor: 'pointer' }}>🗑️</button>
                           </>
                         )}
                       </td>
@@ -150,14 +150,14 @@ export function MaestroFlotaDashboard({ permisos }) {
                   <button
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(prev => prev - 1)}
-                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#9ca3af' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
                   >
                     Anterior
                   </button>
                   <button
                     disabled={currentPage >= totalPages}
                     onClick={() => setCurrentPage(prev => prev + 1)}
-                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                    style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#9ca3af' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
                   >
                     Siguiente
                   </button>
@@ -170,7 +170,7 @@ export function MaestroFlotaDashboard({ permisos }) {
 
       {/* Modal Lateral (Drawer) de Detalles */}
       {selectedItem && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '450px', maxWidth: '100vw', backgroundColor: 'var(--card-bg)', borderLeft: '1px solid var(--border-color)', boxShadow: '-10px 0 25px rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', flexDirection: 'column', animation: 'slideIn 0.3s ease-out' }}>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '450px', maxWidth: '100vw', backgroundColor: 'var(--card-bg)', borderLeft: '1px solid var(--border-color)', boxShadow: '-16px 0 40px rgba(16,27,51,0.16)', zIndex: 100, display: 'flex', flexDirection: 'column', animation: 'slideIn 0.3s ease-out' }}>
           <style>
             {`
               @keyframes slideIn {
@@ -193,8 +193,8 @@ export function MaestroFlotaDashboard({ permisos }) {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
-            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(59, 130, 246, 0.2)', marginBottom: '2rem', textAlign: 'center' }}>
-              <h1 style={{ fontSize: '2.5rem', margin: 0, color: '#60a5fa' }}>
+            <div style={{ backgroundColor: 'var(--blue-bg)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(36,88,232,0.18)', marginBottom: '2rem', textAlign: 'center' }}>
+              <h1 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--accent-color)' }}>
                 {selectedItem.data.placa}
               </h1>
               <p style={{ color: '#9ca3af', margin: '0.5rem 0 0' }}>
@@ -259,7 +259,7 @@ function EditModal({ item, onClose, onSaved }) {
 
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
       <div style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '700px', maxHeight: '90vh', borderRadius: '1rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Editar Tracto - {formData.placa}</h2>
@@ -284,7 +284,7 @@ function EditModal({ item, onClose, onSaved }) {
         </div>
         <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
           <button onClick={onClose} type="button" style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancelar</button>
-          <button form="edit-form" type="submit" disabled={saving} style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
+          <button form="edit-form" type="submit" disabled={saving} style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#2458e8', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>

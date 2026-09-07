@@ -251,21 +251,21 @@ export function GestionUsuariosDashboard() {
   };
 
   return (
-    <div style={{ color: 'white', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="erp-module-page erp-users-page" style={{ color: 'var(--text-primary)', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>🔐 Gestión de Usuarios (RBAC)</h1>
+        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Gestión de Usuarios (RBAC)</h1>
         <button
           onClick={() => handleOpenModal()}
-          style={{ background: '#4F46E5', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}
+          style={{ background: '#2458e8', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}
         >
           + Crear Usuario
         </button>
       </div>
 
-      <div style={{ background: 'var(--card-bg)', borderRadius: '1rem', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+      <div style={{ background: 'var(--card-bg)', borderRadius: '1rem', overflow: 'hidden', boxShadow: '0 1px 3px rgba(16,27,51,0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--border-color)' }}>
+            <tr style={{ background: 'var(--th-bg)', borderBottom: '1px solid var(--border-color)' }}>
               <th style={{ padding: '1rem', textAlign: 'left' }}>DNI / Username</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Rol Base</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Módulos Asignados</th>
@@ -295,21 +295,21 @@ export function GestionUsuariosDashboard() {
                         fontWeight: 'bold',
                         backgroundColor:
                           u.rol === 'admin'
-                            ? '#DC2626'
+                            ? '#101b33'
                             : u.rol === 'supervisor'
-                              ? '#8B5CF6'
-                              : '#10B981'
+                              ? '#6d5cd1'
+                              : '#0e9384'
                       }}>
                         {u.rol}
                       </span>
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>{activeModules} módulos</td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <span style={{ color: u.estado === 'activo' ? '#10B981' : '#EF4444' }}>●</span> {u.estado}
+                      <span style={{ color: u.estado === 'activo' ? '#0e9f6e' : '#dc3b2a' }}>●</span> {u.estado}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid #374151', color: '#9CA3AF', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
-                      <button onClick={() => handleDelete(u.id)} style={{ background: 'transparent', border: '1px solid #EF4444', color: '#EF4444', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer' }}>🗑️</button>
+                      <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
+                      <button onClick={() => handleDelete(u.id)} style={{ background: 'transparent', border: '1px solid #dc3b2a', color: '#dc3b2a', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer' }}>🗑️</button>
                     </td>
                   </tr>
                 )
@@ -334,14 +334,14 @@ export function GestionUsuariosDashboard() {
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => prev - 1)}
-                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#6B7280' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage === 1 ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage === 1 ? '#9ca3af' : 'var(--text-primary)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
               >
                 Anterior
               </button>
               <button
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage(prev => prev + 1)}
-                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#6B7280' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', backgroundColor: currentPage >= totalPages ? 'var(--bg-color)' : 'var(--bg-secondary)', color: currentPage >= totalPages ? '#9ca3af' : 'var(--text-primary)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
               >
                 Siguiente
               </button>
@@ -351,12 +351,12 @@ export function GestionUsuariosDashboard() {
       })()}
 
       {modalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-          <div style={{ background: 'var(--card-bg)', borderRadius: '1rem', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(16,27,51,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
+          <div style={{ background: 'var(--card-bg)', borderRadius: '1rem', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 50px -14px rgba(16,27,51,0.28)' }}>
 
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ margin: 0 }}>{editingId ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</h2>
-              <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+              <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
             </div>
 
             <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
@@ -367,7 +367,7 @@ export function GestionUsuariosDashboard() {
 
                   {!editingId && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Seleccionar trabajador administrativo</label>
+                      <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Seleccionar trabajador administrativo</label>
                       <input
                         type="text"
                         required
@@ -397,7 +397,7 @@ export function GestionUsuariosDashboard() {
                   )}
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Username (DNI)</label>
+                    <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Username (DNI)</label>
                     <input
                       type="text"
                       required
@@ -405,28 +405,28 @@ export function GestionUsuariosDashboard() {
                       readOnly
                       onChange={e => setFormData({ ...formData, username: e.target.value })}
                       disabled={!!editingId}
-                      style={{ padding: '0.75rem', borderRadius: '0.5rem', background: editingId ? '#111827' : '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
+                      style={{ padding: '0.75rem', borderRadius: '0.5rem', background: editingId ? '#eef0f5' : '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
                     />
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Contraseña {editingId && '(dejar en blanco para no cambiar)'}</label>
+                    <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Contraseña {editingId && '(dejar en blanco para no cambiar)'}</label>
                     <input
                       type="password"
                       required={!editingId}
                       value={formData.password}
                       onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
+                      style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
                     />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Rol Base (Plantilla)</label>
+                      <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Rol Base (Plantilla)</label>
                       <select
                         value={formData.rol}
                         onChange={handleRolChange}
-                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
+                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
                       >
                         <option value="admin">Administrador</option>
                         <option value="supervisor">Supervisor</option>
@@ -434,11 +434,11 @@ export function GestionUsuariosDashboard() {
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Estado</label>
+                      <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Estado</label>
                       <select
                         value={formData.estado}
                         onChange={e => setFormData({ ...formData, estado: e.target.value })}
-                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
+                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
                       >
                         <option value="activo">Activo</option>
                         <option value="inactivo">Inactivo</option>
@@ -447,19 +447,19 @@ export function GestionUsuariosDashboard() {
                   </div>
                   {formData.rol === 'supervisor' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Operación asignada</label>
+                      <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Operación asignada</label>
                       <select
                         required
                         value={formData.operacion}
                         onChange={e => setFormData({ ...formData, operacion: e.target.value })}
-                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#1F2937', color: 'white', border: '1px solid #374151', outline: 'none' }}
+                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
                       >
                         <option value="">-- Seleccionar Operación --</option>
                         {operaciones.map(operacion => (
                           <option key={operacion} value={operacion}>{operacion}</option>
                         ))}
                       </select>
-                      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>El supervisor solamente podrá consultar información perteneciente a esta operación.</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>El supervisor solamente podrá consultar información perteneciente a esta operación.</span>
                     </div>
                   )}
 
@@ -468,11 +468,11 @@ export function GestionUsuariosDashboard() {
               </form>
             </div>
 
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', background: 'rgba(0,0,0,0.1)' }}>
-              <button onClick={() => setModalOpen(false)} type="button" style={{ background: 'transparent', color: '#9CA3AF', border: '1px solid #374151', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
+            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '1rem', background: 'rgba(16,27,51,0.03)' }}>
+              <button onClick={() => setModalOpen(false)} type="button" style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
                 Cancelar
               </button>
-              <button form="user-form" type="submit" style={{ background: '#4F46E5', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
+              <button form="user-form" type="submit" style={{ background: '#2458e8', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
                 {editingId ? 'Guardar Cambios' : 'Crear Usuario'}
               </button>
             </div>
