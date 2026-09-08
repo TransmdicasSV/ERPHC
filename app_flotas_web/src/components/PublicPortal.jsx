@@ -15,7 +15,6 @@ const TICKET_CATEGORIES = {
     "Desinstalación / Retiro de equipos"
   ],
   "Sistemas de Terceros (Software/Sensores)": [
-    "Tracklog: Instalación/Actualización App Copiloto",
     "Mix Telematics: Soporte/Revisión ADAS"
   ],
   "Otros": ["Otro requerimiento técnico"]

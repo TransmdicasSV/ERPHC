@@ -204,12 +204,25 @@ export const api = {  // ==========================================
   const response = await fetchWithAuth(
     BASE_API_URL + '/api/incidentes/opciones'
   );
-
   if (!response.ok) {
     throw new Error('Error al cargar las opciones de tickets');
   }
-
   return response.json();
+},
+getOpcionesPulseras: async () => {
+  const response = await fetchWithAuth(
+    `${BASE_API_URL}/api/incidentes/pulseras/opciones`
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.error || 'Error al cargar las opciones de pulseras'
+    );
+  }
+
+  return data;
 },
   // === INCIDENTES ===
   getIncidentes: async () => {
@@ -218,17 +231,34 @@ export const api = {  // ==========================================
     return response.json();
   },
 
-  createIncidente: async (data) => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/incidentes_soporte`, {
+createIncidente: async (data, evidencias = []) => {
+  const payload = new FormData();
+
+  Object.entries(data).forEach(([campo, valor]) => {
+    if (valor !== null && valor !== undefined) {
+      payload.append(campo, String(valor));
+    }
+  });
+
+  evidencias.forEach(archivo => {
+    payload.append('evidencias', archivo);
+  });
+
+  const response = await fetchWithAuth(
+    `${BASE_URL}/api/incidentes_soporte`,
+    {
       method: 'POST',
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-  const detalle = await response.json().catch(() => ({}));
-  throw new Error(detalle.error || 'Error al crear el ticket');
-}
-    return response.json();
-  },
+      body: payload
+    }
+  );
+
+  if (!response.ok) {
+    const detalle = await response.json().catch(() => ({}));
+    throw new Error(detalle.error || 'Error al crear el ticket');
+  }
+
+  return response.json();
+},
 
   updateIncidente: async (id, data) => {
     const res = await fetchWithAuth(`${BASE_URL}/api/incidentes/${id}`, {

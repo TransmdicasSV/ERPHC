@@ -21,3 +21,8 @@ build/
 
 .vercel
 .env*
+# Respaldos y archivos con información interna
+backend/Personal_Importacion_Neon.csv
+backend/backup_dicas.sql
+backend/TEST_MASTER.xlsx
+backend/alertas_enviadas_hoy.json
