@@ -202,13 +202,13 @@ export function GestionUsuariosDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!editingId && !selectedPersonalId) {
-  alert('Seleccione un trabajador de las sugerencias');
-  return;
-}
+      alert('Seleccione un trabajador de las sugerencias');
+      return;
+    }
     const token = localStorage.getItem('nexus_token');
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId ? `${BASE_API_URL}/api/usuarios/${editingId}` : `${BASE_API_URL}/api/usuarios`;
-  
+
     try {
       const res = await fetch(url, {
         method,
@@ -231,22 +231,40 @@ export function GestionUsuariosDashboard() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Seguro que deseas eliminar este usuario?')) return;
+  const handleChangeStatus = async (usuario) => {
+    const estadoActual = String(usuario.estado || 'activo').toLowerCase();
+    const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+    const accion = nuevoEstado === 'inactivo' ? 'desactivar' : 'activar';
+
+    if (!window.confirm(`¿Seguro que deseas ${accion} al usuario ${usuario.username}?`)) {
+      return;
+    }
+
     const token = localStorage.getItem('nexus_token');
+
     try {
-      const res = await fetch(`${BASE_API_URL}/api/usuarios/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchData();
-      } else {
-        const error = await res.json();
-        alert('Error: ' + error.error);
+      const res = await fetch(
+        `${BASE_API_URL}/api/usuarios/${usuario.id}/estado`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ estado: nuevoEstado })
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo cambiar el estado');
       }
-    } catch (err) {
-      console.error(err);
+
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -308,8 +326,24 @@ export function GestionUsuariosDashboard() {
                       <span style={{ color: u.estado === 'activo' ? '#0e9f6e' : '#dc3b2a' }}>●</span> {u.estado}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
+
                       <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
-                      <button onClick={() => handleDelete(u.id)} style={{ background: 'transparent', border: '1px solid #dc3b2a', color: '#dc3b2a', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer' }}>🗑️</button>
+                     
+                      <button
+                        type="button"
+                        onClick={() => handleChangeStatus(u)}
+                        style={{
+                          background: 'transparent',
+                          border: `1px solid ${u.estado === 'activo' ? '#dc3b2a' : '#0e9f6e'}`,
+                          color: u.estado === 'activo' ? '#dc3b2a' : '#0e9f6e',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.375rem',
+                          cursor: 'pointer',
+                          fontWeight: '600'
+                        }}
+                      >
+                        {u.estado === 'activo' ? 'Desactivar' : 'Activar'}
+                      </button>
                     </td>
                   </tr>
                 )
