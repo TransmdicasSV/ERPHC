@@ -17,14 +17,14 @@ import { createHash } from 'node:crypto';
 import xlsx from 'xlsx';
 import { generatePDF, generateExcel } from './reports.js';
 import { generateMasterReport } from './reporteMaster.js';
-const JWT_SECRET = process.env.JWT_SECRET;//corregido 
+const JWT_SECRET = process.env.JWT_SECRET;//corregido
 
 if (!JWT_SECRET || JWT_SECRET.length < 64) {
   throw new Error(
     'JWT_SECRET debe existir y contener al menos 64 caracteres'
   );
 }
-/*Resuelto problema de seguridad(Mostraba la JWT de forma directa con peligro a 
+/*Resuelto problema de seguridad(Mostraba la JWT de forma directa con peligro a
 vulnerabilidades, linea 21,linea22)*/
 const { Pool } = pkg;
 const app = express();
@@ -80,6 +80,38 @@ const deleteFromCloudinary = async (url) => {
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+const ticketEvidenceUpload = multer({
+  storage,
+  limits: {
+    files: 20,
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!file.mimetype?.startsWith('image/')) {
+      return callback(
+        new multer.MulterError('LIMIT_UNEXPECTED_FILE', file.fieldname)
+      );
+    }
+
+    callback(null, true);
+  }
+});
+
+const receiveTicketEvidence = (req, res, next) => {
+  ticketEvidenceUpload.array('evidencias', 20)(req, res, err => {
+    if (!err) return next();
+
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'Cada imagen debe pesar como máximo 5 MB'
+      : err.code === 'LIMIT_FILE_COUNT'
+        ? 'Puede adjuntar como máximo 20 imágenes'
+        : 'Solo se permiten hasta 20 archivos de imagen';
+
+    return res.status(400).json({ error: message });
+  });
+};
+
+
 // Configuración de CORS y estÃ¡ticos
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -117,7 +149,7 @@ const initDb = async () => {
   const esquemaEsperado = {
     audit_logs: ['id', 'user_id', 'accion', 'tabla_afectada', 'fecha'],
     entregas_ti: ['id', 'fecha', 'encargado', 'nombre', 'dni', 'cargo', 'operacion', 'condicion', 'equipo_tipo', 'marca', 'modelo', 'serie', 'laptop', 'mouse', 'cargador', 'motivo', 'observaciones', 'precio', 'tipo_movimiento', 'documento_url'],
-    incidentes_soporte: ['id', 'placa', 'tipo_solicitud', 'descripcion', 'operador', 'estado', 'fecha', 'categoria', 'prioridad', 'evidencia','operacion'],
+    incidentes_soporte: ['id', 'placa', 'tipo_solicitud', 'descripcion', 'operador', 'estado', 'fecha', 'categoria', 'prioridad', 'evidencia', 'operacion', 'implemento', 'evidencias_iniciales', 'persona_pulsera', 'dni_persona_pulsera', 'motivo_renovacion'],
     inspecciones_flota: ['id', 'placa', 'fecha', 'hora', 'tablet', 'radio', 'camaras', 'img_tablet', 'img_radio', 'img_camaras', 'observaciones'],
     mantenimientos_tecnicos: ['id', 'placa', 'fecha_ejecutada', 'frecuencia_dias', 'dvr', 'copiloto', 'radio_base', 'handy', 'camara_interna', 'camara_externa', 'camara_retroceso', 'sensores_retroceso', 'sensores_delanteros', 'sistema_adas'],
     personal: ['id', 'id_interno', 'nombre_completo', 'dni', 'modalidad', 'area', 'cargo', 'telefono', 'estado', 'created_at'],
@@ -217,27 +249,80 @@ const ROLE_PERMISSIONS = {
   }
 };
 // Middleware para proteger rutas
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const match = authHeader?.match(/^Bearer\s+(.+)$/i);
   const token = match?.[1];
 
   if (!token) {
-    return res.status(403).json({
+    return res.status(401).json({
       error: 'Token requerido para acceder a este recurso'
     });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({
+      error: 'Token inválido o expirado'
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id, username, rol, estado, operacion
+       FROM usuarios
+       WHERE id = $1`,
+      [decoded.id]
+    );
+
+    const usuario = result.rows[0];
+
+    if (!usuario) {
       return res.status(401).json({
-        error: 'Token inválido o expirado'
+        error: 'El usuario de esta sesión ya no existe'
       });
     }
 
-    req.user = decoded;
-    next();
-  });
+    const estadoUsuario = String(usuario.estado || 'activo')
+      .trim()
+      .toLowerCase();
+
+    if (estadoUsuario !== 'activo') {
+      return res.status(401).json({
+        error: 'El usuario se encuentra inactivo'
+      });
+    }
+
+    const rolOriginal = String(usuario.rol || '').trim().toLowerCase();
+    const rol = rolOriginal === 'administrador' ? 'admin' : rolOriginal;
+    const permisos = ROLE_PERMISSIONS[rol];
+
+    if (!permisos) {
+      return res.status(403).json({
+        error: 'El usuario tiene un rol no válido'
+      });
+    }
+
+    req.user = {
+      ...decoded,
+      id: usuario.id,
+      username: usuario.username,
+      rol,
+      permisos,
+      operacion: usuario.operacion || null
+    };
+
+    return next();
+  } catch (error) {
+    console.error('Error verificando el estado del usuario:', error);
+
+    return res.status(500).json({
+      error: 'Error al verificar la sesión'
+    });
+  }
 };
 
 const PUBLIC_ROUTES = [
@@ -275,7 +360,20 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
 
     const validPassword = bcrypt.compareSync(password, user.password_hash);
-    if (!validPassword) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
+
+if (!validPassword) {
+  return res.status(401).json({ error: 'Credenciales inválidas' });
+}
+
+const estadoUsuario = String(user.estado || 'activo')
+  .trim()
+  .toLowerCase();
+
+if (estadoUsuario !== 'activo') {
+  return res.status(403).json({
+    error: 'Este usuario se encuentra inactivo. Comuníquese con el administrador.'
+  });
+}
 
     const userRolOriginal = String(user.rol || '').toLowerCase();
     const userRol = userRolOriginal === 'administrador' ? 'admin' : userRolOriginal;
@@ -380,11 +478,11 @@ app.use((req, res, next) => {
   }
 
   const esCreacionTicket = req.method === 'POST'
-  && /^\/api\/incidentes_soporte\/?$/i.test(req.path);
+    && /^\/api\/incidentes_soporte\/?$/i.test(req.path);
 
-const accion = esCreacionTicket
-  ? 'crear'
-  : (req.method === 'GET' || req.method === 'HEAD' ? 'ver' : 'editar');
+  const accion = esCreacionTicket
+    ? 'crear'
+    : (req.method === 'GET' || req.method === 'HEAD' ? 'ver' : 'editar');
 
   return requirePermiso(rule.modules, accion)(req, res, next);
 });
@@ -490,28 +588,64 @@ app.post('/api/usuarios', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/usuarios/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  if (parseInt(id) === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
-  try {
-    await pool.query('DELETE FROM usuarios WHERE id=$1', [id]);
-    await logAction(req.user.id, `Usuario eliminado ID: ${id}`, 'usuarios');
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
 
-    if (err.code === '23503') {
-      return res.status(409).json({
-        error: 'No se puede eliminar este usuario porque tiene registros relacionados. Debe conservarse su historial.'
+app.patch('/api/usuarios/:id/estado', requireAdmin, async (req, res) => {
+  const id = Number.parseInt(req.params.id, 10);
+  const estado = String(req.body?.estado || '').trim().toLowerCase();
+
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({
+      error: 'ID de usuario no válido'
+    });
+  }
+
+  if (!['activo', 'inactivo'].includes(estado)) {
+    return res.status(400).json({
+      error: 'El estado debe ser activo o inactivo'
+    });
+  }
+
+  if (id === Number(req.user.id) && estado === 'inactivo') {
+    return res.status(400).json({
+      error: 'No puedes desactivar tu propio usuario'
+    });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `UPDATE usuarios
+       SET estado = $1
+       WHERE id = $2
+       RETURNING id, username, rol, estado`,
+      [estado, id]
+    );
+
+    if (!resultado.rows.length) {
+      return res.status(404).json({
+        error: 'Usuario no encontrado'
       });
     }
 
+    const usuario = resultado.rows[0];
+
+    await logAction(
+      req.user.id,
+      `Usuario ${usuario.username} cambiado a ${estado}`,
+      'usuarios'
+    );
+
+    return res.json({
+      success: true,
+      usuario
+    });
+  } catch (error) {
+    console.error('Error actualizando usuario:', error);
+
     return res.status(500).json({
-      error: 'Error al eliminar usuario'
+      error: 'Error al cambiar el estado del usuario'
     });
   }
-}
-);
+});
 
 //
 //
@@ -687,10 +821,19 @@ async function opcionesTickets(req, res) {
     });
   }
 }
-
 async function createSupportTicket(req, res) {
   const {
-    placa, tipo_solicitud, descripcion, operador, categoria, prioridad
+    placa,
+    tipo_solicitud,
+    descripcion,
+    operador,
+    categoria,
+    prioridad,
+    implemento,
+    operacion,
+    persona_pulsera,
+    dni_persona_pulsera,
+    motivo_renovacion
   } = req.body || {};
 
   if (placa != null && typeof placa !== 'string') {
@@ -701,10 +844,45 @@ async function createSupportTicket(req, res) {
 
   const placaFinal = placa?.trim().toUpperCase() || null;
 
+  const tipoSolicitudFinal = typeof tipo_solicitud === 'string'
+    ? tipo_solicitud.trim()
+    : '';
+
+  const implementosPermitidos = [
+    'Tablet',
+    'Radio Base',
+    'Copiloto',
+    'Handy',
+    'Otros'
+  ];
+
+  const implementoFinal = tipoSolicitudFinal === 'Soporte Técnico'
+    ? String(implemento || '').trim()
+    : null;
+
+  const esReportePulsera =
+    tipoSolicitudFinal === 'Reporte de Pulsera';
+
+  const personaPulseraFinal = esReportePulsera
+    ? String(persona_pulsera || '').trim()
+    : null;
+
+  const dniPulseraFinal = esReportePulsera
+    ? String(dni_persona_pulsera || '').trim()
+    : null;
+
+  const motivoRenovacionFinal = esReportePulsera
+    ? String(motivo_renovacion || '').trim()
+    : null;
+
+  const operacionPulseraFinal = esReportePulsera
+    ? String(operacion || '').trim()
+    : null;
+
   if (
     (placaFinal && placaFinal.length > 20)
     || ![tipo_solicitud, descripcion, operador].every(
-      v => typeof v === 'string' && v.trim()
+      valor => typeof valor === 'string' && valor.trim()
     )
   ) {
     return res.status(400).json({
@@ -712,26 +890,134 @@ async function createSupportTicket(req, res) {
     });
   }
 
-  try {
-    const contexto = await contextoTicket(req, 'crear');
+  if (
+    tipoSolicitudFinal === 'Soporte Técnico'
+    && !implementosPermitidos.includes(implementoFinal)
+  ) {
+    return res.status(400).json({
+      error: 'Seleccione el implemento que presenta la falla'
+    });
+  }
 
-    const operacionSinPlaca = contexto.rol === 'supervisor'
+ if (
+  esReportePulsera
+  && (
+    !operacionPulseraFinal
+    || !personaPulseraFinal
+    || !/^\d{8}$/.test(dniPulseraFinal)
+    || !motivoRenovacionFinal
+    || !(req.files || []).length
+  )
+) {
+  return res.status(400).json({
+    error: 'Complete los datos de la pulsera, seleccione una operación y adjunte una evidencia'
+  });
+}
+
+
+const evidenciasSubidas = [];
+
+try {
+  const contexto = await contextoTicket(req, 'crear');
+
+  if (
+    esReportePulsera
+    && !['admin', 'supervisor'].includes(contexto.rol)
+  ) {
+    return res.status(403).json({
+      error: 'No tienes permiso para registrar reportes de pulseras'
+    });
+  }
+
+  if (esReportePulsera) {
+    const personaResult = await pool.query(
+      `
+        SELECT dni, nombre_completo
+        FROM personal
+        WHERE dni = $1
+          AND (
+            estado IS NULL
+            OR LOWER(BTRIM(estado)) = 'activo'
+          )
+        LIMIT 1
+      `,
+      [dniPulseraFinal]
+    );
+
+    if (!personaResult.rows.length) {
+      return res.status(400).json({
+        error: 'Seleccione un trabajador válido de la lista'
+      });
+    }
+
+    if (
+      personaResult.rows[0].nombre_completo.trim().toLowerCase()
+      !== personaPulseraFinal.toLowerCase()
+    ) {
+      return res.status(400).json({
+        error: 'El DNI seleccionado no corresponde al trabajador indicado'
+      });
+    }
+
+    const operacionResult = await pool.query(
+      `
+        SELECT 1
+        FROM vehiculos
+        WHERE LOWER(BTRIM(operacion)) = LOWER(BTRIM($1))
+          AND LOWER(BTRIM(operacion)) <> ALL($2::text[])
+        LIMIT 1
+      `,
+      [
+        operacionPulseraFinal,
+        OPERACIONES_INVALIDAS_TICKET
+      ]
+    );
+
+    if (!operacionResult.rows.length) {
+      return res.status(400).json({
+        error: 'Seleccione una operación válida'
+      });
+    }
+  }
+
+  if (esReportePulsera && contexto.rol === 'publico') {
+    return res.status(403).json({
+      error: 'El reporte de pulseras requiere iniciar sesión'
+    });
+  }
+
+  const operacionSinPlaca = esReportePulsera
+    ? operacionPulseraFinal
+    : contexto.rol === 'supervisor'
       ? contexto.operacion
-      : contexto.rol === 'admin' && typeof req.body.operacion === 'string'
+      : contexto.rol === 'admin'
+        && typeof req.body.operacion === 'string'
         ? req.body.operacion.trim()
         : null;
 
-    if (!placaFinal && !operacionSinPlaca) {
-      return res.status(400).json({
-        error: contexto.rol === 'publico'
-          ? 'En el portal público debe indicar una placa'
-          : 'Seleccione una operación para el ticket sin placa'
-      });
+  if (!placaFinal && !operacionSinPlaca) {
+    return res.status(400).json({
+      error: contexto.rol === 'publico'
+        ? 'En el portal público debe indicar una placa'
+        : 'Seleccione una operación para el ticket sin placa'
+    });
+  }
+
+    for (const archivo of req.files || []) {
+      const url = await uploadToCloudinary(
+        archivo.buffer,
+        'tickets_evidencias_iniciales',
+        'image'
+      );
+
+      evidenciasSubidas.push(url);
     }
 
     const result = await pool.query(
       `WITH destino AS (
-         SELECT v.placa, BTRIM(v.operacion) AS operacion
+         SELECT
+           v.placa,
+           BTRIM(v.operacion) AS operacion
          FROM vehiculos v
          WHERE v.placa = $1
            AND (
@@ -741,45 +1027,88 @@ async function createSupportTicket(req, res) {
 
          UNION ALL
 
-         SELECT NULL::varchar, $8::text
+         SELECT
+           NULL::varchar,
+           $8::text
          WHERE $1::text IS NULL
            AND (
-             $7::text IS NOT NULL
+             $15::boolean = TRUE
+             OR $7::text IS NOT NULL
              OR EXISTS (
-               SELECT 1 FROM vehiculos
+               SELECT 1
+               FROM vehiculos
                WHERE LOWER(BTRIM(operacion)) = LOWER(BTRIM($8))
              )
            )
        )
-       INSERT INTO incidentes_soporte
-         (placa, tipo_solicitud, descripcion, operador,
-          categoria, prioridad, operacion)
-       SELECT placa, $2, $3, $4, $5, $6, operacion
+       INSERT INTO incidentes_soporte (
+         placa,
+         tipo_solicitud,
+         descripcion,
+         operador,
+         categoria,
+         prioridad,
+         operacion,
+         implemento,
+         evidencias_iniciales,
+         persona_pulsera,
+         dni_persona_pulsera,
+         motivo_renovacion
+       )
+       SELECT
+         placa,
+         $2,
+         $3,
+         $4,
+         $5,
+         $6,
+         operacion,
+         $10,
+         $11::jsonb,
+         $12,
+         $13,
+         $14
        FROM destino
-       WHERE LOWER(BTRIM(COALESCE(operacion, ''))) <> ALL($9::text[])
+       WHERE LOWER(BTRIM(COALESCE(operacion, '')))
+         <> ALL($9::text[])
        RETURNING id`,
       [
         placaFinal,
-        tipo_solicitud.trim(),
+        tipoSolicitudFinal,
         descripcion.trim(),
         operador.trim(),
-        categoria || 'General',
+        esReportePulsera
+          ? 'Pulseras'
+          : (categoria || 'General'),
         prioridad || 'Media',
         contexto.operacion,
         operacionSinPlaca,
-        OPERACIONES_INVALIDAS_TICKET
+        OPERACIONES_INVALIDAS_TICKET,
+        implementoFinal,
+        JSON.stringify(evidenciasSubidas),
+        personaPulseraFinal,
+        dniPulseraFinal,
+        motivoRenovacionFinal,
+        esReportePulsera
       ]
     );
 
     if (!result.rows.length) {
-      return res.status(contexto.rol === 'supervisor' ? 403 : 400).json({
+      await Promise.allSettled(
+        evidenciasSubidas.map(deleteFromCloudinary)
+      );
+
+      return res.status(
+        contexto.rol === 'supervisor' ? 403 : 400
+      ).json({
         error: 'La placa o la operación no son válidas o no están autorizadas para su cuenta'
       });
     }
 
     await logAction(
       req.user?.id || null,
-      'Solicitud de soporte: ' + (placaFinal || 'sin placa'),
+      'Solicitud de soporte: '
+      + (placaFinal || tipoSolicitudFinal),
       'incidentes_soporte'
     );
 
@@ -788,8 +1117,15 @@ async function createSupportTicket(req, res) {
       id: result.rows[0].id
     });
   } catch (err) {
+    await Promise.allSettled(
+      evidenciasSubidas.map(deleteFromCloudinary)
+    );
+
     console.error(err);
-    return res.status(err.status || (err.code === '23503' ? 400 : 500)).json({
+
+    return res.status(
+      err.status || (err.code === '23503' ? 400 : 500)
+    ).json({
       error: err.status === 403
         ? err.message
         : err.code === '23503'
@@ -798,20 +1134,78 @@ async function createSupportTicket(req, res) {
     });
   }
 }
+async function opcionesReportePulseras(req, res) {
+  try {
+    const contexto = await contextoTicket(req, 'crear');
+    if (!['admin', 'supervisor'].includes(contexto.rol)) {
+      return res.status(403).json({
+        error: 'No tienes permiso para registrar reportes de pulseras'
+      });
+    }
+
+    const operacionesResult = await pool.query(`
+      SELECT MIN(BTRIM(operacion)) AS operacion
+      FROM vehiculos
+      WHERE operacion IS NOT NULL
+        AND LOWER(BTRIM(operacion)) <> ALL($1::text[])
+      GROUP BY LOWER(BTRIM(operacion))
+      ORDER BY operacion ASC
+    `, [OPERACIONES_INVALIDAS_TICKET]);
+
+    const personalResult = await pool.query(`
+      SELECT
+        dni,
+        nombre_completo
+      FROM personal
+      WHERE dni IS NOT NULL
+        AND BTRIM(dni) <> ''
+        AND nombre_completo IS NOT NULL
+        AND BTRIM(nombre_completo) <> ''
+        AND (
+          estado IS NULL
+          OR LOWER(BTRIM(estado)) = 'activo'
+        )
+      ORDER BY nombre_completo ASC
+    `);
+
+    return res.json({
+      operaciones: operacionesResult.rows.map(row => row.operacion),
+      personal: personalResult.rows
+    });
+  } catch (err) {
+    console.error('Error cargando opciones de pulseras:', err);
+    return res.status(err.status || 500).json({
+      error: err.status === 403
+        ? err.message
+        : 'Error al cargar opciones de reportes de pulseras'
+    });
+  }
+}
 
 app.get('/api/incidentes/opciones', opcionesTickets);
 
-app.post('/api/public/incidentes-soporte', createSupportTicket);
+app.get(
+  '/api/incidentes/pulseras/opciones',
+  requirePermiso('tickets', 'crear'),
+  opcionesReportePulseras
+);
+
+app.post(
+  '/api/public/incidentes-soporte',
+  receiveTicketEvidence,
+  createSupportTicket
+);
 
 app.post(
   '/api/incidentes_soporte',
   requirePermiso('tickets', 'crear'),
+  receiveTicketEvidence,
   createSupportTicket
 );
-  
-    
 
-  
+
+
+
 
 
 // APLICAR PROTECCIÓN GLOBAL AL RESTO DE RUTAS
@@ -856,7 +1250,7 @@ app.put('/api/personal/:id', async (req, res) => {
   const { id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado } = req.body;
   try {
     const result = await pool.query(
-      `UPDATE personal SET 
+      `UPDATE personal SET
           id_interno = $1, nombre_completo = $2, dni = $3, modalidad = $4, area = $5, cargo = $6, telefono = $7, estado = $8
          WHERE id = $9 RETURNING *`,
       [id_interno, nombre_completo, dni, modalidad, area, cargo, telefono, estado, id]
@@ -937,7 +1331,7 @@ app.get('/vehiculos/', async (req, res) => {
     }
 
     const query = `
-      SELECT 
+      SELECT
         v.placa, v.programa, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.operacion, v.cliente,
         i.tablet, i.radio, i.camaras, i.fecha::text AS fecha, i.observaciones
       FROM vehiculos v
@@ -1024,7 +1418,7 @@ app.post('/vehiculos/', async (req, res) => {
 app.get('/mantenimientos/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT
         v.placa,
         COALESCE(m.id, i.id, 0) as id,
         COALESCE(i.fecha::text, m.fecha_ejecutada::text) as fecha_ejecutada_raw,
@@ -1262,7 +1656,7 @@ app.get('/api/reportes/mantenimiento-excel', async (req, res) => {
 
     // OBTENER DATOS
     const query = `
-      SELECT 
+      SELECT
         v.*,
         COALESCE(i.fecha::text, m.fecha_ejecutada::text) as fecha_ejecutada_raw,
         COALESCE(m.frecuencia_dias, 180) as frecuencia_dias,
@@ -1580,13 +1974,14 @@ app.post('/inspecciones/', upload.fields([{ name: 'img_tablet' }, { name: 'img_r
     await client.query('COMMIT');
   } catch (err) {
     if (client) {
-      try { await client.query('ROLLBACK'); } catch { descartar = true;
+      try { await client.query('ROLLBACK'); } catch {
+        descartar = true;
         if (err.code === '23503') {
-  return res.status(400).json({
-    error: 'La placa ya no existe en el maestro de vehiculos.'
-  });
-}
-       }
+          return res.status(400).json({
+            error: 'La placa ya no existe en el maestro de vehiculos.'
+          });
+        }
+      }
     }
     console.error('Error al registrar inspeccion:', err);
     return res.status(500).json({ error: 'Error al registrar inspeccion' });
@@ -1683,16 +2078,16 @@ app.put('/inspecciones/:id', upload.fields([{ name: 'img_tablet' }, { name: 'img
 
     const curr = currentInsp.rows[0];
     if (String(curr.fecha ?? '').trim() && !fecha) {
-  return res.status(400).json({
-    error: 'No puedes vaciar una fecha ya registrada.'
-  });
-}
+      return res.status(400).json({
+        error: 'No puedes vaciar una fecha ya registrada.'
+      });
+    }
 
-if (String(curr.hora ?? '').trim() && !hora) {
-  return res.status(400).json({
-    error: 'No puedes vaciar una hora ya registrada.'
-  });
-}
+    if (String(curr.hora ?? '').trim() && !hora) {
+      return res.status(400).json({
+        error: 'No puedes vaciar una hora ya registrada.'
+      });
+    }
     let img_tablet = curr.img_tablet;
     let img_radio = curr.img_radio;
     let img_camaras = curr.img_camaras;
@@ -1815,7 +2210,7 @@ app.get('/stats/charts', async (req, res) => {
 
     // 2. Distribución de fallos globales
     const errors = await pool.query(`
-      SELECT 
+      SELECT
         SUM(CASE WHEN tablet != 'OK' AND tablet != 'N/A' THEN 1 ELSE 0 END) as tablet_errors,
         SUM(CASE WHEN radio != 'OK' AND radio != 'N/A' THEN 1 ELSE 0 END) as radio_errors,
         SUM(CASE WHEN camaras != 'OK' AND camaras != 'N/A' THEN 1 ELSE 0 END) as camaras_errors
@@ -1831,18 +2226,18 @@ app.get('/stats/charts', async (req, res) => {
 
     // 4. Salud General (Aprobados vs Observados)
     const salud = await pool.query(`
-      SELECT 
-        SUM(CASE 
-          WHEN (UPPER(TRIM(COALESCE(tablet, ''))) IN ('OK', 'N/A', 'NO APLICA')) 
-           AND (UPPER(TRIM(COALESCE(radio, ''))) IN ('OK', 'N/A', 'NO APLICA')) 
-           AND (UPPER(TRIM(COALESCE(camaras, ''))) IN ('OK', 'N/A', 'NO APLICA')) 
-          THEN 1 ELSE 0 
+      SELECT
+        SUM(CASE
+          WHEN (UPPER(TRIM(COALESCE(tablet, ''))) IN ('OK', 'N/A', 'NO APLICA'))
+           AND (UPPER(TRIM(COALESCE(radio, ''))) IN ('OK', 'N/A', 'NO APLICA'))
+           AND (UPPER(TRIM(COALESCE(camaras, ''))) IN ('OK', 'N/A', 'NO APLICA'))
+          THEN 1 ELSE 0
         END) as aprobados,
-        SUM(CASE 
+        SUM(CASE
           WHEN (UPPER(TRIM(COALESCE(tablet, ''))) NOT IN ('OK', 'N/A', 'NO APLICA'))
             OR (UPPER(TRIM(COALESCE(radio, ''))) NOT IN ('OK', 'N/A', 'NO APLICA'))
             OR (UPPER(TRIM(COALESCE(camaras, ''))) NOT IN ('OK', 'N/A', 'NO APLICA'))
-          THEN 1 ELSE 0 
+          THEN 1 ELSE 0
         END) as observados
       FROM inspecciones_flota
     `);
@@ -2033,7 +2428,7 @@ app.put('/api/entregas/:id', upload.single('acta'), async (req, res) => {
   const fechaParsed = fecha || null;
   try {
     const result = await pool.query(
-      `UPDATE entregas_ti SET 
+      `UPDATE entregas_ti SET
         fecha=$1, encargado=$2, nombre=$3, dni=$4, cargo=$5, operacion=$6, condicion=$7, equipo_tipo=$8, marca=$9, modelo=$10, serie=$11, laptop=$12, mouse=$13, cargador=$14, motivo=$15, observaciones=$16, precio=$17, tipo_movimiento=$18, documento_url=COALESCE($19, documento_url)
        WHERE id = $20 RETURNING *`,
       [fechaParsed, encargado, nombre, dni, cargo, operacion, condicion, equipo_tipo, marca, modelo, serie, laptop, mouse, cargador, motivo, observaciones, precioParsed, t_mov, final_documento_url, id]

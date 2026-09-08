@@ -1,1 +1,0 @@
-throw new Error('Migración histórica retirada. No debe ejecutarse en la base actual.');
