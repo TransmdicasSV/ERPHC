@@ -218,7 +218,7 @@ ALTER SEQUENCE public.incidentes_soporte_id_seq OWNED BY public.incidentes_sopor
 CREATE TABLE public.inspecciones_flota (
     id integer NOT NULL,
     placa character varying(20),
-    fecha character varying(20),
+    fecha date,
     hora character varying(20),
     tablet character varying(50),
     radio character varying(50),
