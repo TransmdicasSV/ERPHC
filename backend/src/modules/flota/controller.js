@@ -18,10 +18,10 @@ import {
 
 import {
   logAction
-} from '../../../services/auditService.js';
+} from '../../services/auditService.js';
 
 export const listarVehiculos =
-  async (req, res) => {
+  async (req, res) => { 
     try {
       const filtros =
         prepararFiltrosVehiculos(

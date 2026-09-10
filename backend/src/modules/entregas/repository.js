@@ -318,3 +318,89 @@ export const eliminarMovimiento =
 
     return result.rows[0] || null;
   };
+  // ==========================================
+// EXPORTAR EXCEL
+// ==========================================
+
+export const obtenerMovimientosParaExportar =
+  async ({
+    tipo,
+    categoria,
+    fechaInicio,
+    fechaFin
+  }) => {
+    let query = `
+      SELECT *
+      FROM entregas_ti
+      WHERE 1 = 1
+    `;
+
+    const params = [];
+
+    if (
+      tipo === 'Devolución'
+    ) {
+      params.push(
+        'Devolución'
+      );
+
+      query += `
+        AND tipo_movimiento =
+            $${params.length}
+      `;
+    } else if (
+      tipo === 'Entrega'
+    ) {
+      params.push(
+        'Entrega'
+      );
+
+      query += `
+        AND (
+          tipo_movimiento =
+            $${params.length}
+          OR tipo_movimiento IS NULL
+          OR tipo_movimiento = ''
+        )
+      `;
+    }
+
+    if (categoria) {
+      params.push(
+        `%${categoria}%`
+      );
+
+      query += `
+        AND equipo_tipo
+            ILIKE
+            $${params.length}
+      `;
+    }
+
+    params.push(
+      fechaInicio,
+      fechaFin
+    );
+
+    query += `
+      AND NULLIF(
+        BTRIM(fecha::text),
+        ''
+      )::date
+      BETWEEN
+        $${params.length - 1}::date
+      AND
+        $${params.length}::date
+    `;
+
+    query +=
+      ' ORDER BY id ASC';
+
+    const result =
+      await pool.query(
+        query,
+        params
+      );
+
+    return result.rows;
+  };
