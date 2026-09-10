@@ -1,5 +1,5 @@
 import { isIP } from 'node:net';
-import { pool } from '../src/config/database.js';
+import { pool } from '../config/database.js';
 
 const CAMPOS_SENSIBLES_AUDITORIA = new Set([
   'password',

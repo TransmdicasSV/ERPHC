@@ -3,7 +3,13 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const uploadsDir = fileURLToPath(new URL('./uploads/', import.meta.url));
+const uploadsDir =
+  fileURLToPath(
+    new URL(
+      '../../uploads/',
+      import.meta.url
+    )
+  );
 const downloadImage = async (source) => {
   try {
     let buffer;

@@ -1,11 +1,11 @@
 import {
   uploadToCloudinary,
   deleteFromCloudinary
-} from '../../../services/cloudinaryService.js';
+} from '../../services/cloudinaryService.js';
 
 import {
   logAction
-} from '../../../services/auditService.js';
+} from '../../services/auditService.js';
 
 import {
   obtenerVehiculosTickets,

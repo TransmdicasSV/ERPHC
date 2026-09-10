@@ -6,7 +6,7 @@ import {
 import {
   uploadToCloudinary,
   deleteFromCloudinary
-} from '../../../services/cloudinaryService.js';
+} from '../../services/cloudinaryService.js';
 
 import {
   obtenerEntregasLegacy,
@@ -16,7 +16,8 @@ import {
   crearMovimiento,
   obtenerMovimientoPorId,
   actualizarMovimiento,
-  eliminarMovimiento
+  eliminarMovimiento,
+  obtenerMovimientosParaExportar
 } from './repository.js';
 
 import {
@@ -25,8 +26,15 @@ import {
   normalizarPrecio,
   normalizarFecha,
   obtenerResourceTypeActa,
-  EntregaValidationError
+  EntregaValidationError,
+  procesarImportacionExcel,
+  esFechaISOValida,
+  normalizarTipoExportacion
 } from './service.js';
+import {
+  generarExcelEntregas
+} from '../../reports/excelentregas.js';
+
 
 // ==========================================
 // LEGACY
@@ -76,7 +84,7 @@ export const buscarPersonal =
       const tipoMovimiento =
         normalizarTipoMovimiento(
           req.query.tipo ||
-            'Entrega'
+          'Entrega'
         );
 
       const modulo =
@@ -214,7 +222,7 @@ export const registrarMovimiento =
         normalizarTipoMovimiento(
           req.body
             ?.tipo_movimiento ||
-            'Entrega'
+          'Entrega'
         );
 
       const moduloMovimiento =
@@ -381,7 +389,7 @@ export const editarMovimiento =
         normalizarTipoMovimiento(
           req.body
             ?.tipo_movimiento ||
-            'Entrega'
+          'Entrega'
         );
 
       const actual =
@@ -611,5 +619,211 @@ export const borrarMovimiento =
           error:
             'Error eliminando entrega TI'
         });
+    }
+  };
+// ==========================================
+// IMPORTAR EXCEL
+// ==========================================
+
+export const importarExcel =
+  async (req, res) => {
+    try {
+      const resultado =
+        await procesarImportacionExcel({
+          buffer:
+            req.file?.buffer,
+
+          tipo:
+            req.body?.tipo,
+
+          confirmar:
+            req.body?.confirmar,
+
+          firmaRecibida:
+            req.body?.firma
+        });
+
+      return res.json(
+        resultado
+      );
+    } catch (error) {
+      console.error(
+        'Error importando Excel:',
+        error
+      );
+
+      return res
+        .status(
+          error.status ||
+          500
+        )
+        .json({
+          error:
+            error.status === 400
+              ? error.message
+              : 'No se pudo completar la importación. Revisa el registro del backend antes de reintentar.'
+        });
+    }
+  };
+  // ==========================================
+// EXPORTAR EXCEL
+// ==========================================
+
+export const exportarExcel =
+  async (req, res) => {
+    try {
+      const {
+        tipo,
+        categoria,
+        fechaInicio,
+        fechaFin
+      } = req.query;
+
+      if (
+        !esFechaISOValida(
+          fechaInicio
+        ) ||
+        !esFechaISOValida(
+          fechaFin
+        ) ||
+        fechaInicio >
+          fechaFin
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'El rango de fechas no es válido'
+          });
+      }
+
+      let tipoAutorizado =
+        normalizarTipoExportacion(
+          tipo
+        );
+
+      const puedeVerEntregas =
+        hasPermiso(
+          req,
+          'entregas',
+          'ver'
+        );
+
+      const puedeVerDevoluciones =
+        hasPermiso(
+          req,
+          'devoluciones',
+          'ver'
+        );
+
+      if (
+        tipoAutorizado ===
+          'Entrega' &&
+        !puedeVerEntregas
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'No tienes permiso para exportar entregas'
+          });
+      }
+
+      if (
+        tipoAutorizado ===
+          'Devolución' &&
+        !puedeVerDevoluciones
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'No tienes permiso para exportar devoluciones'
+          });
+      }
+
+      if (!tipoAutorizado) {
+        if (
+          puedeVerEntregas &&
+          !puedeVerDevoluciones
+        ) {
+          tipoAutorizado =
+            'Entrega';
+        } else if (
+          !puedeVerEntregas &&
+          puedeVerDevoluciones
+        ) {
+          tipoAutorizado =
+            'Devolución';
+        } else if (
+          !puedeVerEntregas &&
+          !puedeVerDevoluciones
+        ) {
+          return res
+            .status(403)
+            .json({
+              error:
+                'No tienes permiso para exportar inventario'
+            });
+        }
+      }
+
+      const entregas =
+        await obtenerMovimientosParaExportar({
+          tipo:
+            tipoAutorizado,
+          categoria,
+          fechaInicio,
+          fechaFin
+        });
+
+      const {
+        buffer,
+        filename
+      } =
+        await generarExcelEntregas({
+          entregas,
+          tipo:
+            tipoAutorizado,
+          fechaInicio,
+          fechaFin
+        });
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=${filename}`
+      );
+
+      return res.send(
+        buffer
+      );
+    } catch (error) {
+      if (
+        error instanceof
+        EntregaValidationError
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error:
+              error.message
+          });
+      }
+
+      console.error(
+        'Error exportando Excel:',
+        error
+      );
+
+      return res
+        .status(500)
+        .send(
+          'Error generando el archivo Excel premium'
+        );
     }
   };

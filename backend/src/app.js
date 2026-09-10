@@ -10,8 +10,8 @@ import vehiculosRoutes, {
 } from './modules/flota/routes.js';
 import inspeccionesRoutes from './modules/inspecciones/routes.js';
 import mantenimientosRoutes from './modules/mantenimiento/routes.js';
-import statsRoutes from '../routes/statsRoutes.js';
-import publicRoutes from '../routes/publicRoutes.js';
+import statsRoutes from './modules/stats/routes.js';
+import publicRoutes from './modules/publico/routes.js';
 
 import {
   legacyEntregasRoutes,
@@ -20,7 +20,7 @@ import {
 import {
   apiReportesRoutes,
   reportesRoutes
-} from '../routes/reportesRoutes.js';
+} from './modules/reportes/routes.js';
 
 import {
   authenticateRequest,
@@ -33,7 +33,7 @@ import ticketsRoutes, {
 } from './modules/tickets/routes.js';
 
 import usuariosRoutes from './modules/usuarios/routes.js';
-import authRoutes from '../routes/authRoutes.js';
+import authRoutes from './modules/auth/routes.js';
 
 const app = express();
 

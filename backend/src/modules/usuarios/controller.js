@@ -12,7 +12,7 @@ import {
 
 import {
   logAction
-} from '../../../services/auditService.js';
+} from '../../services/auditService.js';
 
 export const listarOperaciones =
   async (req, res) => {

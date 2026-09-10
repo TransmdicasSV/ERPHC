@@ -15,11 +15,11 @@ import {
 
 import {
   uploadToCloudinary
-} from '../../../services/cloudinaryService.js';
+} from '../../services/cloudinaryService.js';
 
 import {
   logAction
-} from '../../../services/auditService.js';
+} from '../../services/auditService.js';
 
 export const listarHistorial =
   async (req, res) => {
