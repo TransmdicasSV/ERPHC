@@ -1,7 +1,7 @@
 import {
   uploadToCloudinary,
   deleteFromCloudinary
-} from '../../../services/cloudinaryService.js';
+} from '../../services/cloudinaryService.js';
 
 import {
   existeVehiculo

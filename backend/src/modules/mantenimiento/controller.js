@@ -11,7 +11,7 @@ import {
 
 import {
   logAction
-} from '../../../services/auditService.js';
+} from '../../services/auditService.js';
 
 export const listarMantenimientos =
   async (req, res) => {
