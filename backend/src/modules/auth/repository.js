@@ -14,3 +14,13 @@ export const obtenerUsuarioPorUsername =
 
     return result.rows[0] || null;
   };
+
+export const actualizarUltimoAcceso =
+  async userId => {
+    await pool.query(
+      `UPDATE usuarios
+       SET ultimo_acceso = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [userId]
+    );
+  };

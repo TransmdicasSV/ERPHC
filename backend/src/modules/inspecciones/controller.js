@@ -66,8 +66,7 @@ export const registrarInspeccion =
       const inspeccionCreada =
         await crearInspeccion({
           placa: datos.placa,
-          fecha: datos.fecha,
-          hora: datos.hora,
+          fechaHora: datos.fecha_hora,
           tablet: datos.tablet,
           radio: datos.radio,
           camaras: datos.camaras,
@@ -295,8 +294,7 @@ export const editarInspeccion =
       const inspeccionActualizada =
         await actualizarInspeccion({
           id,
-          fecha: datos.fecha,
-          hora: datos.hora,
+          fechaHora: datos.fecha_hora,
           tablet: datos.tablet,
           radio: datos.radio,
           camaras: datos.camaras,
