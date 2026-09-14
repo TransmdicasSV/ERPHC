@@ -6,9 +6,9 @@ export const obtenerMantenimientos = async () => {
        v.placa,
        COALESCE(m.id, i.id, 0) AS id,
        COALESCE(
-         i.fecha::text,
-         m.fecha_ejecutada::text
-       ) AS fecha_ejecutada_raw,
+  i.fecha_hora::date::text,
+  m.fecha_ejecutada::text
+) AS fecha_ejecutada_raw,
        COALESCE(
          m.frecuencia_dias,
          180
@@ -68,12 +68,12 @@ export const obtenerMantenimientos = async () => {
      FROM vehiculos v
      LEFT JOIN (
        SELECT
-         placa,
-         fecha,
-         camaras,
-         tablet,
-         radio,
-         id,
+  placa,
+  fecha_hora,
+  camaras,
+  tablet,
+  radio,
+  id,
          ROW_NUMBER() OVER (
            PARTITION BY placa
            ORDER BY id DESC

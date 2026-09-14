@@ -269,21 +269,26 @@ createIncidente: async (data, evidencias = []) => {
     return res.json();
   },
   updateIncidenteConEvidencia: async (id, formData) => {
-    const token = localStorage.getItem('nexus_token');
-    const res = await fetch(`${BASE_URL}/api/incidentes/${id}`, {
+  const res = await fetchWithAuth(
+    `${BASE_URL}/api/incidentes/${id}`,
+    {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
       body: formData
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Respuesta Error de Servidor:", res.status, errorText);
-      throw new Error(errorText || 'Error al actualizar incidente con evidencia');
     }
-    return res.json();
-  },
+  );
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+
+    throw new Error(
+      error.error ||
+      error.message ||
+      'Error al actualizar el ticket con evidencia'
+    );
+  }
+
+  return res.json();
+},
 
   deleteIncidente: async (id) => {
     const res = await fetchWithAuth(`${BASE_URL}/api/incidentes/${id}`, {

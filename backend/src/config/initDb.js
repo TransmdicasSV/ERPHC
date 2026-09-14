@@ -6,10 +6,7 @@ const ESQUEMA_ESPERADO = {
     'user_id',
     'accion',
     'tabla_afectada',
-    'fecha',
-    'ip_address',
-    'valores_anteriores',
-    'valores_actuales'
+    'fecha'
   ],
 
   entregas_ti: [
@@ -54,19 +51,32 @@ const ESQUEMA_ESPERADO = {
     'motivo_renovacion'
   ],
 
-  inspecciones_flota: [
+  tickets_unidades: [
     'id',
     'placa',
-    'fecha',
-    'hora',
-    'tablet',
-    'radio',
-    'camaras',
-    'img_tablet',
-    'img_radio',
-    'img_camaras',
-    'observaciones'
+    'persona_id',
+    'tipo_solicitud',
+    'descripcion',
+    'estado',
+    'implemento',
+    'evidencias',
+    'fecha_creacion',
+    'fecha_cierre'
   ],
+
+  inspecciones_flota: [
+  'id',
+  'placa',
+  'fecha_hora',
+  'tablet',
+  'radio',
+  'camaras',
+  'img_tablet',
+  'img_radio',
+  'img_camaras',
+  'observaciones',
+  'estado'
+],
 
   mantenimientos_tecnicos: [
     'id',
@@ -87,15 +97,16 @@ const ESQUEMA_ESPERADO = {
 
   personal: [
     'id',
-    'id_interno',
     'nombre_completo',
     'dni',
-    'modalidad',
     'area',
     'cargo',
     'telefono',
     'estado',
-    'created_at'
+    'created_at',
+    'fecha_ingreso',
+    'operacion',
+    'fecha_cese'
   ],
 
   usuarios: [
@@ -106,29 +117,28 @@ const ESQUEMA_ESPERADO = {
     'estado',
     'permisos',
     'operacion',
-    'created_at'
+    'created_at',
+    'persona_id',
+    'ultimo_acceso'
   ],
 
   vehiculos: [
     'placa',
-    'programa',
     'tipo_vehiculo',
     'marca_tracto',
     'modelo_tracto',
     'anio_fabricacion',
     'operacion',
-    'cliente',
-    'estado_operativo',
-    'observaciones_operativas',
-    'fecha_reporte_flota'
+    'cliente'
   ]
 };
 
 const CAMPOS_DATE = [
   'entregas_ti.fecha',
-  'inspecciones_flota.fecha',
   'mantenimientos_tecnicos.fecha_ejecutada',
-  'vehiculos.fecha_reporte_flota'
+  'vehiculos.anio_fabricacion',
+  'personal.fecha_ingreso',
+  'personal.fecha_cese'
 ];
 
 export const initDb = async () => {

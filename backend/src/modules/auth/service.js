@@ -10,7 +10,8 @@ import {
 } from '../../middlewares/auth.js';
 
 import {
-  obtenerUsuarioPorUsername
+  obtenerUsuarioPorUsername,
+  actualizarUltimoAcceso
 } from './repository.js';
 
 export class AuthError extends Error {
@@ -121,6 +122,10 @@ export const autenticarUsuario =
 
     const operacion =
       user.operacion || null;
+
+    await actualizarUltimoAcceso(
+      user.id
+    );
 
     const token =
       jwt.sign(

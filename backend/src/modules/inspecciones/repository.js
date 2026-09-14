@@ -13,7 +13,9 @@ export const existeVehiculo = async placa => {
 
 export const obtenerHistorial = async placa => {
   const result = await pool.query(
-    `SELECT *, fecha::text AS fecha
+    `SELECT *,
+       fecha_hora::date::text AS fecha,
+       to_char(fecha_hora, 'HH24:MI') AS hora
      FROM inspecciones_flota
      WHERE placa = $1
      ORDER BY id DESC`,
@@ -25,8 +27,7 @@ export const obtenerHistorial = async placa => {
 
 export const crearInspeccion = async ({
   placa,
-  fecha,
-  hora,
+  fechaHora,
   tablet,
   radio,
   camaras,
@@ -44,26 +45,26 @@ export const crearInspeccion = async ({
 
     const result = await client.query(
       `INSERT INTO inspecciones_flota (
-         placa,
-         fecha,
-         hora,
-         tablet,
-         radio,
-         camaras,
-         img_tablet,
-         img_radio,
-         img_camaras,
-         observaciones
-       )
-       VALUES (
-         $1, $2, $3, $4, $5,
-         $6, $7, $8, $9, $10
-       )
-       RETURNING *, fecha::text AS fecha`,
+     placa,
+     fecha_hora,
+     tablet,
+     radio,
+     camaras,
+     img_tablet,
+     img_radio,
+     img_camaras,
+     observaciones
+   )
+   VALUES (
+     $1, $2, $3, $4, $5,
+     $6, $7, $8, $9
+   )
+   RETURNING *,
+             fecha_hora::date::text AS fecha,
+             to_char(fecha_hora, 'HH24:MI') AS hora`,
       [
         placa,
-        fecha,
-        hora,
+        fechaHora,
         tablet,
         radio,
         camaras,
@@ -73,7 +74,6 @@ export const crearInspeccion = async ({
         observaciones || ''
       ]
     );
-
     await client.query('COMMIT');
 
     return result.rows[0];
@@ -97,7 +97,9 @@ export const crearInspeccion = async ({
 export const obtenerInspeccionPorId =
   async id => {
     const result = await pool.query(
-      `SELECT *, fecha::text AS fecha
+      `SELECT *,
+              fecha_hora::date::text AS fecha,
+              to_char(fecha_hora, 'HH24:MI') AS hora
        FROM inspecciones_flota
        WHERE id = $1`,
       [id]
@@ -109,8 +111,7 @@ export const obtenerInspeccionPorId =
 export const actualizarInspeccion =
   async ({
     id,
-    fecha,
-    hora,
+    fechaHora,
     tablet,
     radio,
     camaras,
@@ -121,20 +122,20 @@ export const actualizarInspeccion =
   }) => {
     const result = await pool.query(
       `UPDATE inspecciones_flota
-       SET fecha = $1,
-           hora = $2,
-           tablet = $3,
-           radio = $4,
-           camaras = $5,
-           img_tablet = $6,
-           img_radio = $7,
-           img_camaras = $8,
-           observaciones = $9
-       WHERE id = $10
-       RETURNING *, fecha::text AS fecha`,
+   SET fecha_hora = $1,
+       tablet = $2,
+       radio = $3,
+       camaras = $4,
+       img_tablet = $5,
+       img_radio = $6,
+       img_camaras = $7,
+       observaciones = $8
+   WHERE id = $9
+   RETURNING *,
+             fecha_hora::date::text AS fecha,
+             to_char(fecha_hora, 'HH24:MI') AS hora`,
       [
-        fecha,
-        hora,
+        fechaHora,
         tablet,
         radio,
         camaras,
@@ -146,6 +147,7 @@ export const actualizarInspeccion =
       ]
     );
 
+
     return result.rows[0] || null;
   };
 
@@ -154,7 +156,9 @@ export const eliminarInspeccion =
     const result = await pool.query(
       `DELETE FROM inspecciones_flota
        WHERE id = $1
-       RETURNING *, fecha::text AS fecha`,
+       RETURNING *,
+          fecha_hora::date::text AS fecha,
+          to_char(fecha_hora, 'HH24:MI') AS hora`,
       [id]
     );
 

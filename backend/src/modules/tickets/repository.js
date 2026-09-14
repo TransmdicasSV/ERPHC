@@ -1,5 +1,6 @@
 import { pool } from '../../config/database.js';
 
+
 // ==========================================
 // CONTEXTO DEL USUARIO
 // ==========================================
@@ -8,11 +9,12 @@ export const obtenerUsuarioTicket =
   async userId => {
     const result = await pool.query(
       `SELECT
-         rol,
-         estado,
-         operacion
-       FROM usuarios
-       WHERE id = $1
+         u.rol,
+         u.estado,
+         u.operacion,
+         u.persona_id
+       FROM usuarios u
+       WHERE u.id = $1
        LIMIT 1`,
       [userId]
     );
@@ -54,40 +56,16 @@ export const obtenerVehiculosTickets =
     return result.rows;
   };
 
-export const obtenerOperacionesPulsera =
-  async operacionesInvalidas => {
-    const result = await pool.query(
-      `SELECT
-         MIN(BTRIM(operacion)) AS operacion
-       FROM vehiculos
-       WHERE operacion IS NOT NULL
-         AND LOWER(BTRIM(operacion))
-           <> ALL($1::text[])
-       GROUP BY LOWER(BTRIM(operacion))
-       ORDER BY operacion ASC`,
-      [operacionesInvalidas]
-    );
-
-    return result.rows.map(
-      row => row.operacion
-    );
-  };
-
-export const obtenerPersonalPulsera =
+export const obtenerPersonalTickets =
   async () => {
     const result = await pool.query(
       `SELECT
+         id,
          dni,
-         nombre_completo
+         nombre_completo,
+         operacion
        FROM personal
-       WHERE dni IS NOT NULL
-         AND BTRIM(dni) <> ''
-         AND nombre_completo IS NOT NULL
-         AND BTRIM(nombre_completo) <> ''
-         AND (
-           estado IS NULL
-           OR LOWER(BTRIM(estado)) = 'activo'
-         )
+       WHERE estado = 'Activo'
        ORDER BY nombre_completo ASC`
     );
 
@@ -95,48 +73,25 @@ export const obtenerPersonalPulsera =
   };
 
 // ==========================================
-// VALIDACIONES DE PULSERA
+// VALIDACIONES
 // ==========================================
 
-export const obtenerPersonaActivaPorDni =
-  async dni => {
+export const obtenerPersonaActivaPorId =
+  async personaId => {
     const result = await pool.query(
       `SELECT
+         id,
          dni,
-         nombre_completo
+         nombre_completo,
+         operacion
        FROM personal
-       WHERE dni = $1
-         AND (
-           estado IS NULL
-           OR LOWER(BTRIM(estado)) = 'activo'
-         )
+       WHERE id = $1
+         AND estado = 'Activo'
        LIMIT 1`,
-      [dni]
+      [personaId]
     );
 
     return result.rows[0] || null;
-  };
-
-export const existeOperacionTicket =
-  async (
-    operacion,
-    operacionesInvalidas
-  ) => {
-    const result = await pool.query(
-      `SELECT 1
-       FROM vehiculos
-       WHERE LOWER(BTRIM(operacion)) =
-             LOWER(BTRIM($1))
-         AND LOWER(BTRIM(operacion))
-             <> ALL($2::text[])
-       LIMIT 1`,
-      [
-        operacion,
-        operacionesInvalidas
-      ]
-    );
-
-    return result.rows.length > 0;
   };
 
 // ==========================================
@@ -146,105 +101,39 @@ export const existeOperacionTicket =
 export const insertarTicket =
   async ({
     placa,
+    personaId,
     tipoSolicitud,
     descripcion,
-    operador,
-    categoria,
-    prioridad,
-    operacionContexto,
-    operacionSinPlaca,
-    operacionesInvalidas,
     implemento,
-    evidenciasIniciales,
-    personaPulsera,
-    dniPulsera,
-    motivoRenovacion,
-    esReportePulsera
+    evidencias
   }) => {
     const result = await pool.query(
-      `WITH destino AS (
-         SELECT
-           v.placa,
-           BTRIM(v.operacion) AS operacion
-         FROM vehiculos v
-         WHERE v.placa = $1
-           AND (
-             $7::text IS NULL
-             OR LOWER(BTRIM(v.operacion)) =
-                LOWER(BTRIM($7))
-           )
-
-         UNION ALL
-
-         SELECT
-           NULL::varchar,
-           $8::text
-         WHERE $1::text IS NULL
-           AND (
-             $15::boolean = TRUE
-             OR $7::text IS NOT NULL
-             OR EXISTS (
-               SELECT 1
-               FROM vehiculos
-               WHERE LOWER(BTRIM(operacion)) =
-                     LOWER(BTRIM($8))
-             )
-           )
-       )
-
-       INSERT INTO incidentes_soporte (
+      `INSERT INTO tickets_unidades (
          placa,
+         persona_id,
          tipo_solicitud,
          descripcion,
-         operador,
-         categoria,
-         prioridad,
-         operacion,
          implemento,
-         evidencias_iniciales,
-         persona_pulsera,
-         dni_persona_pulsera,
-         motivo_renovacion
+         evidencias
        )
-
-       SELECT
-         placa,
+       VALUES (
+         $1,
          $2,
          $3,
          $4,
          $5,
-         $6,
-         operacion,
-         $10,
-         $11::jsonb,
-         $12,
-         $13,
-         $14
-       FROM destino
-       WHERE LOWER(
-         BTRIM(
-           COALESCE(operacion, '')
-         )
-       ) <> ALL($9::text[])
+         $6::jsonb
+       )
        RETURNING *`,
       [
         placa,
+        personaId,
         tipoSolicitud,
         descripcion,
-        operador,
-        categoria,
-        prioridad,
-        operacionContexto,
-        operacionSinPlaca,
-        operacionesInvalidas,
         implemento,
         JSON.stringify(
-          evidenciasIniciales
-        ),
-        personaPulsera,
-        dniPulsera,
-        motivoRenovacion,
-        esReportePulsera
+          evidencias || []
+        )
       ]
     );
 
@@ -258,12 +147,18 @@ export const insertarTicket =
 export const obtenerTickets =
   async operacion => {
     const result = await pool.query(
-      `SELECT *
-       FROM incidentes_soporte
+      `SELECT
+         t.*,
+         p.nombre_completo,
+         p.dni,
+         p.operacion
+       FROM tickets_unidades t
+       INNER JOIN personal p
+         ON p.id = t.persona_id
        WHERE $1::text IS NULL
-          OR LOWER(BTRIM(operacion)) =
+          OR LOWER(BTRIM(p.operacion)) =
              LOWER(BTRIM($1))
-       ORDER BY id DESC`,
+       ORDER BY t.id DESC`,
       [operacion]
     );
 
@@ -277,9 +172,15 @@ export const obtenerTickets =
 export const obtenerTicketPorId =
   async id => {
     const result = await pool.query(
-      `SELECT *
-       FROM incidentes_soporte
-       WHERE id = $1`,
+      `SELECT
+         t.*,
+         p.nombre_completo,
+         p.dni,
+         p.operacion
+       FROM tickets_unidades t
+       INNER JOIN personal p
+         ON p.id = t.persona_id
+       WHERE t.id = $1`,
       [id]
     );
 
@@ -292,33 +193,32 @@ export const actualizarEstadoTicket =
     estado,
     evidencia
   }) => {
-    let result;
-
-    if (evidencia) {
-      result = await pool.query(
-        `UPDATE incidentes_soporte
-         SET estado = $1,
-             evidencia = $2
-         WHERE id = $3
-         RETURNING *`,
-        [
-          estado,
-          evidencia,
-          id
-        ]
-      );
-    } else {
-      result = await pool.query(
-        `UPDATE incidentes_soporte
-         SET estado = $1
-         WHERE id = $2
-         RETURNING *`,
-        [
-          estado,
-          id
-        ]
-      );
-    }
+    const result = await pool.query(
+      `UPDATE tickets_unidades
+       SET
+         estado = $1,
+         evidencias =
+           CASE
+             WHEN $2::text IS NULL
+               THEN evidencias
+             ELSE evidencias ||
+                  jsonb_build_array(
+                    jsonb_build_object(
+                      'tipo',
+                      'cierre',
+                      'url',
+                      $2::text
+                    )
+                  )
+           END
+       WHERE id = $3
+       RETURNING *`,
+      [
+        estado,
+        evidencia,
+        id
+      ]
+    );
 
     return result.rows[0] || null;
   };
@@ -378,7 +278,7 @@ export const actualizarInspeccionTicket =
 export const eliminarTicketPorId =
   async id => {
     const result = await pool.query(
-      `DELETE FROM incidentes_soporte
+      `DELETE FROM tickets_unidades
        WHERE id = $1
        RETURNING *`,
       [id]

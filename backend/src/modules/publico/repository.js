@@ -21,7 +21,7 @@ export const obtenerInspeccionesHoy =
     const result = await pool.query(
       `SELECT COUNT(*)::int AS cantidad
        FROM inspecciones_flota
-       WHERE fecha = $1::date`,
+       WHERE fecha_hora::date = $1::date`,
       [fecha]
     );
 
@@ -34,15 +34,15 @@ export const obtenerTickerInspecciones =
   async () => {
     const result = await pool.query(
       `SELECT
-         placa,
-         fecha::text AS fecha,
-         hora,
-         tablet,
-         radio,
-         camaras
-       FROM inspecciones_flota
-       ORDER BY id DESC
-       LIMIT 10`
+   placa,
+   fecha_hora::date::text AS fecha,
+   to_char(fecha_hora, 'HH24:MI') AS hora,
+   tablet,
+   radio,
+   camaras
+ FROM inspecciones_flota
+ ORDER BY id DESC
+ LIMIT 10`
     );
 
     return result.rows;
@@ -75,11 +75,12 @@ export const obtenerUltimaInspeccionPublica =
   async placa => {
     const result = await pool.query(
       `SELECT *,
-              fecha::text AS fecha
-       FROM inspecciones_flota
-       WHERE placa = $1
-       ORDER BY id DESC
-       LIMIT 1`,
+        fecha_hora::date::text AS fecha,
+        to_char(fecha_hora, 'HH24:MI') AS hora
+ FROM inspecciones_flota
+ WHERE placa = $1
+ ORDER BY id DESC
+ LIMIT 1`,
       [placa]
     );
 
@@ -90,15 +91,15 @@ export const obtenerTimelinePublico =
   async placa => {
     const result = await pool.query(
       `SELECT
-         fecha::text AS fecha,
-         hora,
-         tablet,
-         radio,
-         camaras
-       FROM inspecciones_flota
-       WHERE placa = $1
-       ORDER BY id DESC
-       LIMIT 3`,
+   fecha_hora::date::text AS fecha,
+   to_char(fecha_hora, 'HH24:MI') AS hora,
+   tablet,
+   radio,
+   camaras
+ FROM inspecciones_flota
+ WHERE placa = $1
+ ORDER BY id DESC
+ LIMIT 3`,
       [placa]
     );
 
