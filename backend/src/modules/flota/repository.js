@@ -69,39 +69,53 @@ export const buscarVehiculos = async ({
   const result = await pool.query(
     `SELECT
        v.placa,
-       v.programa,
+       v.operacion AS programa,
        v.tipo_vehiculo,
        v.marca_tracto,
        v.modelo_tracto,
        v.anio_fabricacion,
        v.operacion,
        v.cliente,
-       v.estado_operativo,
-       v.observaciones_operativas,
-       v.fecha_reporte_flota,
+
        i.tablet,
        i.radio,
        i.camaras,
-       i.fecha::text AS fecha,
+
+       i.estado AS estado_inspeccion,
+
+       i.fecha_hora::date::text AS fecha,
+       to_char(
+         i.fecha_hora,
+         'HH24:MI'
+       ) AS hora,
+
        i.observaciones
+
      FROM vehiculos v
+
      LEFT JOIN (
        SELECT
          placa,
          tablet,
          radio,
          camaras,
-         fecha,
+         estado,
+         fecha_hora,
          observaciones,
+
          ROW_NUMBER() OVER (
            PARTITION BY placa
            ORDER BY id DESC
          ) AS rn
+
        FROM inspecciones_flota
      ) i
+
        ON v.placa = i.placa
       AND i.rn = 1
+
      ${whereClause}
+
      ORDER BY v.placa ASC`,
     params
   );
@@ -214,7 +228,8 @@ export const eliminarVehiculo =
 
     return result.rows[0] || null;
   };
-  export const obtenerTractos = async () => {
+
+export const obtenerTractos = async () => {
   const result = await pool.query(
     `SELECT *
      FROM vehiculos

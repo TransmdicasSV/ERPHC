@@ -1,5 +1,28 @@
 import { pool } from '../../config/database.js';
 
+export const obtenerUsuarioPorUsername =
+  async username => {
+    const result =
+      await pool.query(
+        `SELECT *
+         FROM usuarios
+         WHERE username = $1`,
+        [username]
+      );
+
+    return result.rows[0] || null;
+  };
+
+export const actualizarUltimoAcceso =
+  async userId => {
+    await pool.query(
+      `UPDATE usuarios
+       SET ultimo_acceso = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [userId]
+    );
+  };
+
 // ==========================================
 // ESTADÍSTICAS RÁPIDAS
 // ==========================================
@@ -44,9 +67,10 @@ export const obtenerFechasInspecciones =
   async () => {
     const result =
       await pool.query(
-        `SELECT fecha::text AS fecha
+        `SELECT
+           fecha_hora::date::text AS fecha
          FROM inspecciones_flota
-         WHERE fecha IS NOT NULL`
+         WHERE fecha_hora IS NOT NULL`
       );
 
     return result.rows;

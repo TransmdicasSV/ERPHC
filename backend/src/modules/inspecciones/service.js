@@ -107,7 +107,10 @@ export const validarDatosInspeccion =
         );
       }
     }
-
+    datos.fecha_hora =
+  datos.fecha && datos.hora
+    ? `${datos.fecha} ${datos.hora.length === 5 ? `${datos.hora}:00` : datos.hora}`
+    : null;
     return datos;
   };
 

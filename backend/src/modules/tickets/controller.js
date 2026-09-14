@@ -9,17 +9,16 @@ import {
 
 import {
   obtenerVehiculosTickets,
-  obtenerOperacionesPulsera,
-  obtenerPersonalPulsera,
-  obtenerPersonaActivaPorDni,
-  existeOperacionTicket,
+  obtenerPersonalTickets,
+  obtenerPersonaActivaPorId,
   insertarTicket,
   obtenerTickets,
   obtenerTicketPorId,
   actualizarEstadoTicket,
   obtenerUltimaInspeccion,
   actualizarInspeccionTicket,
-  eliminarTicketPorId
+  eliminarTicketPorId,
+  obtenerUsuarioTicket
 } from './repository.js';
 
 import {
@@ -27,12 +26,12 @@ import {
   OPERACIONES_INVALIDAS_TICKET,
   IMPLEMENTOS_PERMITIDOS,
   componenteConFalla,
-  obtenerEvidenciasIniciales,
   obtenerOperacionesUnicas
 } from './service.js';
 
+
 // ==========================================
-// OPCIONES DE TICKETS
+// OPCIONES DE TICKETS DE UNIDADES
 // ==========================================
 
 export const opcionesTickets =
@@ -41,11 +40,18 @@ export const opcionesTickets =
       const contexto =
         await contextoTicket(req);
 
-      const vehiculos =
-        await obtenerVehiculosTickets(
-          contexto.operacion,
-          OPERACIONES_INVALIDAS_TICKET
-        );
+      const [
+        vehiculos,
+        personal
+      ] =
+        await Promise.all([
+          obtenerVehiculosTickets(
+            contexto.operacion,
+            OPERACIONES_INVALIDAS_TICKET
+          ),
+
+          obtenerPersonalTickets()
+        ]);
 
       const operaciones =
         obtenerOperacionesUnicas(
@@ -54,10 +60,12 @@ export const opcionesTickets =
 
       return res.json({
         vehiculos,
+        personal,
         operaciones,
         operacionAsignada:
           contexto.operacion
       });
+
     } catch (error) {
       console.error(
         'Error cargando opciones de tickets:',
@@ -78,123 +86,51 @@ export const opcionesTickets =
     }
   };
 
+
 // ==========================================
-// OPCIONES DE PULSERAS
+// PULSERAS
+// TEMPORALMENTE DESHABILITADO
 // ==========================================
 
 export const opcionesReportePulseras =
   async (req, res) => {
-    try {
-      const contexto =
-        await contextoTicket(
-          req,
-          'crear'
-        );
-
-      if (
-        ![
-          'admin',
-          'supervisor'
-        ].includes(
-          contexto.rol
-        )
-      ) {
-        return res
-          .status(403)
-          .json({
-            error:
-              'No tienes permiso para registrar reportes de pulseras'
-          });
-      }
-
-      const [
-        operaciones,
-        personal
-      ] =
-        await Promise.all([
-          obtenerOperacionesPulsera(
-            OPERACIONES_INVALIDAS_TICKET
-          ),
-          obtenerPersonalPulsera()
-        ]);
-
-      return res.json({
-        operaciones,
-        personal
-      });
-    } catch (error) {
-      console.error(
-        'Error cargando opciones de pulseras:',
-        error
-      );
-
-      return res
-        .status(
-          error.status || 500
-        )
-        .json({
-          error:
-            error.status === 401 ||
-            error.status === 403
-              ? error.message
-              : 'Error al cargar opciones de reportes de pulseras'
-        });
-    }
+    return res.status(503).json({
+      error:
+        'El módulo de tickets de pulseras se encuentra temporalmente en rediseño'
+    });
   };
 
-// ==========================================
-// CREAR TICKET
-// ==========================================
 
+// ==========================================
+// CREAR TICKET DE UNIDAD
+// ==========================================
 export const createSupportTicket =
   async (req, res) => {
     const {
-      placa,
-      tipo_solicitud,
-      descripcion,
-      operador,
-      categoria,
-      prioridad,
-      implemento,
-      operacion,
-      persona_pulsera,
-      dni_persona_pulsera,
-      motivo_renovacion
-    } = req.body || {};
-
-    if (
-      placa != null &&
-      typeof placa !== 'string'
-    ) {
-      return res.status(400).json({
-        error:
-          'La placa debe ser texto o quedar vacía'
-      });
-    }
+  placa,
+  tipo_solicitud,
+  descripcion,
+  implemento
+} = req.body || {};
 
     const placaFinal =
-      placa
-        ?.trim()
-        .toUpperCase() ||
-      null;
+      String(
+        placa || ''
+      )
+        .trim()
+        .toUpperCase();
 
     const tipoSolicitudFinal =
-      typeof tipo_solicitud ===
-        'string'
-        ? tipo_solicitud.trim()
-        : '';
+      String(
+        tipo_solicitud || ''
+      ).trim();
 
     const descripcionFinal =
-      typeof descripcion ===
-        'string'
-        ? descripcion.trim()
-        : '';
+      String(
+        descripcion || ''
+      ).trim();
 
-    const operadorFinal =
-      typeof operador ===
-        'string'
-        ? operador.trim()
-        : '';
+    
 
     const implementoFinal =
       tipoSolicitudFinal ===
@@ -204,55 +140,38 @@ export const createSupportTicket =
           ).trim()
         : null;
 
-    const esReportePulsera =
-      tipoSolicitudFinal ===
-      'Reporte de Pulsera';
 
-    const personaPulseraFinal =
-      esReportePulsera
-        ? String(
-            persona_pulsera ||
-              ''
-          ).trim()
-        : null;
-
-    const dniPulseraFinal =
-      esReportePulsera
-        ? String(
-            dni_persona_pulsera ||
-              ''
-          ).trim()
-        : null;
-
-    const motivoRenovacionFinal =
-      esReportePulsera
-        ? String(
-            motivo_renovacion ||
-              ''
-          ).trim()
-        : null;
-
-    const operacionPulseraFinal =
-      esReportePulsera
-        ? String(
-            operacion || ''
-          ).trim()
-        : null;
+    // ========================================
+    // VALIDACIONES
+    // ========================================
 
     if (
-      (
-        placaFinal &&
-        placaFinal.length > 20
-      ) ||
-      !tipoSolicitudFinal ||
-      !descripcionFinal ||
-      !operadorFinal
+      !placaFinal ||
+      placaFinal.length > 20
     ) {
       return res
         .status(400)
         .json({
           error:
-            'Revise los datos obligatorios y la placa'
+            'Debe seleccionar una placa válida'
+        });
+    }
+
+    if (!tipoSolicitudFinal) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'Debe indicar el tipo de solicitud'
+        });
+    }
+
+    if (!descripcionFinal) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'La descripción es obligatoria'
         });
     }
 
@@ -271,29 +190,11 @@ export const createSupportTicket =
         });
     }
 
-    if (
-      esReportePulsera &&
-      (
-        !operacionPulseraFinal ||
-        !personaPulseraFinal ||
-        !/^\d{8}$/.test(
-          dniPulseraFinal
-        ) ||
-        !motivoRenovacionFinal ||
-        !(req.files || []).length
-      )
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            'Complete los datos de la pulsera, seleccione una operación y adjunte una evidencia'
-        });
-    }
 
     const evidenciasSubidas = [];
 
     let ticketCreado = false;
+
 
     try {
       const contexto =
@@ -301,124 +202,71 @@ export const createSupportTicket =
           req,
           'crear'
         );
+        const usuarioTicket =
+  await obtenerUsuarioTicket(
+    req.user.id
+  );
 
-      if (
-        esReportePulsera &&
-        ![
-          'admin',
-          'supervisor'
-        ].includes(
-          contexto.rol
-        )
-      ) {
-        return res
-          .status(403)
-          .json({
-            error:
-              'No tienes permiso para registrar reportes de pulseras'
-          });
-      }
+if (!usuarioTicket?.persona_id) {
+  return res.status(400).json({
+    error:
+      'El usuario actual no está vinculado a una persona'
+  });
+}
 
-      if (esReportePulsera) {
-        const persona =
-          await obtenerPersonaActivaPorDni(
-            dniPulseraFinal
-          );
+const personaIdFinal =
+  Number(usuarioTicket.persona_id);
 
-        if (!persona) {
-          return res
-            .status(400)
-            .json({
-              error:
-                'Seleccione un trabajador válido de la lista'
-            });
-        }
 
-        const personaEncontrada =
-          persona
-            .nombre_completo
-            .trim()
-            .toLowerCase();
+      // ========================================
+      // VALIDAR PERSONA
+      // ========================================
 
-        if (
-          personaEncontrada !==
-          personaPulseraFinal
-            .toLowerCase()
-        ) {
-          return res
-            .status(400)
-            .json({
-              error:
-                'El DNI seleccionado no corresponde al trabajador indicado'
-            });
-        }
+      const persona =
+        await obtenerPersonaActivaPorId(
+          personaIdFinal
+        );
 
-        const operacionExiste =
-          await existeOperacionTicket(
-            operacionPulseraFinal,
-            OPERACIONES_INVALIDAS_TICKET
-          );
-
-        if (!operacionExiste) {
-          return res
-            .status(400)
-            .json({
-              error:
-                'Seleccione una operación válida'
-            });
-        }
-      }
-
-      if (
-        esReportePulsera &&
-        contexto.rol ===
-          'publico'
-      ) {
-        return res
-          .status(403)
-          .json({
-            error:
-              'El reporte de pulseras requiere iniciar sesión'
-          });
-      }
-
-      let operacionSinPlaca =
-        null;
-
-      if (esReportePulsera) {
-        operacionSinPlaca =
-          operacionPulseraFinal;
-      } else if (
-        contexto.rol ===
-        'supervisor'
-      ) {
-        operacionSinPlaca =
-          contexto.operacion;
-      } else if (
-        contexto.rol ===
-          'admin' &&
-        typeof operacion ===
-          'string'
-      ) {
-        operacionSinPlaca =
-          operacion.trim() ||
-          null;
-      }
-
-      if (
-        !placaFinal &&
-        !operacionSinPlaca
-      ) {
+      if (!persona) {
         return res
           .status(400)
           .json({
             error:
-              contexto.rol ===
-              'publico'
-                ? 'En el portal público debe indicar una placa'
-                : 'Seleccione una operación para el ticket sin placa'
+              'La persona seleccionada no existe o está inactiva'
           });
       }
+
+
+      // ========================================
+      // VALIDAR OPERACIÓN DEL SUPERVISOR
+      // ========================================
+
+      if (
+        contexto.rol ===
+          'supervisor' &&
+        String(
+          persona.operacion || ''
+        )
+          .trim()
+          .toLowerCase() !==
+        String(
+          contexto.operacion || ''
+        )
+          .trim()
+          .toLowerCase()
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'La persona seleccionada no pertenece a su operación'
+          });
+      }
+
+
+      // ========================================
+      // SUBIR EVIDENCIAS INICIALES
+      // ========================================
 
       for (
         const archivo of
@@ -427,141 +275,98 @@ export const createSupportTicket =
         const url =
           await uploadToCloudinary(
             archivo.buffer,
-            'tickets_evidencias_iniciales',
+            'tickets_unidades/evidencias_iniciales',
             'image'
           );
 
-        evidenciasSubidas.push(
+        evidenciasSubidas.push({
+          tipo: 'inicial',
           url
-        );
+        });
       }
 
-      const ticket =
-        await insertarTicket({
-          placa:
-            placaFinal,
 
-          tipoSolicitud:
-            tipoSolicitudFinal,
+      // ========================================
+      // CREAR
+      // ========================================
 
-          descripcion:
-            descripcionFinal,
+      const nuevoTicket = await insertarTicket({
+  placa,
+  personaId,
+  tipoSolicitud: tipo_solicitud,
+  descripcion,
+  implemento,
+  evidencias
+});
 
-          operador:
-            operadorFinal,
-
-          categoria:
-            esReportePulsera
-              ? 'Pulseras'
-              : String(
-                  categoria ||
-                    'General'
-                ).trim(),
-
-          prioridad:
-            String(
-              prioridad ||
-                'Media'
-            ).trim(),
-
-          operacionContexto:
-            contexto.operacion,
-
-          operacionSinPlaca,
-
-          operacionesInvalidas:
-            OPERACIONES_INVALIDAS_TICKET,
-
-          implemento:
-            implementoFinal,
-
-          evidenciasIniciales:
-            evidenciasSubidas,
-
-          personaPulsera:
-            personaPulseraFinal,
-
-          dniPulsera:
-            dniPulseraFinal,
-
-          motivoRenovacion:
-            motivoRenovacionFinal,
-
-          esReportePulsera
-        });
 
       if (!ticket) {
-        await Promise.allSettled(
-          evidenciasSubidas.map(
-            url =>
-              deleteFromCloudinary(
-                url
-              )
-          )
+        throw new Error(
+          'No se pudo crear el ticket'
         );
-
-        return res
-          .status(
-            contexto.rol ===
-              'supervisor'
-              ? 403
-              : 400
-          )
-          .json({
-            error:
-              'La placa o la operación no son válidas o no están autorizadas para su cuenta'
-          });
       }
+
 
       ticketCreado = true;
 
+
       await logAction(
-        req.user?.id ||
-          null,
-        `Solicitud de soporte: ${
-          placaFinal ||
-          'sin placa'
-        }`,
-        'incidentes_soporte',
+        req.user?.id || null,
+
+        `Creó ticket de unidad #${ticket.id}`,
+
+        'tickets_unidades',
+
         req,
+
         null,
+
         ticket
       );
+
 
       return res
         .status(201)
         .json({
           success: true,
-          id: ticket.id
+          id:
+            ticket.id,
+          ticket
         });
+
     } catch (error) {
       if (!ticketCreado) {
         await Promise.allSettled(
           evidenciasSubidas.map(
-            url =>
+            evidencia =>
               deleteFromCloudinary(
-                url
+                evidencia.url
               )
           )
         );
       }
 
+
       console.error(
-        'Error registrando ticket:',
+        'Error registrando ticket de unidad:',
         error
       );
+
 
       if (
         error.status === 401 ||
         error.status === 403
       ) {
         return res
-          .status(error.status)
+          .status(
+            error.status
+          )
           .json({
             error:
               error.message
           });
       }
+
 
       if (
         error.code ===
@@ -571,9 +376,10 @@ export const createSupportTicket =
           .status(400)
           .json({
             error:
-              'La placa ya no está disponible'
+              'La placa o la persona seleccionada ya no existe'
           });
       }
+
 
       return res
         .status(500)
@@ -583,6 +389,7 @@ export const createSupportTicket =
         });
     }
   };
+
 
 // ==========================================
 // LISTAR
@@ -602,6 +409,7 @@ export const listarTickets =
       return res.json(
         tickets
       );
+
     } catch (error) {
       console.error(
         'Error obteniendo tickets:',
@@ -622,8 +430,9 @@ export const listarTickets =
     }
   };
 
+
 // ==========================================
-// ACTUALIZAR
+// ACTUALIZAR ESTADO
 // ==========================================
 
 export const actualizarTicket =
@@ -636,6 +445,7 @@ export const actualizarTicket =
       resolucion_desc
     } =
       req.body || {};
+
 
     if (
       !id ||
@@ -651,21 +461,48 @@ export const actualizarTicket =
         });
     }
 
+
+    const estadoFinal =
+      String(
+        estado || ''
+      ).trim();
+
+
     if (
-      typeof estado !==
-        'string' ||
-      !estado.trim()
+      ![
+        'Pendiente',
+        'En Proceso',
+        'Resuelto'
+      ].includes(
+        estadoFinal
+      )
     ) {
       return res
         .status(400)
         .json({
           error:
-            'Debe seleccionar un estado'
+            'El estado debe ser Pendiente, En Proceso o Resuelto'
         });
     }
 
-    const estadoFinal =
-      estado.trim();
+
+    // ========================================
+    // EVIDENCIA OBLIGATORIA AL RESOLVER
+    // ========================================
+
+    if (
+      estadoFinal ===
+        'Resuelto' &&
+      !req.file
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'Debe adjuntar una evidencia para resolver el ticket'
+        });
+    }
+
 
     let evidenciaUrl =
       null;
@@ -673,11 +510,13 @@ export const actualizarTicket =
     let evidenciaPersistida =
       false;
 
+
     try {
       const valoresAnteriores =
         await obtenerTicketPorId(
           id
         );
+
 
       if (!valoresAnteriores) {
         return res
@@ -688,23 +527,32 @@ export const actualizarTicket =
           });
       }
 
+
+      // ========================================
+      // SUBIR EVIDENCIA DE CIERRE
+      // ========================================
+
       if (req.file) {
         evidenciaUrl =
           await uploadToCloudinary(
             req.file.buffer,
-            'tickets_evidencias',
+            'tickets_unidades/evidencias_cierre',
             'image'
           );
       }
 
+
       const valoresActuales =
         await actualizarEstadoTicket({
           id,
+
           estado:
             estadoFinal,
+
           evidencia:
             evidenciaUrl
         });
+
 
       if (!valoresActuales) {
         if (evidenciaUrl) {
@@ -721,54 +569,62 @@ export const actualizarTicket =
           });
       }
 
+
       evidenciaPersistida =
         Boolean(
           evidenciaUrl
         );
 
+
       await logAction(
-        req.user.id,
-        `Actualizó estado de incidente #${id}`,
-        'incidentes_soporte',
+        req.user?.id || null,
+
+        `Actualizó ticket de unidad #${id} a ${estadoFinal}`,
+
+        'tickets_unidades',
+
         req,
+
         valoresAnteriores,
+
         valoresActuales
       );
 
-      if (
-        evidenciaUrl &&
-        valoresAnteriores.evidencia &&
-        valoresAnteriores.evidencia !==
-          evidenciaUrl
-      ) {
-        await deleteFromCloudinary(
-          valoresAnteriores.evidencia
-        );
-      }
+
+      // ========================================
+      // SI SE RESUELVE, REPARAR INSPECCIÓN
+      // ========================================
 
       if (
-        estadoFinal
-          .toLowerCase() ===
-          'resuelto' &&
+        estadoFinal ===
+          'Resuelto' &&
         valoresActuales.placa
       ) {
         await repararInspeccionRelacionada({
           req,
+
           ticket:
             valoresActuales,
+
           ticketId:
             id,
+
           resolucion:
             resolucion_desc
         });
       }
 
+
       return res.json({
         success: true,
+
         ticket:
           valoresActuales,
+
         evidenciaUrl
       });
+
+
     } catch (error) {
       if (
         evidenciaUrl &&
@@ -779,19 +635,36 @@ export const actualizarTicket =
         );
       }
 
+
       console.error(
         'Error actualizando ticket:',
         error
       );
 
+
+      if (
+        error.message?.includes(
+          'No se puede resolver el ticket sin evidencia'
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              error.message
+          });
+      }
+
+
       return res
         .status(500)
         .json({
           error:
-            'Error al actualizar incidente'
+            'Error al actualizar el ticket'
         });
     }
   };
+
 
 // ==========================================
 // REPARAR INSPECCIÓN RELACIONADA
@@ -809,9 +682,11 @@ const repararInspeccionRelacionada =
         ticket.placa
       );
 
+
     if (!inspeccionAnterior) {
       return;
     }
+
 
     let tablet =
       inspeccionAnterior.tablet;
@@ -825,6 +700,7 @@ const repararInspeccionRelacionada =
     let fueActualizada =
       false;
 
+
     if (
       componenteConFalla(
         tablet
@@ -833,6 +709,7 @@ const repararInspeccionRelacionada =
       tablet = 'OK';
       fueActualizada = true;
     }
+
 
     if (
       componenteConFalla(
@@ -843,6 +720,7 @@ const repararInspeccionRelacionada =
       fueActualizada = true;
     }
 
+
     if (
       componenteConFalla(
         camaras
@@ -852,23 +730,27 @@ const repararInspeccionRelacionada =
       fueActualizada = true;
     }
 
+
     if (!fueActualizada) {
       return;
     }
 
+
     const resolucionFinal =
-      typeof resolucion ===
-        'string'
-        ? resolucion.trim()
-        : '';
+      String(
+        resolucion || ''
+      ).trim();
+
 
     const detalleResolucion =
       resolucionFinal
         ? `: ${resolucionFinal}`
         : '';
 
+
     const nuevaObservacion =
       `[Reparado por TKT-${ticketId}${detalleResolucion}]`;
+
 
     const observaciones =
       inspeccionAnterior
@@ -876,25 +758,37 @@ const repararInspeccionRelacionada =
         ? `${inspeccionAnterior.observaciones} ${nuevaObservacion}`
         : nuevaObservacion;
 
+
     const inspeccionActual =
       await actualizarInspeccionTicket({
         id:
           inspeccionAnterior.id,
+
         tablet,
+
         radio,
+
         camaras,
+
         observaciones
       });
 
+
     await logAction(
-      req.user.id,
+      req.user?.id || null,
+
       `Reparó última inspección para ${ticket.placa} mediante TKT-${ticketId}`,
+
       'inspecciones_flota',
+
       req,
+
       inspeccionAnterior,
+
       inspeccionActual
     );
   };
+
 
 // ==========================================
 // ELIMINAR
@@ -904,6 +798,7 @@ export const eliminarTicket =
   async (req, res) => {
     const { id } =
       req.params;
+
 
     if (
       !id ||
@@ -919,11 +814,13 @@ export const eliminarTicket =
         });
     }
 
+
     try {
       const ticketEliminado =
         await eliminarTicketPorId(
           id
         );
+
 
       if (!ticketEliminado) {
         return res
@@ -934,17 +831,33 @@ export const eliminarTicket =
           });
       }
 
-      const evidencias = [
-        ticketEliminado.evidencia,
 
-        ...obtenerEvidenciasIniciales(
-          ticketEliminado
-            .evidencias_iniciales
+      // ========================================
+      // BORRAR EVIDENCIAS DE CLOUDINARY
+      // ========================================
+
+      const evidencias =
+        Array.isArray(
+          ticketEliminado.evidencias
         )
-      ].filter(Boolean);
+          ? ticketEliminado.evidencias
+          : [];
+
+
+      const urls =
+        evidencias
+          .map(
+            evidencia =>
+              typeof evidencia ===
+                'string'
+                ? evidencia
+                : evidencia?.url
+          )
+          .filter(Boolean);
+
 
       await Promise.allSettled(
-        evidencias.map(
+        urls.map(
           url =>
             deleteFromCloudinary(
               url
@@ -952,30 +865,39 @@ export const eliminarTicket =
         )
       );
 
+
       await logAction(
-        req.user.id,
-        `Eliminó incidente de soporte #${id}`,
-        'incidentes_soporte',
+        req.user?.id || null,
+
+        `Eliminó ticket de unidad #${id}`,
+
+        'tickets_unidades',
+
         req,
+
         ticketEliminado,
+
         null
       );
+
 
       return res.json({
         success: true
       });
+
+
     } catch (error) {
       console.error(
         'Error eliminando ticket:',
         error
       );
 
+
       return res
         .status(500)
         .json({
           error:
-            'Error al eliminar incidente'
+            'Error al eliminar el ticket'
         });
     }
   };
-  

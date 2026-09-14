@@ -39,7 +39,7 @@ CREATE TABLE public.entregas_ti (
     equipo_tipo character varying(100),
     marca character varying(100),
     modelo character varying(100),
-    serie character varying(100), 
+    serie character varying(100),
     laptop character varying(100),
     mouse character varying(100),
     cargador character varying(100),
@@ -450,15 +450,15 @@ COPY public.equipos_flota (placa, programa, fecha, hora, tablet, radio, camaras,
 V8A-794	Primax	12/05/2026	10:21	ok	ok	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-23 at 10.23.54 AM (1).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-23 at 10.23.54 AM.jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-23 at 10.23.54 AM (2).jpeg
 V9V-856	Primax	21/05/2026	16:17	ok	ok	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.05 PM (1).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.06 PM (1).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.06 PM.jpeg
 VAM-800	Primax	22/05/2026	10:39	missing	ok	ok	\N	\N	\N
-VBU-712	Primax	12/05/2026	08:38	ok	missing	missing	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-23 at 10.23.54 AM (4).jpeg		
-VBX-798	Primax	21/05/2026	15:22	ok	ok	missing	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.07 PM.jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.08 PM.jpeg	
+VBU-712	Primax	12/05/2026	08:38	ok	missing	missing	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-23 at 10.23.54 AM (4).jpeg
+VBX-798	Primax	21/05/2026	15:22	ok	ok	missing	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.07 PM.jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.08 PM.jpeg
 VBY-760	Primax	20/05/2026	15:43	ok	missing	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.09 PM.jpeg		C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 6.05.08 PM (1).jpeg
 VBY-798	Primax	22/05/2026	10:35	ok	ok	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM (2).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM (5).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.40 PM.jpeg
 VBY-814	Primax	22/05/2026	10:31	error	ok	ok	\N	\N	\N
-VBY-830	Primax	22/05/2026	10:39	ok	ok	missing	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM (1).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM.jpeg	
-VBY-926	Primax	22/05/2026	10:41	ok	ok	missing	C:/Users/nanie/Desktop/dicas/26-05-2026/2.jpg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.40 PM (2).jpeg	
+VBY-830	Primax	22/05/2026	10:39	ok	ok	missing	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM (1).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM.jpeg
+VBY-926	Primax	22/05/2026	10:41	ok	ok	missing	C:/Users/nanie/Desktop/dicas/26-05-2026/2.jpg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.40 PM (2).jpeg
 VEW-740	Primax	22/05/2026	09:00	ok	ok	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.42 PM.jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM (5).jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/WhatsApp Image 2026-05-22 at 10.11.41 PM (4).jpeg
-VBU-716	Primax	--/--/----	--:--	missing	missing	missing			
+VBU-716	Primax	--/--/----	--:--	missing	missing	missing
 VBU-717	Primax	--/--/----	--:--	missing	missing	missing	\N	\N	\N
 VBU-733	Primax	--/--/----	--:--	missing	missing	missing	\N	\N	\N
 VBU-736	Primax	26/05/2026	09:27	ok	ok	ok	C:/Users/nanie/Desktop/dicas/26-05-2026/photo_2026-05-26_11-00-53.jpg	C:/Users/nanie/Desktop/dicas/26-05-2026/photo_2026-05-26_11-00-27.jpg	C:/Users/nanie/Desktop/dicas/26-05-2026/camaras.jpg
@@ -478,84 +478,84 @@ VBU-705	Primax	27/05/2026	10:08	ok	ok	ok	C:/Users/nanie/Desktop/dicas/27-05-2026
 V0R-738	Bambas	27/05/2026	11:15	ok	ok	ok	C:/Users/nanie/Desktop/dicas/27-05-2026/V0R-738t.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/V0R-738r.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/V0R-738c.jpg
 VDO-908	Bambas	27/05/2026	11:01	ok	ok	ok	C:/Users/nanie/Desktop/dicas/27-05-2026/VDO-908t.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VDO-908r.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VDO-908c.jpg
 VAP-815	Bambas	27/05/2026	10:48	ok	ok	ok	C:/Users/nanie/Desktop/dicas/27-05-2026/VAP-515t.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VAP-515r.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VAP-515c.jpg
-VBU-704	Primax	--/--/----	--:--	missing	missing	missing			
-VBU-738	Primax	--/--/----	--:--	missing	missing	missing			
-VBU-798	Primax	--/--/----	--:--	missing	missing	missing			
-VCX-739	Primax	--/--/----	--:--	missing	missing	missing			
+VBU-704	Primax	--/--/----	--:--	missing	missing	missing
+VBU-738	Primax	--/--/----	--:--	missing	missing	missing
+VBU-798	Primax	--/--/----	--:--	missing	missing	missing
+VCX-739	Primax	--/--/----	--:--	missing	missing	missing
 CJR-734	Primax	18/05/2026	16:06	error	ok	ok	C:/Users/nanie/Desktop/dicas/18-05-2026/CJR-734t.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJR-734r.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJR-734c.jpg
 CJT-845	Primax	18/05/2026	16:32	ok	ok	ok	C:/Users/nanie/Desktop/dicas/18-05-2026/CJT-845t.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJT-845r.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJT-845c.jpg
-CJS-849	Primax	18/05/2026	16:47	ok	ok	ok	C:/Users/nanie/Desktop/dicas/18-05-2026/CJS-849t.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJS-849r.jpg	
+CJS-849	Primax	18/05/2026	16:47	ok	ok	ok	C:/Users/nanie/Desktop/dicas/18-05-2026/CJS-849t.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJS-849r.jpg
 CJQ-858	Primax	18/05/2026	16:17	ok	ok	ok	C:/Users/nanie/Desktop/dicas/18-05-2026/CJQ-858t.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJQ-858r.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJQ-858c.jpg
 CJR-910	Primax	18/05/2026	16:26	ok	ok	ok	C:/Users/nanie/Desktop/dicas/18-05-2026/CJR-910t.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJR-910r.jpg	C:/Users/nanie/Desktop/dicas/18-05-2026/CJR-910c.jpg
-VCW-921	Primax	--/--/----	--:--	missing	missing	missing			
-VCW-922	Primax	--/--/----	--:--	missing	missing	missing			
-VCW-931	Primax	--/--/----	--:--	missing	missing	missing			
-VCX-728	Primax	--/--/----	--:--	missing	missing	missing			
-VAM-806	Primax	--/--/----	--:--	missing	missing	missing			
-V0N-770	Primax	--/--/----	--:--	missing	missing	missing			
-V0T-715	Primax	--/--/----	--:--	missing	missing	missing			
-VBY-832	Primax	--/--/----	--:--	missing	missing	missing			
-VCW-824	Primax	--/--/----	--:--	missing	missing	missing			
-V8A-809	Primax	--/--/----	--:--	missing	missing	missing			
-V9F-795	Primax	--/--/----	--:--	missing	missing	missing			
-V9V-843	Primax	--/--/----	--:--	missing	missing	missing			
-V0M-937	Primax	--/--/----	--:--	missing	missing	missing			
-V0R-757	Primax	--/--/----	--:--	missing	missing	missing			
-BUW-928	Primax	--/--/----	--:--	missing	missing	missing			
-V9V-846	Primax	--/--/----	--:--	missing	missing	missing			
+VCW-921	Primax	--/--/----	--:--	missing	missing	missing
+VCW-922	Primax	--/--/----	--:--	missing	missing	missing
+VCW-931	Primax	--/--/----	--:--	missing	missing	missing
+VCX-728	Primax	--/--/----	--:--	missing	missing	missing
+VAM-806	Primax	--/--/----	--:--	missing	missing	missing
+V0N-770	Primax	--/--/----	--:--	missing	missing	missing
+V0T-715	Primax	--/--/----	--:--	missing	missing	missing
+VBY-832	Primax	--/--/----	--:--	missing	missing	missing
+VCW-824	Primax	--/--/----	--:--	missing	missing	missing
+V8A-809	Primax	--/--/----	--:--	missing	missing	missing
+V9F-795	Primax	--/--/----	--:--	missing	missing	missing
+V9V-843	Primax	--/--/----	--:--	missing	missing	missing
+V0M-937	Primax	--/--/----	--:--	missing	missing	missing
+V0R-757	Primax	--/--/----	--:--	missing	missing	missing
+BUW-928	Primax	--/--/----	--:--	missing	missing	missing
+V9V-846	Primax	--/--/----	--:--	missing	missing	missing
 VEZ-930	Bambas	27/05/2026	14:46	ok	ok	ok	C:/Users/nanie/Desktop/dicas/27-05-2026/VEZ-930t.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VEZ-930r.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VEZ-930c.jpg
 VD0-941	Bambas	27/05/2026	14:56	ok	ok	ok	C:/Users/nanie/Desktop/dicas/27-05-2026/VDO-941t.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VD0-941r.jpg	C:/Users/nanie/Desktop/dicas/27-05-2026/VD0-941c.jpg
 VAP-805	Bambas	20/05/2026	12:25	ok	missing	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/VAP-805t.jpeg		C:/Users/nanie/Desktop/dicas/22-05-2026/VAP-805c.jpg
-VAP-819	Bambas	--/--/----	--:--	missing	missing	missing			
+VAP-819	Bambas	--/--/----	--:--	missing	missing	missing
 VCX-729	Bambas	20/05/2026	12:11	ok	missing	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/VCX-729t.jpeg		C:/Users/nanie/Desktop/dicas/22-05-2026/VCX-729c.jpeg
 VOR-748	Bambas	20/05/2026	12:34	ok	ok	ok	C:/Users/nanie/Desktop/dicas/22-05-2026/VOR-748t.jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/VOR-748r.jpeg	C:/Users/nanie/Desktop/dicas/22-05-2026/VOR-748c.jpg
-VCP-807	Bambas	--/--/----	--:--	missing	missing	missing			
-CAR-924	Bambas	--/--/----	--:--	missing	missing	missing			
-CAR-925	Bambas	--/--/----	--:--	missing	missing	missing			
-CAR-943	Bambas	--/--/----	--:--	missing	missing	missing			
-CAR-945	Bambas	--/--/----	--:--	missing	missing	missing			
-CAR-946	Bambas	--/--/----	--:--	missing	missing	missing			
-CAS-701	Bambas	--/--/----	--:--	missing	missing	missing			
-CAS-765	Bambas	--/--/----	--:--	missing	missing	missing			
-CAS-842	Bambas	--/--/----	--:--	missing	missing	missing			
-CAS-843	Bambas	--/--/----	--:--	missing	missing	missing			
-CAS-902	Bambas	--/--/----	--:--	missing	missing	missing			
-VOR-721	Bambas	--/--/----	--:--	missing	missing	missing			
-VOR-737	Bambas	--/--/----	--:--	missing	missing	missing			
-VOR-738	Bambas	--/--/----	--:--	missing	missing	missing			
-VOR-739	Bambas	--/--/----	--:--	missing	missing	missing			
-VOR-772	Bambas	--/--/----	--:--	missing	missing	missing			
-VOR-791	Bambas	--/--/----	--:--	missing	missing	missing			
-VAM-751	Bambas	--/--/----	--:--	missing	missing	missing			
-VAM-782	Bambas	--/--/----	--:--	missing	missing	missing			
-VAM-791	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-804	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-812	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-816	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-827	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-813	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-830	Bambas	--/--/----	--:--	missing	missing	missing			
-VAP-860	Bambas	--/--/----	--:--	missing	missing	missing			
-VAS-917	Bambas	--/--/----	--:--	missing	missing	missing			
-VCW-930	Bambas	--/--/----	--:--	missing	missing	missing			
-VCX-715	Bambas	--/--/----	--:--	missing	missing	missing			
-VDO-941	Bambas	--/--/----	--:--	missing	missing	missing			
-VEW-763	Bambas	--/--/----	--:--	missing	missing	missing			
-VEW-782	Primax	--/--/----	--:--	missing	missing	missing			
-VBZ-701	Bambas	--/--/----	--:--	missing	missing	missing			
-VCI-837	Bambas	--/--/----	--:--	missing	missing	missing			
-VCP-837	Bambas	--/--/----	--:--	missing	missing	missing			
-VCP-839	Bambas	--/--/----	--:--	missing	missing	missing			
-VCS-735	Bambas	--/--/----	--:--	missing	missing	missing			
-VBF-802	Bambas	--/--/----	--:--	missing	missing	missing			
-VFD-863	Bambas	--/--/----	--:--	missing	missing	missing			
+VCP-807	Bambas	--/--/----	--:--	missing	missing	missing
+CAR-924	Bambas	--/--/----	--:--	missing	missing	missing
+CAR-925	Bambas	--/--/----	--:--	missing	missing	missing
+CAR-943	Bambas	--/--/----	--:--	missing	missing	missing
+CAR-945	Bambas	--/--/----	--:--	missing	missing	missing
+CAR-946	Bambas	--/--/----	--:--	missing	missing	missing
+CAS-701	Bambas	--/--/----	--:--	missing	missing	missing
+CAS-765	Bambas	--/--/----	--:--	missing	missing	missing
+CAS-842	Bambas	--/--/----	--:--	missing	missing	missing
+CAS-843	Bambas	--/--/----	--:--	missing	missing	missing
+CAS-902	Bambas	--/--/----	--:--	missing	missing	missing
+VOR-721	Bambas	--/--/----	--:--	missing	missing	missing
+VOR-737	Bambas	--/--/----	--:--	missing	missing	missing
+VOR-738	Bambas	--/--/----	--:--	missing	missing	missing
+VOR-739	Bambas	--/--/----	--:--	missing	missing	missing
+VOR-772	Bambas	--/--/----	--:--	missing	missing	missing
+VOR-791	Bambas	--/--/----	--:--	missing	missing	missing
+VAM-751	Bambas	--/--/----	--:--	missing	missing	missing
+VAM-782	Bambas	--/--/----	--:--	missing	missing	missing
+VAM-791	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-804	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-812	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-816	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-827	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-813	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-830	Bambas	--/--/----	--:--	missing	missing	missing
+VAP-860	Bambas	--/--/----	--:--	missing	missing	missing
+VAS-917	Bambas	--/--/----	--:--	missing	missing	missing
+VCW-930	Bambas	--/--/----	--:--	missing	missing	missing
+VCX-715	Bambas	--/--/----	--:--	missing	missing	missing
+VDO-941	Bambas	--/--/----	--:--	missing	missing	missing
+VEW-763	Bambas	--/--/----	--:--	missing	missing	missing
+VEW-782	Primax	--/--/----	--:--	missing	missing	missing
+VBZ-701	Bambas	--/--/----	--:--	missing	missing	missing
+VCI-837	Bambas	--/--/----	--:--	missing	missing	missing
+VCP-837	Bambas	--/--/----	--:--	missing	missing	missing
+VCP-839	Bambas	--/--/----	--:--	missing	missing	missing
+VCS-735	Bambas	--/--/----	--:--	missing	missing	missing
+VBF-802	Bambas	--/--/----	--:--	missing	missing	missing
+VFD-863	Bambas	--/--/----	--:--	missing	missing	missing
 V9F-780	Industria	02/03/2026	14:45	na	ok	ok		C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 14.45.58__(PLACA V9F-780).jpg	C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 14.45.45__(PLACA V9F-780).jpg
 V9V-860	Industria	02/03/2026	13:42	na	ok	ok		C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 13.42.27__(PLACA V9V-860).jpg	C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 13.42.18__(PLACA V9V-860).jpg
 V9E-947	Industria	02/06/2026	13:33	na	na	ok			C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 13.33.08__(PLACA V9E-947).jpg
 V9F-778	Industria	02/03/2026	13:07	na	ok	ok		C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 13.07.37__(PLACA V9F-778).jpg	C:/Users/nanie/Desktop/dicas/02-06-2026/2026-06-02 13.07.34__(PLACA V9F-778).jpg
-V7L-892	Primax	05/06/2026	11:56	ok	missing	missing	C:/Users/nanie/Desktop/dicas/05-06-2026/photo_2026-06-05_12-30-34.jpg		
-V7L-911	Primax	05/06/2026	11:47	ok	missing	missing	C:/Users/nanie/Desktop/dicas/05-06-2026/photo_2026-06-05_12-30-37.jpg		
-V8A-803	Industria	05/06/2026	12:07	ok	missing	missing	C:/Users/nanie/Desktop/dicas/05-06-2026/photo_2026-06-05_12-30-33.jpg		
+V7L-892	Primax	05/06/2026	11:56	ok	missing	missing	C:/Users/nanie/Desktop/dicas/05-06-2026/photo_2026-06-05_12-30-34.jpg
+V7L-911	Primax	05/06/2026	11:47	ok	missing	missing	C:/Users/nanie/Desktop/dicas/05-06-2026/photo_2026-06-05_12-30-37.jpg
+V8A-803	Industria	05/06/2026	12:07	ok	missing	missing	C:/Users/nanie/Desktop/dicas/05-06-2026/photo_2026-06-05_12-30-33.jpg
 \.
 
 
@@ -615,18 +615,18 @@ COPY public.inspecciones_flota (id, placa, fecha, hora, tablet, radio, camaras, 
 5	VBX-798	21/05/2026	15:22	ok	ok	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398240/flotas_inspecciones/ok56tjkwrfccvb4o7ra6.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398241/flotas_inspecciones/caqf9y66irypw1m4iam4.jpg		\N
 6	VBY-760	20/05/2026	15:43	ok	missing	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398242/flotas_inspecciones/rkeovglnxyditqrg7jsa.jpg		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398243/flotas_inspecciones/epfctmjslvptxsnszx4t.jpg	\N
 9	VBY-830	22/05/2026	10:39	ok	ok	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398246/flotas_inspecciones/wffkhl46lbq42bad3pbb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398248/flotas_inspecciones/gph0y1eupudqyy0rvcvd.jpg		\N
-37	CJT-845	2026-05-18	16:32	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398248/flotas_inspecciones/sm67qvkfphnmjvhgxcpi.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398250/flotas_inspecciones/uxpkkfpcvfuaaa3etkpt.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398251/flotas_inspecciones/ovxqs2cgfwojtoocei14.jpg	
+37	CJT-845	2026-05-18	16:32	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398248/flotas_inspecciones/sm67qvkfphnmjvhgxcpi.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398250/flotas_inspecciones/uxpkkfpcvfuaaa3etkpt.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398251/flotas_inspecciones/ovxqs2cgfwojtoocei14.jpg
 11	VEW-740	22/05/2026	09:00	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398252/flotas_inspecciones/jgszlrjbjtif9uodae1e.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398253/flotas_inspecciones/jr9mz03gs8fyuq6hmj2o.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398254/flotas_inspecciones/oww3ldi1abay7qpkqdbw.jpg	\N
-4	VBU-712	2026-05-12	08:38	ok	Falta revision	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398260/flotas_inspecciones/eum7remnujkxwwggqwcr.jpg			
-3	VAM-800	2026-05-22	10:39	Falta revision	ok	ok	\N	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398260/flotas_inspecciones/xosz7ig1cawec081avhu.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398261/flotas_inspecciones/ytgvtsej5eavrhmmoi5i.jpg	
-2	V9V-856	2026-05-21	16:17	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398264/flotas_inspecciones/dhvdetmtqi9zn41opoml.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398265/flotas_inspecciones/teorz2xwuslm0dnkcqpe.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398266/flotas_inspecciones/cxcxpr6srroabjxzyzk8.jpg	
+4	VBU-712	2026-05-12	08:38	ok	Falta revision	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398260/flotas_inspecciones/eum7remnujkxwwggqwcr.jpg
+3	VAM-800	2026-05-22	10:39	Falta revision	ok	ok	\N	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398260/flotas_inspecciones/xosz7ig1cawec081avhu.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398261/flotas_inspecciones/ytgvtsej5eavrhmmoi5i.jpg
+2	V9V-856	2026-05-21	16:17	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398264/flotas_inspecciones/dhvdetmtqi9zn41opoml.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398265/flotas_inspecciones/teorz2xwuslm0dnkcqpe.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398266/flotas_inspecciones/cxcxpr6srroabjxzyzk8.jpg
 27	V0R-721	2026-05-27	11:20	ok	ok	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398269/flotas_inspecciones/h54pgundmpecnj9fbr1r.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398270/flotas_inspecciones/qtcpkashs5ktk2kaeq1y.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398271/flotas_inspecciones/mis8bgivnzshaljo9hsr.jpg	\N
-31	VAP-815	2026-05-27	10:48	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398234/flotas_inspecciones/oox0t1vjuzc4ls6xhu1b.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398235/flotas_inspecciones/cehpdnptnvhc20bj5vnl.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398236/flotas_inspecciones/irep9a12pqc9ahvfwmnc.jpg	
-38	CJS-849	2026-05-18	16:47	ok	ok	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398272/flotas_inspecciones/inq1ngpqn0ic4gv4ya4e.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398273/flotas_inspecciones/tsmonvgmiznqjtzewppe.jpg		
-30	VDO-908	2026-05-27	11:01	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398237/flotas_inspecciones/u588xkwufdoiqo87j0nb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398238/flotas_inspecciones/eoyhpaq9cn2fx51dyi9a.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398239/flotas_inspecciones/jsz393uf6bs4krwhcrvs.jpg	
+31	VAP-815	2026-05-27	10:48	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398234/flotas_inspecciones/oox0t1vjuzc4ls6xhu1b.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398235/flotas_inspecciones/cehpdnptnvhc20bj5vnl.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398236/flotas_inspecciones/irep9a12pqc9ahvfwmnc.jpg
+38	CJS-849	2026-05-18	16:47	ok	ok	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398272/flotas_inspecciones/inq1ngpqn0ic4gv4ya4e.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398273/flotas_inspecciones/tsmonvgmiznqjtzewppe.jpg
+30	VDO-908	2026-05-27	11:01	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398237/flotas_inspecciones/u588xkwufdoiqo87j0nb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398238/flotas_inspecciones/eoyhpaq9cn2fx51dyi9a.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398239/flotas_inspecciones/jsz393uf6bs4krwhcrvs.jpg
 7	VBY-798	22/05/2026	10:35	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398244/flotas_inspecciones/f1yasrh4oubobvyu81fq.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398245/flotas_inspecciones/wja3m8lo0kccgozvj1ye.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398246/flotas_inspecciones/wrmnwvbbisif2nzo2uy3.jpg	\N
-10	VBY-926	2026-05-22	10:41	ok	ok	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398278/flotas_inspecciones/czo2uxxckwxv6zarlt8g.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398279/flotas_inspecciones/z90c1uoihrvgrmpnrvqo.jpg		
-29	V0R-738	2026-05-27	11:15	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398282/flotas_inspecciones/ga3vi5kbnidkxjvoenxj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398283/flotas_inspecciones/zepc4cvbimrojwcn5fpi.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398284/flotas_inspecciones/cp3xpakmwgxepmlcqjts.jpg	
+10	VBY-926	2026-05-22	10:41	ok	ok	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398278/flotas_inspecciones/czo2uxxckwxv6zarlt8g.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398279/flotas_inspecciones/z90c1uoihrvgrmpnrvqo.jpg
+29	V0R-738	2026-05-27	11:15	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398282/flotas_inspecciones/ga3vi5kbnidkxjvoenxj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398283/flotas_inspecciones/zepc4cvbimrojwcn5fpi.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398284/flotas_inspecciones/cp3xpakmwgxepmlcqjts.jpg
 55	BUW-928	--/--/----	--:--	missing	missing	missing				\N
 56	V9V-846	--/--/----	--:--	missing	missing	missing				\N
 60	VAP-819	--/--/----	--:--	missing	missing	missing				\N
@@ -668,48 +668,48 @@ COPY public.inspecciones_flota (id, placa, fecha, hora, tablet, radio, camaras, 
 100	VCS-735	--/--/----	--:--	missing	missing	missing				\N
 101	VBF-802	--/--/----	--:--	missing	missing	missing				\N
 102	VFD-863	--/--/----	--:--	missing	missing	missing				\N
-1	V8A-794	2026-05-12	10:21	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398287/flotas_inspecciones/o2s37p6fiys3xm5pb9fs.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398288/flotas_inspecciones/ammf8qdiinrpxw4wgquu.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398289/flotas_inspecciones/taidc3tvk1xe2ls3vg1n.jpg	
+1	V8A-794	2026-05-12	10:21	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398287/flotas_inspecciones/o2s37p6fiys3xm5pb9fs.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398288/flotas_inspecciones/ammf8qdiinrpxw4wgquu.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398289/flotas_inspecciones/taidc3tvk1xe2ls3vg1n.jpg
 61	VCX-729	20/05/2026	12:11	ok	missing	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398291/flotas_inspecciones/yxy8wkhbdhugmbglokxg.jpg		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398292/flotas_inspecciones/awr9kz1b8jx6oty4xm7c.jpg	\N
-58	VD0-941	2026-05-27	14:56	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398298/flotas_inspecciones/el40mvmdadge46qez5hc.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398299/flotas_inspecciones/gdziniakhgtr5tde7rch.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398299/flotas_inspecciones/qfze30aimb5vuax7u31g.jpg	
+58	VD0-941	2026-05-27	14:56	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398298/flotas_inspecciones/el40mvmdadge46qez5hc.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398299/flotas_inspecciones/gdziniakhgtr5tde7rch.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398299/flotas_inspecciones/qfze30aimb5vuax7u31g.jpg
 107	V7L-892	05/06/2026	11:56	ok	missing	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398304/flotas_inspecciones/p2mjokgmx6e67wkdskpa.jpg			\N
 108	V7L-911	05/06/2026	11:47	ok	missing	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398304/flotas_inspecciones/rs1mia7x5qu9pmrincyc.jpg			\N
 109	V8A-803	05/06/2026	12:07	ok	missing	missing	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398305/flotas_inspecciones/zgzqcgmtqhqb7zklzmrb.jpg			\N
 125	VEW-776	2026-06-05	16:34	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398321/flotas_inspecciones/rz0tkvx8yfkxakpvhd7q.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398322/flotas_inspecciones/iroo8kuw104ud3xrdoth.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398323/flotas_inspecciones/ct1mncqrxelegy6k4ecm.jpg	\N
 120	CAS-842	2026-06-09	13:21	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398327/flotas_inspecciones/ksbfchsn3dtdcbfhj7bi.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398328/flotas_inspecciones/nw6fyr30iko9ocq5jdzr.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398330/flotas_inspecciones/jihwonfhowkcefotrjjv.jpg	ok
 118	VCI-837	2026-06-09	10:28	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398335/flotas_inspecciones/tnyifikdt08fbmsnsi5p.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398336/flotas_inspecciones/nijoisbrdsayrchixbg3.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398338/flotas_inspecciones/h0xnien9d7fdxzcwqhso.jpg	\N
-131	VBY-814	2026-06-10	13:32	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398349/flotas_inspecciones/fyviqgqobps01mhntdjp.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398351/flotas_inspecciones/nupyoof1hjjrvq4ofbci.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398352/flotas_inspecciones/s0cbnxbog37k7ykfsiku.jpg	
-133	VEW-722	2026-06-02	16:14	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398358/flotas_inspecciones/u6nyqgocf5ippzn8rksg.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398361/flotas_inspecciones/rizqkbw1yohqtupnaqix.jpg		
-103	V9F-780	2026-06-02	14:45	Falta revision	ok	ok		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398368/flotas_inspecciones/sjnez2f9fepirfopbtc4.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398369/flotas_inspecciones/dh04nh5hhoau0zyd1blw.jpg	
-134	VEW-721	2026-06-02	16:15	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398371/flotas_inspecciones/pobdwjbldphdxfjdylj5.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398373/flotas_inspecciones/elpyw2k8vhedexkuyx0c.jpg		
+131	VBY-814	2026-06-10	13:32	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398349/flotas_inspecciones/fyviqgqobps01mhntdjp.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398351/flotas_inspecciones/nupyoof1hjjrvq4ofbci.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398352/flotas_inspecciones/s0cbnxbog37k7ykfsiku.jpg
+133	VEW-722	2026-06-02	16:14	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398358/flotas_inspecciones/u6nyqgocf5ippzn8rksg.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398361/flotas_inspecciones/rizqkbw1yohqtupnaqix.jpg
+103	V9F-780	2026-06-02	14:45	Falta revision	ok	ok		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398368/flotas_inspecciones/sjnez2f9fepirfopbtc4.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398369/flotas_inspecciones/dh04nh5hhoau0zyd1blw.jpg
+134	VEW-721	2026-06-02	16:15	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398371/flotas_inspecciones/pobdwjbldphdxfjdylj5.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398373/flotas_inspecciones/elpyw2k8vhedexkuyx0c.jpg
 139	F3L-787	2026-06-11	11:57	No Aplica	No Aplica	No Aplica				No aplica equipos tecnologicos.
 141	V9T-950	2026-06-12	15:15	No Aplica	No Aplica	Falta revision				vehiculo usado en transporte de personal
-40	CJR-910	2026-05-18	16:26	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398254/flotas_inspecciones/k2kvsr2zjcna76rfta9w.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398255/flotas_inspecciones/kbrwfwpdu3d2jkehaqyj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398256/flotas_inspecciones/xl4dijltrhnomrddv111.jpg	
+40	CJR-910	2026-05-18	16:26	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398254/flotas_inspecciones/k2kvsr2zjcna76rfta9w.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398255/flotas_inspecciones/kbrwfwpdu3d2jkehaqyj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398256/flotas_inspecciones/xl4dijltrhnomrddv111.jpg
 36	CJR-734	2026-05-18	16:06	Error	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398257/flotas_inspecciones/e0hl43zdjposbrhp7e4w.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398258/flotas_inspecciones/slspxxw8wbolbvs4vhyh.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398259/flotas_inspecciones/oxci3vz21tbef1rvi6ky.jpg	Tablet presenta error en el aplicativo copiloto
 39	CJQ-858	18/05/2026	16:17	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398262/flotas_inspecciones/u1qd5pbbtzncymyoojxz.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398262/flotas_inspecciones/ag2cerzvb5ozt2mmeyo2.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398263/flotas_inspecciones/hk5uxh7qdah4vuucq2ey.jpg	\N
 8	VBY-814	2026-05-22	10:31	Error	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398266/flotas_inspecciones/tgfdilqe6fy029c8aukr.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398267/flotas_inspecciones/e1vki9mlo6kddcfzo6na.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398268/flotas_inspecciones/g2u0t8zmh8fxdhs7r4ne.jpg	Tablet presenta error en copiloto
-17	VBU-754	2026-05-26	09:40	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398274/flotas_inspecciones/dapakfclnqnhpbohlosv.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398274/flotas_inspecciones/wpmssq0wzf6a1thyq5kb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398275/flotas_inspecciones/obcdngsyybtd2owascan.jpg	
-15	VBU-736	2026-05-26	09:27	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398276/flotas_inspecciones/nggqrdsjrsjufhnahw51.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398277/flotas_inspecciones/lazxjr30jmoxtiibdvvb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398278/flotas_inspecciones/gt6ylxty4u55mra2uzed.jpg	
-28	VBU-705	2026-05-27	10:08	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398280/flotas_inspecciones/dxuerythegjmuuhxfjad.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398281/flotas_inspecciones/pa12xd8wvporf37skupn.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398281/flotas_inspecciones/ecr4fovevqcsqpdagafp.jpg	
+17	VBU-754	2026-05-26	09:40	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398274/flotas_inspecciones/dapakfclnqnhpbohlosv.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398274/flotas_inspecciones/wpmssq0wzf6a1thyq5kb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398275/flotas_inspecciones/obcdngsyybtd2owascan.jpg
+15	VBU-736	2026-05-26	09:27	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398276/flotas_inspecciones/nggqrdsjrsjufhnahw51.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398277/flotas_inspecciones/lazxjr30jmoxtiibdvvb.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398278/flotas_inspecciones/gt6ylxty4u55mra2uzed.jpg
+28	VBU-705	2026-05-27	10:08	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398280/flotas_inspecciones/dxuerythegjmuuhxfjad.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398281/flotas_inspecciones/pa12xd8wvporf37skupn.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398281/flotas_inspecciones/ecr4fovevqcsqpdagafp.jpg
 57	VEZ-930	27/05/2026	14:46	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398284/flotas_inspecciones/ss22vthqel7dsjsl4tmj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398286/flotas_inspecciones/lnd1subfe9emjmqzfrak.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398286/flotas_inspecciones/xlkxolenflp9kiszp4bg.jpg	\N
 59	VAP-805	20/05/2026	12:25	ok	missing	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398290/flotas_inspecciones/oxrl4pbk0xskuse8vyqw.jpg		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398290/flotas_inspecciones/lqwsyyfu9l1pn1ucs1he.jpg	\N
 62	VOR-748	20/05/2026	12:34	ok	ok	ok	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398293/flotas_inspecciones/r41xcl9m8wqw7jxy1sjx.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398293/flotas_inspecciones/pkd4asemlfzc6gomogsr.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398294/flotas_inspecciones/qrbk7mgu4ursddoy6rbj.jpg	\N
 105	V9E-947	2026-06-02	13:33	No Aplica	No Aplica	ok			https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398296/flotas_inspecciones/ijbmd8yf9ogobhputouv.jpg	Unidad de cargas diversas, no aplica tablet y radio base.\r\nSe sicronizo las fecha y hora del dvr.
-106	V9F-778	2026-06-02	13:07	Falta revision	ok	ok		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398301/flotas_inspecciones/d9lx8dty1vvs1t2a93ft.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398303/flotas_inspecciones/u6xd695qjzbtjswikymz.jpg	
+106	V9F-778	2026-06-02	13:07	Falta revision	ok	ok		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398301/flotas_inspecciones/d9lx8dty1vvs1t2a93ft.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398303/flotas_inspecciones/u6xd695qjzbtjswikymz.jpg
 119	VOR-739	2026-06-09	12:47	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398307/flotas_inspecciones/g7hmeohbs0jxmtark8cj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398309/flotas_inspecciones/txkq0ojihcqmgxb7agoj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398311/flotas_inspecciones/ve81cvfohfmypguiljmo.jpg	\N
 121	VCW-930	2026-06-09	13:22	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398312/flotas_inspecciones/joqanpvptzbvhfmppape.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398314/flotas_inspecciones/gfbxzc4f8gx2th2xhjq8.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398315/flotas_inspecciones/usk4kfacudxkkwrcyjkj.jpg	\N
 122	VCX-715	2026-06-09	15:38	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398317/flotas_inspecciones/fehms3q2wtgpznaylcnx.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398319/flotas_inspecciones/p8vqfnppupqzlpnr5pkv.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398320/flotas_inspecciones/xu2kghqdor5pjtapistr.jpg	\N
 126	VEW-776	2026-06-05	16:34	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398324/flotas_inspecciones/mz9evrngmtpmr1rvjaoc.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398325/flotas_inspecciones/eh02hql9xqkhsomzs7xf.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398325/flotas_inspecciones/h5oksobgonvxu57jjihc.jpg	\N
 127	V6V-849	2026-06-10	11:27	OK	No Aplica	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398332/flotas_inspecciones/o6fenxnjgmvxofnoflla.jpg		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398333/flotas_inspecciones/kcyjzrnrcrxmrl3dmzhq.jpg	Radio base no aplica, falta descargar videos de la cámaras.
-129	VCX-716	2026-06-10	13:30	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398339/flotas_inspecciones/lmgc1fe6ipfm0gci8vef.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398341/flotas_inspecciones/yle7qwuaowyv3wiutrpa.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398342/flotas_inspecciones/ksby0rx6zihqghltzmd9.jpg	
-137	V0R-877	2026-06-11	11:39	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398385/flotas_inspecciones/p7pwoxgareqkswo8wzzt.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398387/flotas_inspecciones/iuxkyvnpaslsxqdaoqvk.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398388/flotas_inspecciones/veufliz5pgyer6wiezj1.jpg	
-130	VCA-886	2026-06-10	13:31	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398344/flotas_inspecciones/rfzpipqjqdiaa4faxnyw.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398345/flotas_inspecciones/b9omnlpt9fos6adpqiqr.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398347/flotas_inspecciones/h2la6dfqjadbagt1cgpj.jpg	
+129	VCX-716	2026-06-10	13:30	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398339/flotas_inspecciones/lmgc1fe6ipfm0gci8vef.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398341/flotas_inspecciones/yle7qwuaowyv3wiutrpa.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398342/flotas_inspecciones/ksby0rx6zihqghltzmd9.jpg
+137	V0R-877	2026-06-11	11:39	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398385/flotas_inspecciones/p7pwoxgareqkswo8wzzt.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398387/flotas_inspecciones/iuxkyvnpaslsxqdaoqvk.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398388/flotas_inspecciones/veufliz5pgyer6wiezj1.jpg
+130	VCA-886	2026-06-10	13:31	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398344/flotas_inspecciones/rfzpipqjqdiaa4faxnyw.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398345/flotas_inspecciones/b9omnlpt9fos6adpqiqr.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398347/flotas_inspecciones/h2la6dfqjadbagt1cgpj.jpg
 104	V9V-860	2026-06-02	13:42	No Aplica	ok	ok		https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398355/flotas_inspecciones/tgriup6dpit0f2dm7euj.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398357/flotas_inspecciones/a0dtrtaurgkwii0zw3bq.jpg	no aplica tablet, se retiro para uso de otra unidad de primax
 132	VDO-908	2026-06-10	16:04	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398363/flotas_inspecciones/sbjzytoqrsaejlsl3qej.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398365/flotas_inspecciones/zobj7swwf9ee8razad3y.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398366/flotas_inspecciones/debfsws7v42lr6hzndxj.jpg	Adicional se hizo descarga de videos incidente con fecha 11/05/2026 13:30-15:00
-124	V9V-856	2026-06-09	16:11	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398374/flotas_inspecciones/fc1jdwslp33ucpaewc4p.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398377/flotas_inspecciones/igbbapj32z34sykv8xdm.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398379/flotas_inspecciones/wrvhwdpe27rzgq59lk11.jpg	
-135	VEW-774	2026-06-01	16:17	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398381/flotas_inspecciones/ssmmoqkpe9zirruwqmmz.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398382/flotas_inspecciones/i4feiqcrzwm5ljqqxo25.jpg		
-136	V0R-748	2026-05-20	16:22	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398383/flotas_inspecciones/iifwvfj8useeevwvwfem.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398384/flotas_inspecciones/cbltck74vy5afkzpowps.jpg		
-138	VCI-837	2026-06-11	11:43	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398390/flotas_inspecciones/wfr0an5rpagxvnbqbfco.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398393/flotas_inspecciones/xl0vy6xtzquz6vastuod.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398395/flotas_inspecciones/fgxf54dw12b8kgolhgki.jpg	
-140	V7Z-928	2026-06-11	12:30	OK	OK	Error	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398397/flotas_inspecciones/q5vwcipk1edscfd5adno.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398398/flotas_inspecciones/z5ob0fbdy4cfjogt5lao.jpg		Solicitar inspección a Telecom para revisión de operatividad de cámara 
+124	V9V-856	2026-06-09	16:11	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398374/flotas_inspecciones/fc1jdwslp33ucpaewc4p.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398377/flotas_inspecciones/igbbapj32z34sykv8xdm.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398379/flotas_inspecciones/wrvhwdpe27rzgq59lk11.jpg
+135	VEW-774	2026-06-01	16:17	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398381/flotas_inspecciones/ssmmoqkpe9zirruwqmmz.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398382/flotas_inspecciones/i4feiqcrzwm5ljqqxo25.jpg
+136	V0R-748	2026-05-20	16:22	OK	OK	Falta revision	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398383/flotas_inspecciones/iifwvfj8useeevwvwfem.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398384/flotas_inspecciones/cbltck74vy5afkzpowps.jpg
+138	VCI-837	2026-06-11	11:43	OK	OK	OK	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398390/flotas_inspecciones/wfr0an5rpagxvnbqbfco.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398393/flotas_inspecciones/xl0vy6xtzquz6vastuod.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398395/flotas_inspecciones/fgxf54dw12b8kgolhgki.jpg
+140	V7Z-928	2026-06-11	12:30	OK	OK	Error	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398397/flotas_inspecciones/q5vwcipk1edscfd5adno.jpg	https://res.cloudinary.com/dmhztgy7y/image/upload/v1781398398/flotas_inspecciones/z5ob0fbdy4cfjogt5lao.jpg		Solicitar inspección a Telecom para revisión de operatividad de cámara
 \.
 
 
@@ -831,7 +831,7 @@ VOR-737	Bambas	\N	\N	\N	\N	\N	\N
 VBU-736	Primax	\N	\N	\N	\N	\N	\N
 V8A-803	Industrias	\N	\N	\N	\N	\N	\N
 V9V-860	Primax	\N	\N	\N	\N	\N	\N
-V0R-877	Industrias						
+V0R-877	Industrias
 V9F-780	Industrias	\N	\N	\N	\N	\N	\N
 F3L-787	Industrias	demo	demo	demo	demo	demo	demo
 V9T-950	Falta identificar	\N	\N	\N	\N	\N	\N

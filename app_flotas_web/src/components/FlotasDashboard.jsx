@@ -260,6 +260,14 @@ export function FlotasDashboard({ permisos }) {
     }
   };
 
+  const getInspectionStatusColor = (estado) => {
+    switch (estado) {
+      case 'Conforme': return { bg: '#e7f9f1', text: '#0e9f6e', border: '#34D399' };
+      case 'Pendiente': return { bg: '#fff6e4', text: '#a8650a', border: '#FBBF24' };
+      default: return { bg: '#F3F4F6', text: '#6B7280', border: '#D1D5DB' };
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando datos...</div>;
 
   // Calculo de KPIs
@@ -369,8 +377,9 @@ export function FlotasDashboard({ permisos }) {
                 <tr>
                   <th>Placa</th>
                   <th>Operación</th>
-                  <th>Estado</th>
+                  <th>Estado unidad</th>
                   <th>Componentes</th>
+                  <th>Estado inspección</th>
                   <th
                     style={{ cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => {
@@ -387,10 +396,11 @@ export function FlotasDashboard({ permisos }) {
               </thead>
               <tbody>
                 {paginatedData.length === 0 ? (
-                  <tr><td colSpan="6" style={{ textAlign: 'center' }}>No hay registros coincidentes</td></tr>
+                  <tr><td colSpan="7" style={{ textAlign: 'center' }}>No hay registros coincidentes</td></tr>
                 ) : (
                   paginatedData.map(v => {
                     const colors = getStatusColor(v.estado);
+                    const inspectionColors = getInspectionStatusColor(v.estado_inspeccion);
                     return (
                       <tr key={v.placa}>
                         <td className="inspection-plate-cell">
@@ -410,6 +420,11 @@ export function FlotasDashboard({ permisos }) {
                               <span className={v.camaras === 'N/A' ? 'is-muted' : ''} title={`Cámaras: ${v.camaras}`}><UiIcon name="camera" size={16} /></span>
                             </div>
                           ) : <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>Sin datos</span>}
+                        </td>
+                        <td>
+                          <span className="inspection-status-pill" style={{ backgroundColor: inspectionColors.bg, color: inspectionColors.text, borderColor: inspectionColors.border }}>
+                            {v.estado_inspeccion || 'Sin inspección'}
+                          </span>
                         </td>
                         <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
                           {(() => {
