@@ -23,14 +23,12 @@ async function importPersonal() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS personal (
         id SERIAL PRIMARY KEY,
-        id_interno VARCHAR(50),
         nombre_completo VARCHAR(200) NOT NULL,
         dni VARCHAR(20) UNIQUE NOT NULL,
         modalidad VARCHAR(100),
         area VARCHAR(100),
         cargo VARCHAR(100),
         fecha_ingreso DATE,
-        telefono VARCHAR(50),
         estado VARCHAR(20) DEFAULT 'Activo'
       );
     `);
@@ -49,7 +47,6 @@ async function importPersonal() {
       const row = data[i];
       if (!row || row.length < 3) continue; // Saltar filas vacías
       
-      const id_interno = row[0] ? String(row[0]) : null;
       const nombre_completo = row[1] ? String(row[1]).trim() : null;
       let dni = row[2] ? String(row[2]).trim() : null;
       const modalidad = row[3] ? String(row[3]) : null;
@@ -62,21 +59,20 @@ async function importPersonal() {
         fecha_ingreso = excelDateToJSDate(row[6]);
       }
       
-      const telefono = row[8] ? String(row[8]) : null;
       
       if (!nombre_completo || !dni) continue;
       
       try {
         await pool.query(`
-          INSERT INTO personal (id_interno, nombre_completo, dni, modalidad, area, cargo, fecha_ingreso, telefono)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO personal (nombre_completo, dni, modalidad, area, cargo, fecha_ingreso)
+          VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (dni) DO UPDATE SET 
             nombre_completo = EXCLUDED.nombre_completo,
             cargo = EXCLUDED.cargo,
             area = EXCLUDED.area,
-            telefono = EXCLUDED.telefono,
+
             estado = 'Activo'
-        `, [id_interno, nombre_completo, dni, modalidad, area, cargo, fecha_ingreso, telefono]);
+        `, [nombre_completo, dni, modalidad, area, cargo, fecha_ingreso]);
         inserted++;
       } catch (err) {
         console.error(`Error importando DNI ${dni}:`, err.message);

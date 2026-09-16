@@ -73,7 +73,8 @@ export const crearUsuario = async ({
        rol,
        permisos,
        estado,
-       operacion
+       operacion,
+       persona_id
      )
      SELECT
        p.dni,
@@ -81,7 +82,8 @@ export const crearUsuario = async ({
        $3,
        $4,
        $5,
-       $6
+       $6,
+       p.id
      FROM personal p
      WHERE p.dni = $1
        AND LOWER(
@@ -93,7 +95,8 @@ export const crearUsuario = async ({
        rol,
        estado,
        operacion,
-       permisos`,
+       permisos,
+       persona_id`,
     [
       username,
       passwordHash,
@@ -101,7 +104,7 @@ export const crearUsuario = async ({
       permisos,
       estado,
       operacion
-    ]
+    ] 
   );
 
   return result.rows[0] || null;
