@@ -101,7 +101,6 @@ const ESQUEMA_ESPERADO = {
     'dni',
     'area',
     'cargo',
-    'telefono',
     'estado',
     'created_at',
     'fecha_ingreso',

@@ -163,6 +163,9 @@ function App() {
   const [isSeguridadOpen, setIsSeguridadOpen] = useState(false);
   const [isSoporteOpen, setIsSoporteOpen] = useState(false);
   const [isInventarioOpen, setIsInventarioOpen] = useState(false);
+  const [isMantenimientoOpen, setIsMantenimientoOpen] = useState(true);
+  const [mantenimientoVista, setMantenimientoVista] = useState("programa");
+  const [mantenimientoNavKey, setMantenimientoNavKey] = useState(0);
   const [activeMenu, setActiveMenu] = useState(null); // Para menú colapsable de maestros
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem("jdcali_theme");
@@ -192,10 +195,22 @@ function App() {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    if (activeTab === "mantenimiento") {
+      setIsMantenimientoOpen(true);
+    }
+  }, [activeTab]);
+
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
     localStorage.setItem("jdcali_tab", tab);
     setIsSidebarOpen(false); // Cierra en móviles al navegar
+  };
+
+  const abrirMantenimiento = (vista) => {
+    setMantenimientoVista(vista);
+    setMantenimientoNavKey((prev) => prev + 1);
+    setActiveTab("mantenimiento");
   };
 
   const handleLogout = () => {
@@ -323,6 +338,21 @@ function App() {
           </span>
         </>
       )}
+    </button>
+  );
+
+  const MantenimientoSubItem = ({ vista, icon, label }) => (
+    <button
+      type="button"
+      className={`erp-nav-item erp-nav-subitem ${
+        activeTab === "mantenimiento" && mantenimientoVista === vista
+          ? "active"
+          : ""
+      }`}
+      onClick={() => abrirMantenimiento(vista)}
+    >
+      <AppIcon name={icon} />
+      {!isDesktopCollapsed && <span>{label}</span>}
     </button>
   );
 
@@ -464,7 +494,53 @@ function App() {
                   )}
 
                   {hasAccess("mantenimiento") && (
-                    <NavItem tab="mantenimiento" icon="wrench" label="Mantenimiento Técnico" nested />
+                    <div className="erp-nav-group">
+                      <MenuToggle
+                        icon="wrench"
+                        label="Mantenimientos Técnicos"
+                        open={isMantenimientoOpen}
+                        active={activeTab === "mantenimiento"}
+                        nested
+                        onClick={() => {
+                          if (isDesktopCollapsed) {
+                            setIsDesktopCollapsed(false);
+                            setIsMantenimientoOpen(true);
+                            return;
+                          }
+                          setIsMantenimientoOpen((prev) => !prev);
+                        }}
+                      />
+
+                      {isMantenimientoOpen && !isDesktopCollapsed && (
+                        <div className="erp-nav-submenu erp-nav-submenu-level-2">
+                          <MantenimientoSubItem
+                            vista="programa"
+                            icon="clipboard"
+                            label="Programa"
+                          />
+                          <MantenimientoSubItem
+                            vista="unidades"
+                            icon="truck"
+                            label="Unidades"
+                          />
+                          <MantenimientoSubItem
+                            vista="ots"
+                            icon="wrench"
+                            label="Órdenes de trabajo"
+                          />
+                          <MantenimientoSubItem
+                            vista="historial"
+                            icon="download"
+                            label="Historial"
+                          />
+                          <MantenimientoSubItem
+                            vista="tablero"
+                            icon="chart"
+                            label="Tablero"
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -604,6 +680,9 @@ function App() {
               permisos={
                 isAdmin ? { editar: true } : user?.permisos?.mantenimiento
               }
+              vistaInicial={mantenimientoVista}
+              navegacionId={mantenimientoNavKey}
+              onVistaChange={setMantenimientoVista}
             />
           )}
           {activeTab === "reportes" && hasAccess("reportes") && (
