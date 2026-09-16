@@ -11,24 +11,20 @@ export const obtenerPersonal = async () => {
 };
 
 export const crearPersonal = async ({
-  id_interno,
   nombre_completo,
   dni,
   modalidad,
   area,
   cargo,
-  telefono,
   estado
 }) => {
   const result = await pool.query(
     `INSERT INTO personal (
-       id_interno,
        nombre_completo,
        dni,
        modalidad,
        area,
        cargo,
-       telefono,
        estado
      )
      VALUES (
@@ -37,60 +33,51 @@ export const crearPersonal = async ({
        $3,
        $4,
        $5,
-       $6,
-       $7,
-       $8
+       $6
      )
      RETURNING *`,
     [
-      id_interno,
       nombre_completo,
       dni,
       modalidad,
       area,
       cargo,
-      telefono,
       estado || 'Activo'
     ]
   );
 
   return result.rows[0];
 };
+   
 
 export const actualizarPersonal = async (
   id,
   {
-    id_interno,
     nombre_completo,
     dni,
     modalidad,
     area,
     cargo,
-    telefono,
     estado
   }
 ) => {
   const result = await pool.query(
     `UPDATE personal
      SET
-       id_interno = $1,
-       nombre_completo = $2,
-       dni = $3,
-       modalidad = $4,
-       area = $5,
-       cargo = $6,
-       telefono = $7,
-       estado = $8
-     WHERE id = $9
+       nombre_completo = $1,
+       dni = $2,
+       modalidad = $3,
+       area = $4,
+       cargo = $5,
+       estado = $6
+     WHERE id = $7
      RETURNING *`,
     [
-      id_interno,
       nombre_completo,
       dni,
       modalidad,
       area,
       cargo,
-      telefono,
       estado,
       id
     ]

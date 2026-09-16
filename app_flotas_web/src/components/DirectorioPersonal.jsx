@@ -14,13 +14,11 @@ export function DirectorioPersonal({ permisos }) {
   const [selectedItem, setSelectedItem] = useState(null);
   
   const [formData, setFormData] = useState({
-    id_interno: '',
     nombre_completo: '',
     dni: '',
     modalidad: '',
     area: '',
     cargo: '',
-    telefono: '',
     estado: 'Activo'
   });
 
@@ -48,25 +46,21 @@ export function DirectorioPersonal({ permisos }) {
     if (person) {
       setEditingPersonal(person);
       setFormData({
-        id_interno: person.id_interno || '',
         nombre_completo: person.nombre_completo || '',
         dni: person.dni || '',
         modalidad: person.modalidad || '',
         area: person.area || '',
         cargo: person.cargo || '',
-        telefono: person.telefono || '',
         estado: person.estado || 'Activo'
       });
     } else {
       setEditingPersonal(null);
       setFormData({
-        id_interno: '',
         nombre_completo: '',
         dni: '',
         modalidad: '',
         area: '',
         cargo: '',
-        telefono: '',
         estado: 'Activo'
       });
     }
@@ -155,7 +149,6 @@ export function DirectorioPersonal({ permisos }) {
                   <th>Nombres y apellidos</th>
                   <th>Cargo</th>
                   <th>Área</th>
-                  <th>Teléfono</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
@@ -177,7 +170,6 @@ export function DirectorioPersonal({ permisos }) {
                     <td className="personal-name">{p.nombre_completo}</td>
                     <td>{p.cargo || '-'}</td>
                     <td>{p.area || '-'}</td>
-                    <td>{p.telefono || '-'}</td>
                     <td>
                       <span className={`directory-status ${p.estado === 'Activo' ? 'is-active' : 'is-inactive'}`}>
                         {p.estado}
@@ -210,7 +202,7 @@ export function DirectorioPersonal({ permisos }) {
               })()}
                 {filteredPersonal.length === 0 && (
                   <tr>
-                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                       No se encontraron resultados.
                     </td>
                   </tr>
@@ -319,13 +311,6 @@ export function DirectorioPersonal({ permisos }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TELÉFONO</span>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                    {selectedItem.telefono || 'Sin Teléfono'}
-                  </div>
-                </div>
-
-                <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>MODALIDAD</span>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
                     {selectedItem.modalidad || 'N/A'}
@@ -393,7 +378,7 @@ export function DirectorioPersonal({ permisos }) {
               </button>
             </div>
 
-            <form onSubmit={handleSave} style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr' }}>
+            <form onSubmit={handleSave} style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr' }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Nombres y Apellidos *</label>
                 <input 
@@ -416,15 +401,7 @@ export function DirectorioPersonal({ permisos }) {
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Teléfono</label>
-                <input 
-                  type="text" 
-                  value={formData.telefono}
-                  onChange={e => setFormData({...formData, telefono: e.target.value})}
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-                />
-              </div>
+              
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Cargo</label>

@@ -290,14 +290,15 @@ const personaIdFinal =
       // CREAR
       // ========================================
 
-      const nuevoTicket = await insertarTicket({
-  placa,
-  personaId,
-  tipoSolicitud: tipo_solicitud,
-  descripcion,
-  implemento,
-  evidencias
-});
+  const ticket =
+  await insertarTicket({
+    placa: placaFinal,
+    personaId: personaIdFinal,
+    tipoSolicitud: tipoSolicitudFinal,
+    descripcion: descripcionFinal,
+    implemento: implementoFinal,
+    evidencias: evidenciasSubidas
+  });
 
 
       if (!ticket) {
