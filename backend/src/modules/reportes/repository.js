@@ -61,7 +61,7 @@ export const obtenerDatosMantenimientoReporte =
         v.*,
 
         COALESCE(
-          i.fecha::text,
+          i.fecha_hora::date::text,
           m.fecha_ejecutada::text
         ) AS fecha_ejecutada_raw,
 
@@ -137,7 +137,7 @@ export const obtenerDatosMantenimientoReporte =
       LEFT JOIN (
         SELECT
           placa,
-          fecha,
+          fecha_hora,
           camaras,
           tablet,
           radio,

@@ -48,9 +48,9 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   workbook.created = new Date();
   
     const result = await pool.query(`
-    SELECT i.*, i.fecha::text AS fecha, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
+    SELECT i.*, i.fecha_hora::date::text AS fecha, to_char(i.fecha_hora, 'HH24:MI') AS hora, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
       CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END AS operacion,
-      i.fecha::text AS fecha_ejecutada_raw,
+      i.fecha_hora::date::text AS fecha_ejecutada_raw,
       COALESCE(m.frecuencia_dias, 180) AS frecuencia_dias,
       CASE WHEN i.camaras ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.dvr, 'N/A') END AS dvr,
       CASE WHEN i.tablet ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.copiloto, 'N/A') END AS copiloto,
@@ -61,8 +61,8 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     FROM vehiculos v
     JOIN LATERAL (
       SELECT x.* FROM inspecciones_flota x
-      WHERE x.placa = v.placa AND x.fecha BETWEEN $1 AND $2
-      ORDER BY x.fecha DESC, CASE WHEN BTRIM(x.hora::text) ~ '^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' THEN BTRIM(x.hora::text)::time END DESC NULLS LAST, x.id DESC
+      WHERE x.placa = v.placa AND x.fecha_hora::date BETWEEN $1::date AND $2::date
+      ORDER BY x.fecha_hora DESC NULLS LAST, x.id DESC
       LIMIT 1
     ) i ON true
     LEFT JOIN LATERAL (
