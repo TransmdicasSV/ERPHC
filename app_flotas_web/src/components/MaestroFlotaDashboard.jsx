@@ -27,7 +27,7 @@ export function MaestroFlotaDashboard({ permisos }) {
   }, []);
 
   const filteredTractos = tractos.filter(t =>
-    [t?.placa, t?.programa, t?.tipo_vehiculo, t?.marca_tracto, t?.modelo_tracto, t?.operacion, t?.cliente, t?.estado_operativo].some(valor =>
+    [t?.placa, t?.tipo_vehiculo, t?.marca_tracto, t?.modelo_tracto, t?.operacion, t?.cliente].some(valor =>
       String(valor ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
@@ -203,14 +203,10 @@ export function MaestroFlotaDashboard({ permisos }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <DetailBox label="Programa" value={selectedItem.data.programa} />
               <DetailBox label="Operación" value={selectedItem.data.operacion} />
               <DetailBox label="Cliente" value={selectedItem.data.cliente} />
               <DetailBox label="Tipo de vehículo" value={selectedItem.data.tipo_vehiculo} />
               <DetailBox label="Modelo" value={selectedItem.data.modelo_tracto} />
-              <DetailBox label="Estado operativo" value={selectedItem.data.estado_operativo} />
-              <DetailBox label="Observaciones operativas" value={selectedItem.data.observaciones_operativas} full />
-              <DetailBox label="Fecha del reporte importado" value={selectedItem.data.fecha_reporte_flota ? String(selectedItem.data.fecha_reporte_flota).slice(0, 10) : null} full />
             </div>
 
           </div>
@@ -267,18 +263,12 @@ function EditModal({ item, onClose, onSaved }) {
         </div>
         <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
           <form id="edit-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <Field label="Programa" name="programa" value={formData.programa} onChange={handleChange} />
             <Field label="Operación" name="operacion" value={formData.operacion} onChange={handleChange} />
             <Field label="Cliente" name="cliente" value={formData.cliente} onChange={handleChange} />
             <Field label="Tipo de vehículo" name="tipo_vehiculo" value={formData.tipo_vehiculo} onChange={handleChange} />
             <Field label="Marca" name="marca_tracto" value={formData.marca_tracto} onChange={handleChange} />
             <Field label="Modelo" name="modelo_tracto" value={formData.modelo_tracto} onChange={handleChange} />
             <Field label="Año de fabricación" name="anio_fabricacion" value={formData.anio_fabricacion} onChange={handleChange} />
-            <Field label="Estado operativo" name="estado_operativo" value={formData.estado_operativo} onChange={handleChange} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', gridColumn: 'span 2' }}>
-              <label htmlFor="observaciones-operativas" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Observaciones operativas</label>
-              <textarea id="observaciones-operativas" name="observaciones_operativas" value={formData.observaciones_operativas ?? ''} onChange={handleChange} rows={3} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-            </div>
           </form>
 
         </div>

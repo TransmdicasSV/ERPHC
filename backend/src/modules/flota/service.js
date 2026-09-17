@@ -1,13 +1,10 @@
 const CAMPOS_EDITABLES = [
-  'programa',
   'tipo_vehiculo',
   'marca_tracto',
   'modelo_tracto',
   'anio_fabricacion',
   'operacion',
-  'cliente',
-  'estado_operativo',
-  'observaciones_operativas'
+  'cliente'
 ];
 
 export class FlotaValidationError extends Error {

@@ -3,6 +3,10 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// El estado de la unidad se calcula desde la última inspección, con la misma
+// regla que usa el listado de flota. No existe un estado manual en vehiculos.
+import { calcularEstado } from '../modules/flota/service.js';
+
 const uploadsDir =
   fileURLToPath(
     new URL(
@@ -48,7 +52,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   workbook.created = new Date();
   
     const result = await pool.query(`
-    SELECT i.*, i.fecha_hora::date::text AS fecha, to_char(i.fecha_hora, 'HH24:MI') AS hora, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
+    SELECT i.*, i.fecha_hora::date::text AS fecha, to_char(i.fecha_hora, 'HH24:MI') AS hora, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente,
       CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END AS operacion,
       i.fecha_hora::date::text AS fecha_ejecutada_raw,
       COALESCE(m.frecuencia_dias, 180) AS frecuencia_dias,
@@ -303,7 +307,7 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   ws2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2458E8' } };
 
-  inspecciones.forEach(r => ws2.addRow({...r, tipo: r.tipo_vehiculo, programa:r.operacion, estado_vehiculo:r.estado_operativo || ''}));
+  inspecciones.forEach(r => ws2.addRow({...r, tipo: r.tipo_vehiculo, programa:r.operacion, estado_vehiculo:calcularEstado(r)}));
 
 
   const sheetName = `OP ${operacion}`.replace(/[\\/*?:\[\]\x00-\x1f]/g, ' ').slice(0, 31).trim().replace(/'+$/, '');
