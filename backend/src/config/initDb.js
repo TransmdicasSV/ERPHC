@@ -108,6 +108,48 @@ const ESQUEMA_ESPERADO = {
     'fecha_cese'
   ],
 
+  programas_mantenimiento: [
+    'id',
+    'codigo',
+    'nombre',
+    'periodo_inicio',
+    'periodo_fin',
+    'version',
+    'fecha_documento',
+    'frecuencia_m1_dias',
+    'frecuencia_m2_dias',
+    'frecuencia_m3_dias',
+    'estado',
+    'created_at',
+    'updated_at'
+  ],
+
+  programa_mantenimiento_unidades: [
+    'id',
+    'programa_id',
+    'placa',
+    'fecha_base_m1',
+    'fecha_base_m2',
+    'fecha_base_m3',
+    'quincena_arranque',
+    'observaciones',
+    'created_at',
+    'updated_at'
+  ],
+
+  programacion_mantenimiento: [
+    'id',
+    'programa_unidad_id',
+    'fecha_programada',
+    'nivel_mantenimiento',
+    'estado',
+    'fecha_reprogramada',
+    'fecha_ejecucion',
+    'observaciones',
+    'created_at',
+    'updated_at'
+  ],
+
   usuarios: [
     'id',
     'username',
@@ -137,7 +179,28 @@ const CAMPOS_DATE = [
   'mantenimientos_tecnicos.fecha_ejecutada',
   'vehiculos.anio_fabricacion',
   'personal.fecha_ingreso',
-  'personal.fecha_cese'
+  'personal.fecha_cese',
+  'programas_mantenimiento.periodo_inicio',
+  'programas_mantenimiento.periodo_fin',
+  'programas_mantenimiento.fecha_documento',
+  'programa_mantenimiento_unidades.fecha_base_m1',
+  'programa_mantenimiento_unidades.fecha_base_m2',
+  'programa_mantenimiento_unidades.fecha_base_m3',
+  'programa_mantenimiento_unidades.quincena_arranque',
+  'programacion_mantenimiento.fecha_programada',
+  'programacion_mantenimiento.fecha_reprogramada',
+  'programacion_mantenimiento.fecha_ejecucion'
+];
+
+// Las tablas de TI-PR-01 usan timestamptz por decisión de diseño, a diferencia
+// de las tablas antiguas, que guardan timestamp sin zona horaria.
+const CAMPOS_TIMESTAMPTZ = [
+  'programas_mantenimiento.created_at',
+  'programas_mantenimiento.updated_at',
+  'programa_mantenimiento_unidades.created_at',
+  'programa_mantenimiento_unidades.updated_at',
+  'programacion_mantenimiento.created_at',
+  'programacion_mantenimiento.updated_at'
 ];
 
 export const initDb = async () => {
@@ -197,6 +260,17 @@ export const initDb = async () => {
     if (columnasEncontradas.get(campo) !== 'date') {
       throw new Error(
         `${campo} debe ser DATE. No se modificó la base de datos.`
+      );
+    }
+  }
+
+  for (const campo of CAMPOS_TIMESTAMPTZ) {
+    if (
+      columnasEncontradas.get(campo) !==
+      'timestamp with time zone'
+    ) {
+      throw new Error(
+        `${campo} debe ser TIMESTAMPTZ. No se modificó la base de datos.`
       );
     }
   }
