@@ -85,49 +85,61 @@ export function ResumenDashboard() {
           (v) => v.estado === "Falta de revisión",
         ).length;
 
-        const progMap = Object.create(null);
-        const nombres = {
-          glp: "GLP",
-          industrias: "Industrias",
-          mantenimiento: "Mantenimiento",
-          primax: "Primax",
-          repsol: "Repsol",
-          bambas: "Bambas",
-          quellaveco: "Quellaveco",
-          "sin operacion": "Sin Operación",
+        // Agrupar la distribución principal por CLIENTE en lugar de operación.
+        // Esto mantiene el gráfico compacto y conserva los mismos estados/colores.
+        const clienteMap = Object.create(null);
+        const nombresClientes = {
+          repsol: "REPSOL",
+          primax: "PRIMAX",
+          solgas: "SOLGAS",
+          "san jose": "SAN JOSE",
+          austral: "AUSTRAL",
+          "sin cliente": "Sin Cliente",
           "datos por revisar": "Datos por revisar",
         };
+
         vData.forEach((v) => {
-          const original = String(v.operacion ?? "").trim();
+          const original = String(v.cliente ?? "").trim();
           let clave = original
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
             .replace(/\s+/g, " ");
+
           if (
             [
               "",
               "null",
               "undefined",
-              "sin operacion",
+              "sin cliente",
               "sin categoria",
               "falta identificar",
             ].includes(clave)
+          ) {
+            clave = "sin cliente";
+          }
+
+          if (["test", "text"].includes(clave)) {
+            clave = "datos por revisar";
+          }
+
+          const nombre = Object.prototype.hasOwnProperty.call(
+            nombresClientes,
+            clave,
           )
-            clave = "sin operacion";
-          if (["test", "text"].includes(clave)) clave = "datos por revisar";
-          if (clave === "industria") clave = "industrias";
-          const nombre = Object.prototype.hasOwnProperty.call(nombres, clave)
-            ? nombres[clave]
-            : original;
-          if (!progMap[clave])
-            progMap[clave] = {
+            ? nombresClientes[clave]
+            : original || "Sin Cliente";
+
+          if (!clienteMap[clave]) {
+            clienteMap[clave] = {
               name: nombre,
               Operativa: 0,
               Observada: 0,
               "Falta de revisión": 0,
               Otros: 0,
             };
+          }
+
           const estado = [
             "Operativa",
             "Observada",
@@ -135,7 +147,8 @@ export function ResumenDashboard() {
           ].includes(v.estado)
             ? v.estado
             : "Otros";
-          progMap[clave][estado]++;
+
+          clienteMap[clave][estado]++;
         });
 
         setData({
@@ -146,7 +159,7 @@ export function ResumenDashboard() {
           faltaRevision,
           trend: cData.trend,
           fallos: cData.fallos,
-          programasBarras: Object.values(progMap).sort((a, b) =>
+          programasBarras: Object.values(clienteMap).sort((a, b) =>
             a.name.localeCompare(b.name, "es"),
           ),
           soporte: cData.soporte || [],
@@ -805,7 +818,7 @@ export function ResumenDashboard() {
         <section className="power-card dashboard-operation-summary">
           <div className="dashboard-panel-heading">
             <div>
-              <h3>Distribución de vehículos por operación</h3>
+              <h3>Distribución de vehículos por cliente</h3>
               <p>Estado operativo actual del maestro de flota</p>
             </div>
             <span>Actualizado hoy</span>
@@ -1837,12 +1850,15 @@ export function ResumenDashboard() {
                   </p>
                 </div>
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://jdcali.com/flota/${result.placa}&color=0f172a&bgcolor=ffffff`}
-                  alt="QR"
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/?placa=${encodeURIComponent(result.placa)}`)}&color=0f172a&bgcolor=ffffff`}
+                  alt={`QR de la unidad ${result.placa}`}
+                  title={`Abrir ficha de ${result.placa}`}
                   style={{
                     borderRadius: "0.5rem",
                     border: "2px solid #e2e8f0",
                     padding: "2px",
+                    width: "80px",
+                    height: "80px",
                   }}
                 />
               </div>

@@ -12,6 +12,7 @@ import {
   obtenerPersonalTickets,
   obtenerPersonaActivaPorId,
   insertarTicket,
+  insertarPulsera,
   obtenerTickets,
   obtenerTicketPorId,
   actualizarEstadoTicket,
@@ -79,7 +80,7 @@ export const opcionesTickets =
         .json({
           error:
             error.status === 401 ||
-            error.status === 403
+              error.status === 403
               ? error.message
               : 'Error al cargar opciones de tickets'
         });
@@ -88,16 +89,308 @@ export const opcionesTickets =
 
 
 // ==========================================
-// PULSERAS
-// TEMPORALMENTE DESHABILITADO
+// OPCIONES DE PULSERAS
 // ==========================================
 
 export const opcionesReportePulseras =
   async (req, res) => {
-    return res.status(503).json({
-      error:
-        'El módulo de tickets de pulseras se encuentra temporalmente en rediseño'
-    });
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'crear'
+        );
+
+      if (
+        ![
+          'admin',
+          'supervisor'
+        ].includes(contexto.rol)
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'No tienes permiso para registrar reportes de pulseras'
+          });
+      }
+
+      const [
+        vehiculos,
+        personal
+      ] =
+        await Promise.all([
+          obtenerVehiculosTickets(
+            contexto.operacion,
+            OPERACIONES_INVALIDAS_TICKET
+          ),
+
+          obtenerPersonalTickets()
+        ]);
+
+      const operaciones =
+        obtenerOperacionesUnicas(
+          vehiculos
+        );
+
+      return res.json({
+        operaciones,
+        personal
+      });
+
+    } catch (error) {
+      console.error(
+        'Error cargando opciones de pulseras:',
+        error
+      );
+
+      return res
+        .status(
+          error.status || 500
+        )
+        .json({
+          error:
+            error.status === 401 ||
+              error.status === 403
+              ? error.message
+              : 'Error al cargar opciones de pulseras'
+        });
+    }
+  };
+// ==========================================
+// CREAR REPORTE DE PULSERA
+// ==========================================
+
+export const crearReportePulsera =
+  async (req, res) => {
+
+    const solicitantePersonaId =
+      Number(
+        req.body?.solicitante_persona_id
+      );
+
+    const receptorPersonaId =
+      Number(
+        req.body?.receptor_persona_id
+      );
+
+    const operacion =
+      String(
+        req.body?.operacion || ''
+      ).trim();
+
+    const motivoRenovacion =
+      String(
+        req.body?.motivo_renovacion || ''
+      ).trim();
+
+    if (
+      !Number.isInteger(
+        solicitantePersonaId
+      ) ||
+      solicitantePersonaId <= 0
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe seleccionar un solicitante válido'
+      });
+    }
+
+    if (
+      !Number.isInteger(
+        receptorPersonaId
+      ) ||
+      receptorPersonaId <= 0
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe seleccionar una persona válida para recibir la pulsera'
+      });
+    }
+
+    if (!operacion) {
+      return res.status(400).json({
+        error:
+          'Debe seleccionar una operación'
+      });
+    }
+
+    if (!motivoRenovacion) {
+      return res.status(400).json({
+        error:
+          'Debe indicar el motivo de renovación'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        error:
+          'Debe adjuntar una evidencia'
+      });
+    }
+
+    let evidenciaUrl = null;
+
+    try {
+
+      const contexto =
+        await contextoTicket(
+          req,
+          'crear'
+        );
+
+      if (
+        ![
+          'admin',
+          'supervisor'
+        ].includes(contexto.rol)
+      ) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'No tienes permiso para registrar reportes de pulseras'
+          });
+      }
+
+      const [
+        solicitante,
+        receptor,
+        vehiculos
+      ] =
+        await Promise.all([
+          obtenerPersonaActivaPorId(
+            solicitantePersonaId
+          ),
+
+          obtenerPersonaActivaPorId(
+            receptorPersonaId
+          ),
+
+          obtenerVehiculosTickets(
+            contexto.operacion,
+            OPERACIONES_INVALIDAS_TICKET
+          )
+        ]);
+
+      if (!solicitante) {
+        return res.status(400).json({
+          error:
+            'El solicitante no existe o está inactivo'
+        });
+      }
+
+      if (!receptor) {
+        return res.status(400).json({
+          error:
+            'La persona que recibirá la pulsera no existe o está inactiva'
+        });
+      }
+
+      const operacionesValidas =
+        obtenerOperacionesUnicas(
+          vehiculos
+        );
+
+      const operacionValida =
+        operacionesValidas.some(
+          item =>
+            String(item)
+              .trim()
+              .toLowerCase() ===
+            operacion.toLowerCase()
+        );
+
+      if (!operacionValida) {
+        return res.status(400).json({
+          error:
+            'Seleccione una operación válida'
+        });
+      }
+
+      evidenciaUrl =
+        await uploadToCloudinary(
+          req.file.buffer,
+          'pulseras/evidencias',
+          'image'
+        );
+
+      const pulsera =
+        await insertarPulsera({
+          solicitantePersonaId,
+          receptorPersonaId,
+          operacion,
+          motivoRenovacion,
+          evidenciaUrl,
+          creadoPor:
+            req.user?.id || null
+        });
+
+      if (!pulsera) {
+        throw new Error(
+          'No se pudo registrar la pulsera'
+        );
+      }
+
+      await logAction(
+        req.user?.id || null,
+        `Registró reporte de pulsera #${pulsera.id}`,
+        'pulseras',
+        req,
+        null,
+        pulsera
+      );
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+          pulsera
+        });
+
+    } catch (error) {
+
+      if (evidenciaUrl) {
+        await deleteFromCloudinary(
+          evidenciaUrl
+        ).catch(() => { });
+      }
+
+      console.error(
+        'Error registrando reporte de pulsera:',
+        error
+      );
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error:
+              error.message
+          });
+      }
+
+      if (
+        error.code === '23503'
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'El solicitante o receptor ya no existe'
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Error al registrar el reporte de pulsera'
+        });
+    }
   };
 
 
@@ -107,11 +400,12 @@ export const opcionesReportePulseras =
 export const createSupportTicket =
   async (req, res) => {
     const {
-  placa,
-  tipo_solicitud,
-  descripcion,
-  implemento
-} = req.body || {};
+      placa,
+      persona_id,
+      tipo_solicitud,
+      descripcion,
+      implemento
+    } = req.body || {};
 
     const placaFinal =
       String(
@@ -130,14 +424,14 @@ export const createSupportTicket =
         descripcion || ''
       ).trim();
 
-    
+
 
     const implementoFinal =
       tipoSolicitudFinal ===
-      'Soporte Técnico'
+        'Soporte Técnico'
         ? String(
-            implemento || ''
-          ).trim()
+          implemento || ''
+        ).trim()
         : null;
 
 
@@ -177,7 +471,7 @@ export const createSupportTicket =
 
     if (
       tipoSolicitudFinal ===
-        'Soporte Técnico' &&
+      'Soporte Técnico' &&
       !IMPLEMENTOS_PERMITIDOS.includes(
         implementoFinal
       )
@@ -202,20 +496,28 @@ export const createSupportTicket =
           req,
           'crear'
         );
-        const usuarioTicket =
+      const usuarioTicket =
   await obtenerUsuarioTicket(
     req.user.id
   );
 
-if (!usuarioTicket?.persona_id) {
-  return res.status(400).json({
-    error:
-      'El usuario actual no está vinculado a una persona'
-  });
-}
+const personaIdSeleccionada =
+  Number(persona_id);
 
 const personaIdFinal =
-  Number(usuarioTicket.persona_id);
+  usuarioTicket?.persona_id
+    ? Number(usuarioTicket.persona_id)
+    : personaIdSeleccionada;
+
+if (
+  !Number.isInteger(personaIdFinal) ||
+  personaIdFinal <= 0
+) {
+  return res.status(400).json({
+    error:
+      'Esta cuenta no está vinculada a una persona. Seleccione un solicitante.'
+  });
+}
 
 
       // ========================================
@@ -243,7 +545,7 @@ const personaIdFinal =
 
       if (
         contexto.rol ===
-          'supervisor' &&
+        'supervisor' &&
         String(
           persona.operacion || ''
         )
@@ -290,15 +592,15 @@ const personaIdFinal =
       // CREAR
       // ========================================
 
-  const ticket =
-  await insertarTicket({
-    placa: placaFinal,
-    personaId: personaIdFinal,
-    tipoSolicitud: tipoSolicitudFinal,
-    descripcion: descripcionFinal,
-    implemento: implementoFinal,
-    evidencias: evidenciasSubidas
-  });
+      const ticket =
+        await insertarTicket({
+          placa: placaFinal,
+          personaId: personaIdFinal,
+          tipoSolicitud: tipoSolicitudFinal,
+          descripcion: descripcionFinal,
+          implemento: implementoFinal,
+          evidencias: evidenciasSubidas
+        });
 
 
       if (!ticket) {
@@ -424,7 +726,7 @@ export const listarTickets =
         .json({
           error:
             error.status === 401 ||
-            error.status === 403
+              error.status === 403
               ? error.message
               : 'Error al obtener tickets'
         });
@@ -493,7 +795,7 @@ export const actualizarTicket =
 
     if (
       estadoFinal ===
-        'Resuelto' &&
+      'Resuelto' &&
       !req.file
     ) {
       return res
@@ -598,7 +900,7 @@ export const actualizarTicket =
 
       if (
         estadoFinal ===
-          'Resuelto' &&
+        'Resuelto' &&
         valoresActuales.placa
       ) {
         await repararInspeccionRelacionada({

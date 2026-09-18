@@ -7,7 +7,8 @@ import {
 import {
   crearUsuario,
   obtenerUsuarioPorId,
-  actualizarEstadoUsuario
+  actualizarEstadoUsuario,
+  actualizarUsuarioPorId
 } from './repository.js';
 
 export class UsuarioValidationError extends Error {
@@ -127,7 +128,152 @@ export const prepararNuevoUsuario =
       usuarioCreado
     };
   };
+export const actualizarUsuarioCompleto =
+  async ({
+    id,
+    datos,
+    usuarioActualId
+  }) => {
+    const idFinal =
+      Number.parseInt(
+        id,
+        10
+      );
 
+    if (
+      !Number.isInteger(
+        idFinal
+      )
+    ) {
+      throw new UsuarioValidationError(
+        'ID de usuario no válido'
+      );
+    }
+
+    const usuarioAnterior =
+      await obtenerUsuarioPorId(
+        idFinal
+      );
+
+    if (!usuarioAnterior) {
+      throw new UsuarioValidationError(
+        'Usuario no encontrado',
+        404
+      );
+    }
+
+    const {
+      password,
+      rol,
+      estado,
+      operacion
+    } = datos || {};
+
+    const rolFinal = String(
+      rol ||
+      usuarioAnterior.rol
+    )
+      .trim()
+      .toLowerCase();
+
+    if (
+      ![
+        'admin',
+        'supervisor',
+        'ti'
+      ].includes(rolFinal)
+    ) {
+      throw new UsuarioValidationError(
+        'Rol no válido'
+      );
+    }
+
+    const estadoFinal = String(
+      estado ||
+      usuarioAnterior.estado
+    )
+      .trim()
+      .toLowerCase();
+
+    if (
+      ![
+        'activo',
+        'inactivo'
+      ].includes(estadoFinal)
+    ) {
+      throw new UsuarioValidationError(
+        'Estado de usuario no válido'
+      );
+    }
+
+    if (
+      idFinal ===
+        Number(usuarioActualId) &&
+      estadoFinal ===
+        'inactivo'
+    ) {
+      throw new UsuarioValidationError(
+        'No puedes desactivar tu propio usuario'
+      );
+    }
+
+    const operacionFinal =
+      rolFinal === 'supervisor'
+        ? String(
+            operacion ??
+            usuarioAnterior.operacion ??
+            ''
+          ).trim()
+        : null;
+
+    if (
+      rolFinal === 'supervisor' &&
+      !operacionFinal
+    ) {
+      throw new UsuarioValidationError(
+        'Debe asignar una operación al supervisor'
+      );
+    }
+
+    let passwordHash = null;
+
+    if (
+      typeof password === 'string' &&
+      password.trim()
+    ) {
+      passwordHash =
+        await bcrypt.hash(
+          password,
+          10
+        );
+    }
+
+    const usuarioActualizado =
+      await actualizarUsuarioPorId({
+        id: idFinal,
+        passwordHash,
+        rol: rolFinal,
+        permisos:
+          ROLE_PERMISSIONS[
+            rolFinal
+          ],
+        estado: estadoFinal,
+        operacion:
+          operacionFinal
+      });
+
+    if (!usuarioActualizado) {
+      throw new UsuarioValidationError(
+        'Usuario no encontrado',
+        404
+      );
+    }
+
+    return {
+      usuarioAnterior,
+      usuarioActualizado
+    };
+  };
 export const cambiarEstadoUsuario =
   async ({
     id,

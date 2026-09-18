@@ -6,7 +6,6 @@ const LoginIcon = ({ name, size = 18 }) => {
   const paths = {
     user: <><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></>,
     lock: <><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
-    alert: <><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4.5M12 17h.01"/></>,
     arrow: <><path d="M5 12h14M14 7l5 5-5 5"/></>,
   };
 
@@ -24,7 +23,7 @@ const CompanyBrand = ({ mobile = false }) => (
   </div>
 );
 
-export function Login({ onLoginSuccess, onPublicClick }) {
+export function Login({ onLoginSuccess}) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -138,11 +137,6 @@ export function Login({ onLoginSuccess, onPublicClick }) {
           <p className="erphc-login-foot">Acceso exclusivo para personal autorizado de Transmdicas.</p>
         </div>
       </section>
-
-      <button className="erphc-public-report-button" type="button" onClick={onPublicClick}>
-        <LoginIcon name="alert" />
-        <span>Reportar falla en mi unidad</span>
-      </button>
     </main>
   );
 }

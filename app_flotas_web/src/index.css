@@ -391,12 +391,13 @@ input:focus, select:focus, textarea:focus {
 .erp-sidebar-nav { flex: 1; padding: 0.9rem 0.65rem; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
 .erp-nav-section { margin: 0; padding: 0.35rem 0.7rem 0.5rem; color: var(--sidebar-muted); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
 .erp-nav-section-spaced { margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.erp-nav-group { margin: 0.1rem 0; }
+.erp-nav-group { margin: 0.1rem 0; min-width: 0; width: 100%; }
 
 .sidebar-container nav .erp-nav-item {
-  width: 100%; min-height: 40px;
+  width: 100%; max-width: 100%; min-width: 0; min-height: 40px;
   display: flex; align-items: center; justify-content: flex-start; gap: 0.72rem;
   padding: 0 0.72rem; border: 0; border-radius: 9px;
+  box-sizing: border-box; overflow: hidden;
   background: transparent; color: var(--sidebar-content);
   cursor: pointer; font-size: 0.78rem; font-weight: 500;
   text-align: left; white-space: nowrap; position: relative;
@@ -413,10 +414,10 @@ input:focus, select:focus, textarea:focus {
   position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px;
   background-image: repeating-linear-gradient(to bottom, var(--accent-color) 0 4px, transparent 4px 8px);
 }
-.sidebar-container nav .erp-nav-toggle span:nth-child(2) { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.erp-nav-chevron { display: grid; place-items: center; transition: transform 0.18s ease; }
+.sidebar-container nav .erp-nav-toggle span:nth-child(2) { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.erp-nav-chevron { width: 15px; flex: 0 0 15px; margin-left: auto; display: grid; place-items: center; overflow: visible; transition: transform 0.18s ease; }
 .erp-nav-chevron.open { transform: rotate(180deg); }
-.erp-nav-submenu { display: grid; gap: 0.15rem; margin: 0.18rem 0 0.35rem 1.05rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255, 255, 255, 0.18); }
+.erp-nav-submenu { min-width: 0; display: grid; gap: 0.15rem; margin: 0.18rem 0 0.35rem 1.05rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255, 255, 255, 0.18); }
 .erp-area-group { margin-bottom: .25rem; }
 .erp-area-group > .erp-nav-toggle {
   min-height: 44px;
@@ -424,11 +425,13 @@ input:focus, select:focus, textarea:focus {
   font-weight: 650;
 }
 .erp-area-group > .erp-nav-toggle.group-active { background: rgba(36, 88, 232, .28); }
-.erp-area-submenu { margin-left: .85rem; padding-left: .42rem; }
+.erp-area-submenu { min-width: 0; margin-left: .55rem; padding-left: .32rem; }
 .erp-area-submenu > .erp-nav-item,
 .erp-area-submenu > .erp-nav-group > .erp-nav-item { min-height: 37px; }
+.erp-area-submenu > .erp-nav-group { min-width: 0; width: 100%; }
 .erp-nav-submenu-level-2 {
-  margin-left: .92rem;
+  min-width: 0;
+  margin-left: .72rem;
   margin-bottom: .2rem;
   border-left-color: rgba(255,255,255,.1);
 }

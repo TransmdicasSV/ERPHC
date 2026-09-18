@@ -47,30 +47,103 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   workbook.creator = 'ERPHC';
   workbook.created = new Date();
   
+    
     const result = await pool.query(`
-    SELECT i.*, i.fecha::text AS fecha, v.tipo_vehiculo, v.marca_tracto, v.modelo_tracto, v.anio_fabricacion, v.cliente, v.estado_operativo,
-      CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END AS operacion,
-      i.fecha::text AS fecha_ejecutada_raw,
-      COALESCE(m.frecuencia_dias, 180) AS frecuencia_dias,
-      CASE WHEN i.camaras ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.dvr, 'N/A') END AS dvr,
-      CASE WHEN i.tablet ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.copiloto, 'N/A') END AS copiloto,
-      CASE WHEN i.radio ILIKE '%OK%' THEN 'OK' ELSE COALESCE(m.radio_base, 'N/A') END AS radio_base,
-      COALESCE(m.handy, 'N/A') AS handy, COALESCE(m.camara_interna, 'N/A') AS camara_interna,
-      COALESCE(m.camara_externa, 'N/A') AS camara_externa, COALESCE(m.camara_retroceso, 'N/A') AS camara_retroceso,
-      COALESCE(m.sensores_retroceso, 'N/A') AS sensores_retroceso, COALESCE(m.sensores_delanteros, 'N/A') AS sensores_delanteros, COALESCE(m.sistema_adas, 'N/A') AS sistema_adas
-    FROM vehiculos v
-    JOIN LATERAL (
-      SELECT x.* FROM inspecciones_flota x
-      WHERE x.placa = v.placa AND x.fecha BETWEEN $1 AND $2
-      ORDER BY x.fecha DESC, CASE WHEN BTRIM(x.hora::text) ~ '^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$' THEN BTRIM(x.hora::text)::time END DESC NULLS LAST, x.id DESC
-      LIMIT 1
-    ) i ON true
-    LEFT JOIN LATERAL (
-      SELECT x.* FROM mantenimientos_tecnicos x WHERE x.placa = v.placa ORDER BY x.id DESC LIMIT 1
-    ) m ON true
-    WHERE LOWER(CASE WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN ('', 'null', 'sin operacion', 'sin operación', 'falta identificar') THEN 'Sin Operación' ELSE BTRIM(v.operacion) END) = LOWER($3)
-    ORDER BY v.placa ASC
-  `, [startDate, endDate, operacion]);
+  SELECT
+    i.*,
+
+    i.fecha_hora::date AS fecha,
+    TO_CHAR(i.fecha_hora, 'HH24:MI') AS hora,
+
+    v.tipo_vehiculo,
+    v.marca_tracto,
+    v.modelo_tracto,
+    v.anio_fabricacion,
+    v.cliente,
+
+    i.estado AS estado_operativo,
+
+    CASE
+      WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN (
+        '',
+        'null',
+        'sin operacion',
+        'sin operación',
+        'falta identificar'
+      )
+      THEN 'Sin Operación'
+      ELSE BTRIM(v.operacion)
+    END AS operacion,
+
+    i.fecha_hora::date::text AS fecha_ejecutada_raw,
+
+    COALESCE(m.frecuencia_dias, 180) AS frecuencia_dias,
+
+    CASE
+      WHEN i.camaras ILIKE '%OK%'
+      THEN 'OK'
+      ELSE COALESCE(m.dvr, 'N/A')
+    END AS dvr,
+
+    CASE
+      WHEN i.tablet ILIKE '%OK%'
+      THEN 'OK'
+      ELSE COALESCE(m.copiloto, 'N/A')
+    END AS copiloto,
+
+    CASE
+      WHEN i.radio ILIKE '%OK%'
+      THEN 'OK'
+      ELSE COALESCE(m.radio_base, 'N/A')
+    END AS radio_base,
+
+    COALESCE(m.handy, 'N/A') AS handy,
+    COALESCE(m.camara_interna, 'N/A') AS camara_interna,
+    COALESCE(m.camara_externa, 'N/A') AS camara_externa,
+    COALESCE(m.camara_retroceso, 'N/A') AS camara_retroceso,
+    COALESCE(m.sensores_retroceso, 'N/A') AS sensores_retroceso,
+    COALESCE(m.sensores_delanteros, 'N/A') AS sensores_delanteros,
+    COALESCE(m.sistema_adas, 'N/A') AS sistema_adas
+
+  FROM vehiculos v
+
+  JOIN LATERAL (
+    SELECT x.*
+    FROM inspecciones_flota x
+    WHERE
+      x.placa = v.placa
+      AND x.fecha_hora >= $1::date
+      AND x.fecha_hora < ($2::date + INTERVAL '1 day')
+    ORDER BY
+      x.fecha_hora DESC,
+      x.id DESC
+    LIMIT 1
+  ) i ON true
+
+  LEFT JOIN LATERAL (
+    SELECT x.*
+    FROM mantenimientos_tecnicos x
+    WHERE x.placa = v.placa
+    ORDER BY x.id DESC
+    LIMIT 1
+  ) m ON true
+
+  WHERE LOWER(
+    CASE
+      WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN (
+        '',
+        'null',
+        'sin operacion',
+        'sin operación',
+        'falta identificar'
+      )
+      THEN 'Sin Operación'
+      ELSE BTRIM(v.operacion)
+    END
+  ) = LOWER($3)
+
+  ORDER BY v.placa ASC
+`, [startDate, endDate, operacion]);
   const inspecciones = result.rows;
   if (!inspecciones.length) throw Object.assign(new Error('No hay inspecciones para esa operación en el período seleccionado'), { status: 404 });
 

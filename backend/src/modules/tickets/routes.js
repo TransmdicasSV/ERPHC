@@ -15,10 +15,11 @@ import {
 import {
   opcionesTickets,
   opcionesReportePulseras,
+  crearReportePulsera,
+  createSupportTicket,
   listarTickets,
   actualizarTicket,
-  eliminarTicket,
-  createSupportTicket
+  eliminarTicket
 } from './controller.js';
 
 // ==========================================
@@ -31,14 +32,19 @@ router.get(
   '/opciones',
   opcionesTickets
 );
-
+// Opciones para reporte de pulseras
 router.get(
   '/pulseras/opciones',
-  requirePermiso(
-    'tickets',
-    'crear'
-  ),
+  requirePermiso('tickets', 'crear'),
   opcionesReportePulseras
+);
+
+// Crear reporte de pulsera
+router.post(
+  '/pulseras',
+  requirePermiso('tickets', 'crear'),
+  upload.single('evidencia'),
+  crearReportePulsera
 );
 
 router.get(

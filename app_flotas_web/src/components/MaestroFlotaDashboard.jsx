@@ -1,5 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+const CLIENTES = [
+  'REPSOL',
+  'PRIMAX',
+  'SOLGAS',
+  'SAN JOSE',
+  'AUSTRAL'
+];
+
+const OPERACIONES = [
+  'LAS BAMBAS',
+  'SAN RAFAEL',
+  'GLP',
+  'INDUSTRIA',
+  'CARGAS DIVERSAS',
+  'QUELLAVECO',
+  'BATEAS',
+  'CONSTANCIA',
+  'CARAVELI',
+  'CACHIMAYO',
+  'PUCAMARCA',
+  'PAMPA DE COBRE',
+  'CERRO VERDE',
+  'RACIEMSA',
+  'ODEBRECHT',
+  'ANTAPACCAY',
+  'CRESPO',
+  'COESTI'
+];
 
 export function MaestroFlotaDashboard({ permisos }) {
   const [tractos, setTractos] = useState([]);
@@ -27,8 +55,18 @@ export function MaestroFlotaDashboard({ permisos }) {
   }, []);
 
   const filteredTractos = tractos.filter(t =>
-    [t?.placa, t?.programa, t?.tipo_vehiculo, t?.marca_tracto, t?.modelo_tracto, t?.operacion, t?.cliente, t?.estado_operativo].some(valor =>
-      String(valor ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+    [
+      t?.placa,
+      t?.tipo_vehiculo,
+      t?.marca_tracto,
+      t?.modelo_tracto,
+      t?.operacion,
+      t?.cliente,
+      t?.anio_fabricacion
+    ].some(valor =>
+      String(valor ?? '')
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
     )
   );
 
@@ -111,7 +149,9 @@ export function MaestroFlotaDashboard({ permisos }) {
                       <td style={{ padding: '1rem' }}>{t.operacion || '-'}</td>
                       <td style={{ padding: '1rem' }}>{t.cliente || '-'}</td>
                       <td style={{ padding: '1rem' }}>{t.marca_tracto || '-'} {t.modelo_tracto ? `/ ${t.modelo_tracto}` : ''}</td>
-                      <td style={{ padding: '1rem' }}>{t.anio_fabricacion || '-'}</td>
+                      <td style={{ padding: '1rem' }}>
+                        {t.anio_fabricacion ? String(t.anio_fabricacion).slice(0, 4) : '-'}
+                      </td>
                       <td style={{ padding: '1rem', textAlign: 'center' }}>
                         {(!permisos || permisos.editar !== false) && (
                           <>
@@ -198,19 +238,26 @@ export function MaestroFlotaDashboard({ permisos }) {
                 {selectedItem.data.placa}
               </h1>
               <p style={{ color: '#9ca3af', margin: '0.5rem 0 0' }}>
-                {selectedItem.data.marca_tracto || '-'} - {selectedItem.data.anio_fabricacion || '-'}
+                {selectedItem.data.marca_tracto || '-'} - {selectedItem.data.anio_fabricacion
+                  ? String(selectedItem.data.anio_fabricacion).slice(0, 4)
+                  : '-'}
               </p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <DetailBox label="Programa" value={selectedItem.data.programa} />
               <DetailBox label="Operación" value={selectedItem.data.operacion} />
               <DetailBox label="Cliente" value={selectedItem.data.cliente} />
               <DetailBox label="Tipo de vehículo" value={selectedItem.data.tipo_vehiculo} />
+              <DetailBox label="Marca" value={selectedItem.data.marca_tracto} />
               <DetailBox label="Modelo" value={selectedItem.data.modelo_tracto} />
-              <DetailBox label="Estado operativo" value={selectedItem.data.estado_operativo} />
-              <DetailBox label="Observaciones operativas" value={selectedItem.data.observaciones_operativas} full />
-              <DetailBox label="Fecha del reporte importado" value={selectedItem.data.fecha_reporte_flota ? String(selectedItem.data.fecha_reporte_flota).slice(0, 10) : null} full />
+              <DetailBox
+                label="Año de fabricación"
+                value={
+                  selectedItem.data.anio_fabricacion
+                    ? String(selectedItem.data.anio_fabricacion).slice(0, 4)
+                    : null
+                }
+              />
             </div>
 
           </div>
@@ -239,53 +286,272 @@ function DetailBox({ label, value, full }) {
 }
 
 function EditModal({ item, onClose, onSaved }) {
-  const [formData, setFormData] = useState({ ...item.data });
+  const [formData, setFormData] = useState({
+    placa: item?.data?.placa || '',
+    tipo_vehiculo: item?.data?.tipo_vehiculo || '',
+    marca_tracto: item?.data?.marca_tracto || '',
+    modelo_tracto: item?.data?.modelo_tracto || '',
+    anio_fabricacion: item?.data?.anio_fabricacion || '',
+    cliente: item?.data?.cliente || '',
+    operacion: item?.data?.operacion || ''
+  });
+
   const [saving, setSaving] = useState(false);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = e => {
+    const { name, value } = e.target;
 
-    const handleSubmit = async (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async e => {
     e.preventDefault();
+
+    if (!formData.operacion) {
+      alert('Seleccione una operación');
+      return;
+    }
+
+    if (!formData.cliente) {
+      alert('Seleccione un cliente');
+      return;
+    }
+
     setSaving(true);
+
     try {
-      await api.updateVehiculo(formData.placa, formData);
+      const payload = {
+        tipo_vehiculo:
+          formData.tipo_vehiculo.trim() || null,
+
+        marca_tracto:
+          formData.marca_tracto.trim() || null,
+
+        modelo_tracto:
+          formData.modelo_tracto.trim() || null,
+
+        anio_fabricacion:
+          formData.anio_fabricacion
+            ? Number(formData.anio_fabricacion)
+            : null,
+
+        cliente:
+          formData.cliente.trim(),
+
+        operacion:
+          formData.operacion.trim()
+      };
+
+      await api.updateVehiculo(
+        formData.placa,
+        payload
+      );
+
       onSaved();
+
     } catch (err) {
-      alert(err.message);
+      alert(
+        err.message ||
+        'Error al actualizar el vehículo'
+      );
     } finally {
       setSaving(false);
     }
   };
 
-
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
-      <div style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '700px', maxHeight: '90vh', borderRadius: '1rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>Editar Tracto - {formData.placa}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
-        </div>
-        <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
-          <form id="edit-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <Field label="Programa" name="programa" value={formData.programa} onChange={handleChange} />
-            <Field label="Operación" name="operacion" value={formData.operacion} onChange={handleChange} />
-            <Field label="Cliente" name="cliente" value={formData.cliente} onChange={handleChange} />
-            <Field label="Tipo de vehículo" name="tipo_vehiculo" value={formData.tipo_vehiculo} onChange={handleChange} />
-            <Field label="Marca" name="marca_tracto" value={formData.marca_tracto} onChange={handleChange} />
-            <Field label="Modelo" name="modelo_tracto" value={formData.modelo_tracto} onChange={handleChange} />
-            <Field label="Año de fabricación" name="anio_fabricacion" value={formData.anio_fabricacion} onChange={handleChange} />
-            <Field label="Estado operativo" name="estado_operativo" value={formData.estado_operativo} onChange={handleChange} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', gridColumn: 'span 2' }}>
-              <label htmlFor="observaciones-operativas" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Observaciones operativas</label>
-              <textarea id="observaciones-operativas" name="observaciones_operativas" value={formData.observaciones_operativas ?? ''} onChange={handleChange} rows={3} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
-            </div>
-          </form>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(16,27,51,0.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 200,
+        padding: '1rem'
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: 'var(--card-bg)',
+          width: '100%',
+          maxWidth: '700px',
+          maxHeight: '90vh',
+          borderRadius: '1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+      >
+        <div
+          style={{
+            padding: '1.5rem',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              color: 'var(--text-primary)'
+            }}
+          >
+            Editar Tracto - {formData.placa}
+          </h2>
 
+          <button
+            onClick={onClose}
+            type="button"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '1.5rem',
+              cursor: 'pointer'
+            }}
+          >
+            ✕
+          </button>
         </div>
-        <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-          <button onClick={onClose} type="button" style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancelar</button>
-          <button form="edit-form" type="submit" disabled={saving} style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', backgroundColor: '#2458e8', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
+
+        <div
+          style={{
+            padding: '1.5rem',
+            overflowY: 'auto'
+          }}
+        >
+          <form
+            id="edit-form"
+            onSubmit={handleSubmit}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '1rem'
+            }}
+          >
+            <Field
+              label="Tipo de vehículo"
+              name="tipo_vehiculo"
+              value={formData.tipo_vehiculo}
+              onChange={handleChange}
+            />
+
+            <Field
+              label="Marca"
+              name="marca_tracto"
+              value={formData.marca_tracto}
+              onChange={handleChange}
+            />
+
+            <Field
+              label="Modelo"
+              name="modelo_tracto"
+              value={formData.modelo_tracto}
+              onChange={handleChange}
+            />
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem'
+              }}
+            >
+              <label
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Año de fabricación
+              </label>
+
+              <input
+                type="number"
+                name="anio_fabricacion"
+                value={formData.anio_fabricacion}
+                onChange={handleChange}
+                min="1900"
+                max="2100"
+                style={{
+                  padding: '0.5rem',
+                  borderRadius: '0.25rem',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+            </div>
+
+            <SelectField
+              label="Cliente"
+              name="cliente"
+              value={formData.cliente}
+              onChange={handleChange}
+              options={CLIENTES}
+            />
+
+            <SelectField
+              label="Operación"
+              name="operacion"
+              value={formData.operacion}
+              onChange={handleChange}
+              options={OPERACIONES}
+            />
+          </form>
+        </div>
+
+        <div
+          style={{
+            padding: '1.5rem',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '1rem'
+          }}
+        >
+          <button
+            onClick={onClose}
+            type="button"
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'transparent',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            Cancelar
+          </button>
+
+          <button
+            form="edit-form"
+            type="submit"
+            disabled={saving}
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              backgroundColor: '#2458e8',
+              color: 'white',
+              fontWeight: 'bold',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.7 : 1
+            }}
+          >
+            {saving
+              ? 'Guardando...'
+              : 'Guardar Cambios'}
           </button>
         </div>
       </div>
@@ -298,6 +564,75 @@ function Field({ label, name, value, onChange }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{label}</label>
       <input type="text" name={name} value={value || ''} onChange={onChange} style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+    </div>
+  );
+}
+function SelectField({
+  label,
+  name,
+  value,
+  onChange,
+  options
+}) {
+  const valorActual =
+    String(value || '').trim();
+
+  const existeEnOpciones =
+    options.some(
+      option =>
+        option.toLowerCase() ===
+        valorActual.toLowerCase()
+    );
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.25rem'
+      }}
+    >
+      <label
+        style={{
+          fontSize: '0.85rem',
+          color: 'var(--text-secondary)'
+        }}
+      >
+        {label}
+      </label>
+
+      <select
+        name={name}
+        value={value || ''}
+        onChange={onChange}
+        style={{
+          padding: '0.5rem',
+          borderRadius: '0.25rem',
+          border: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-secondary)',
+          color: 'var(--text-primary)'
+        }}
+      >
+        <option value="">
+          Seleccione {label.toLowerCase()}
+        </option>
+
+        {valorActual &&
+          !existeEnOpciones && (
+            <option value={valorActual}>
+              {valorActual} (valor actual)
+            </option>
+          )}
+
+        {options.map(option => (
+          <option
+            key={option}
+            value={option}
+          >
+            {option}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

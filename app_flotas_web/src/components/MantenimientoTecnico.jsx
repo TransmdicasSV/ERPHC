@@ -25,7 +25,7 @@ const PERIODICIDAD = {
   cop: { 1: 15, 2: 90, 3: 180 },
   rb:  { 1: 15, 2: 90, 3: 180 },
   cam: { 1: 15, 2: 90, 3: 180 },
-  gps: { 3: 365 }
+  gps: { 3: 180 }
 };
 
 const ACTIVIDADES = {
@@ -434,34 +434,9 @@ const ACTIVIDADES = {
   "gps": {
     "M3": [
       {
-        "t": "Verificación en plataforma: última transmisión, cantidad de satélites y HDOP",
-        "c": "Transmisión continua, satélites suficientes y HDOP dentro del umbral definido",
-        "m": 10
-      },
-      {
-        "t": "Revisión física del equipo, antena y arnés",
-        "c": "Equipo firme, arnés sin empalmes provisionales",
-        "m": 20
-      },
-      {
-        "t": "Revisión de fusible y punto de alimentación",
-        "c": "Fusible correcto y alimentación permanente estable",
-        "m": 10
-      },
-      {
-        "t": "Verificación de precintos de seguridad y de la ubicación oculta del equipo",
-        "c": "Precintos íntegros y equipo no visible desde la cabina",
-        "m": 10
-      },
-      {
-        "t": "Prueba de corte de energía y reporte de batería de respaldo",
-        "c": "La plataforma recibe la alerta de desconexión dentro del tiempo esperado",
-        "m": 15
-      },
-      {
-        "t": "Verificación de serie e IMEI contra el INVENTARIO",
-        "c": "Coincidencia exacta con lo registrado",
-        "m": 5
+        "t": "Mantenimiento preventivo por el proveedor",
+        "c": "Confirmar que el proveedor realizó el mantenimiento preventivo correspondiente",
+        "m": 0
       }
     ]
   }
@@ -475,15 +450,106 @@ const formatDMY = (value) =>{
   const raw = dateOnly(value);
   if(!raw) return '-';
 
-  const d = new Date(`${raw}T12:00:00`);
-  if(Number.isNaN(d.getTime())) return '-';
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match) return '-';
 
-  return d.toLocaleDateString('es-PE',{
-    day: '2-digit',
-    month: 'short',
-    year: '2-digit'
-  });
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
 };
+
+const parseDMY = (value) => {
+  const match = String(value || '').match(
+    /^(\d{2})\/(\d{2})\/(\d{4})$/
+  );
+
+  if (!match) return null;
+
+  const [, day, month, year] = match;
+  const iso = `${year}-${month}-${day}`;
+  const date = new Date(`${iso}T12:00:00`);
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() + 1 !== Number(month) ||
+    date.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+
+  return iso;
+};
+
+const formatFechaEscritura = (value) => {
+  const digitos = String(value || '')
+    .replace(/\D/g, '')
+    .slice(0, 8);
+
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 4) {
+    return `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
+  }
+
+  return `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`;
+};
+
+function FechaInput({
+  value,
+  onChange,
+  required = false,
+  disabled = false
+}) {
+  const [texto, setTexto] = useState(
+    value ? formatDMY(value) : ''
+  );
+
+  useEffect(() => {
+    setTexto(value ? formatDMY(value) : '');
+  }, [value]);
+
+  const manejarCambio = (event) => {
+    const siguiente = formatFechaEscritura(
+      event.target.value
+    );
+
+    setTexto(siguiente);
+
+    if (!siguiente) {
+      onChange('');
+      return;
+    }
+
+    const iso = parseDMY(siguiente);
+    if (iso) onChange(iso);
+  };
+
+  const manejarBlur = () => {
+    if (!texto && !required) return;
+
+    const iso = parseDMY(texto);
+    if (iso) {
+      setTexto(formatDMY(iso));
+    } else {
+      setTexto(value ? formatDMY(value) : '');
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      placeholder="dd/mm/aaaa"
+      value={texto}
+      onChange={manejarCambio}
+      onBlur={manejarBlur}
+      required={required}
+      disabled={disabled}
+      maxLength={10}
+      pattern="\d{2}/\d{2}/\d{4}"
+      title="Formato: dd/mm/aaaa"
+    />
+  );
+}
 
 const nivelProgramado=(indiceUnidad, indiceQuincena)=>{
   const qBase=(indiceUnidad % 8)+1;
@@ -528,6 +594,7 @@ const estadoClase=(estado)=>{
 
 export function MantenimientoTecnico({
   permisos,
+  usuario,
   vistaInicial = 'programa',
   navegacionId = 0,
   onVistaChange
@@ -557,13 +624,52 @@ export function MantenimientoTecnico({
 
   const canEdit = !permisos || permisos.editar !==false;
 
+  const tecnicoActual = String(
+    usuario?.nombre_completo ||
+    usuario?.username ||
+    usuario?.nombre ||
+    'Usuario actual'
+  ).trim();
+
+  const nivelProgramadoPara = (placa, fecha) => {
+    const indiceUnidad = vehiculos.findIndex(
+      vehiculo => vehiculo.placa === placa
+    );
+    const indiceQuincena = getPeriodoIndex(fecha);
+
+    if (indiceUnidad < 0 || indiceQuincena < 0) {
+      return null;
+    }
+
+    return nivelProgramado(indiceUnidad, indiceQuincena);
+  };
+
+  const actualizarNuevaOTProgramada = (cambios) => {
+    setNuevaOT(prev => {
+      const siguiente = {
+        ...prev,
+        ...cambios,
+        tecnico: tecnicoActual
+      };
+
+      const nivel = nivelProgramadoPara(
+        siguiente.placa,
+        siguiente.fecha
+      );
+
+      return {
+        ...siguiente,
+        nivel: nivel ?? siguiente.nivel
+      };
+    });
+  };
+
   useEffect(() => {
     const principales = [
       'programa',
       'unidades',
       'ots',
-      'historial',
-      'tablero'
+      'historial'
     ];
 
     if (principales.includes(vistaInicial)) {
@@ -576,8 +682,7 @@ export function MantenimientoTecnico({
       'programa',
       'unidades',
       'ots',
-      'historial',
-      'tablero'
+      'historial'
     ];
 
     if (principales.includes(vista)) {
@@ -699,8 +804,19 @@ export function MantenimientoTecnico({
 
     if(!nuevaOT.placa){
       toast.error('Seleccione una placa');
-      return; 
+      return;
     }
+
+    const nivelFijo = nivelProgramadoPara(
+      nuevaOT.placa,
+      nuevaOT.fecha
+    );
+
+    if (!nivelFijo) {
+      toast.error('La fecha seleccionada no pertenece al programa vigente');
+      return;
+    }
+
     const id= `OT-DEMO-${String(ordenes.length + 1).padStart(3, '0')}`;
     setOrdenes(prev => [
       ...prev,
@@ -708,8 +824,8 @@ export function MantenimientoTecnico({
         id,
         placa: nuevaOT.placa,
         fecha: nuevaOT.fecha,
-        nivel: Number(nuevaOT.nivel),
-        tecnico: nuevaOT.tecnico.trim() || 'Técnico TI',
+        nivel: nivelFijo,
+        tecnico: tecnicoActual,
         estado: 'ABIERTA',
         minutos: null,
         resultado: null
@@ -898,7 +1014,7 @@ export function MantenimientoTecnico({
     EQUIPOS.forEach(equipo => {
       aparatos[equipo.key] = {
         instalado: Boolean(inventario[equipo.key]),
-        resultado: '',
+        resultado: 'NO REVISADO',
         observacion: '',
         checks: {},
         evidencias: []
@@ -908,7 +1024,7 @@ export function MantenimientoTecnico({
     setOrdenActualId(orden.id);
     setEjecucion({
       fecha: orden.fecha || new Date().toISOString().slice(0, 10),
-      tecnico: orden.tecnico || '',
+      tecnico: orden.tecnico || tecnicoActual,
       minutos: orden.minutos || '',
       aparatos,
       errores: {}
@@ -941,19 +1057,55 @@ export function MantenimientoTecnico({
   };
 
   const toggleActividad = (tipoEquipo, actividadId) => {
+    const orden = ordenes.find(
+      item => item.id === ordenActualId
+    );
+
     setEjecucion(prev => {
       const actual = prev.aparatos[tipoEquipo];
 
+      const nuevosChecks = {
+        ...actual.checks,
+        [actividadId]: !actual.checks[actividadId]
+      };
+
+      const grupos = orden
+        ? gruposActividad(tipoEquipo, orden.nivel)
+        : [];
+
+      const totalActividades = grupos.reduce(
+        (total, grupo) =>
+          total + grupo.actividades.length,
+        0
+      );
+
+      const actividadesMarcadas = Object.values(
+        nuevosChecks
+      ).filter(Boolean).length;
+
+      let resultadoAutomatico = 'NO REVISADO';
+
+      if (
+        totalActividades > 0 &&
+        actividadesMarcadas === totalActividades
+      ) {
+        resultadoAutomatico = 'CONFORME';
+      } else if (actividadesMarcadas > 0) {
+        resultadoAutomatico = 'OBSERVADO';
+      }
+
       return {
         ...prev,
+        errores: {
+          ...(prev.errores || {}),
+          [tipoEquipo]: ''
+        },
         aparatos: {
           ...prev.aparatos,
           [tipoEquipo]: {
             ...actual,
-            checks: {
-              ...actual.checks,
-              [actividadId]: !actual.checks[actividadId]
-            }
+            checks: nuevosChecks,
+            resultado: resultadoAutomatico
           }
         }
       };
@@ -1147,10 +1299,6 @@ export function MantenimientoTecnico({
       'Historial',
       'Mantenimientos ejecutados y sus evidencias'
     ],
-    tablero: [
-      'Tablero',
-      'Cumplimiento y carga del periodo'
-    ],
     ejecucion: [
       'Registrar ejecución',
       'Checklist por aparato según el nivel'
@@ -1263,7 +1411,7 @@ export function MantenimientoTecnico({
                                 ? today
                                 : periodo.inicio,
                               nivel,
-                              tecnico: ''
+                              tecnico: tecnicoActual
                             });
                             setShowNuevaOT(true);
                           }}
@@ -1491,11 +1639,18 @@ export function MantenimientoTecnico({
             <button
               className="m2-btn m2-btn-primary"
               onClick={() => {
+                const placaInicial = vehiculos[0]?.placa || '';
+                const fechaInicial = new Date().toISOString().slice(0, 10);
+                const nivelInicial = nivelProgramadoPara(
+                  placaInicial,
+                  fechaInicial
+                );
+
                 setNuevaOT({
-                  placa: vehiculos[0]?.placa || '',
-                  fecha: new Date().toISOString().slice(0, 10),
-                  nivel: 1,
-                  tecnico: ''
+                  placa: placaInicial,
+                  fecha: fechaInicial,
+                  nivel: nivelInicial || 1,
+                  tecnico: tecnicoActual
                 });
 
                 setShowNuevaOT(true);
@@ -2389,7 +2544,7 @@ export function MantenimientoTecnico({
           nombre: equipo.nombre,
           razon:
             equipo.key === 'gps'
-              ? `El GPS solo tiene M3 anual, no entra en un M${orden.nivel}`
+              ? `El GPS solo se atiende en M3 semestral por proveedor, no entra en un M${orden.nivel}`
               : 'Sin actividades para este nivel'
         });
         return;
@@ -2890,7 +3045,7 @@ export function MantenimientoTecnico({
           nombre: equipo.nombre,
           razon:
             equipo.key === 'gps'
-              ? `El GPS solo tiene M3 anual, no entra en un M${orden.nivel}`
+              ? `El GPS solo se atiende en M3 semestral por proveedor, no entra en un M${orden.nivel}`
               : `Sin actividades configuradas para M${orden.nivel}`
         });
         return;
@@ -2977,15 +3132,15 @@ export function MantenimientoTecnico({
             <div className="m2-field">
               <label>Fecha de ejecución</label>
 
-              <input
-                type="date"
+              <FechaInput
                 value={ejecucion.fecha}
-                onChange={e =>
+                onChange={valor =>
                   actualizarEjecucion(
                     'fecha',
-                    e.target.value
+                    valor
                   )
                 }
+                required
               />
             </div>
 
@@ -2994,13 +3149,9 @@ export function MantenimientoTecnico({
 
               <input
                 type="text"
-                value={ejecucion.tecnico}
-                onChange={e =>
-                  actualizarEjecucion(
-                    'tecnico',
-                    e.target.value
-                  )
-                }
+                value={ejecucion.tecnico || tecnicoActual}
+                readOnly
+                title="Se asigna automáticamente con el usuario de la cuenta"
               />
             </div>
 
@@ -3143,7 +3294,7 @@ export function MantenimientoTecnico({
                   <strong>{equipo.nombre}</strong>
                   <span className="m2-muted">
                     Sin actividades en este nivel. El GPS
-                    solo lleva M3 anual.
+                    solo se atiende en M3 semestral por proveedor.
                   </span>
                 </div>
               </div>
@@ -3218,9 +3369,6 @@ export function MantenimientoTecnico({
                       )
                     }
                   >
-                    <option value="">
-                      Resultado…
-                    </option>
                     <option value="CONFORME">
                       CONFORME
                     </option>
@@ -3238,6 +3386,19 @@ export function MantenimientoTecnico({
                     </option>
                   </select>
                 </div>
+              </div>
+
+              <div
+                className="m2-small"
+                style={{
+                  padding: '0 16px 8px',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                El resultado se actualiza con el checklist:
+                0 marcadas = NO REVISADO · parcial = OBSERVADO ·
+                completo = CONFORME. Puedes cambiarlo manualmente si
+                ocurrió una incidencia.
               </div>
 
               <div className="m2-apparatus-body">
@@ -3575,341 +3736,6 @@ export function MantenimientoTecnico({
     );
   };
 
-  const renderTablero = () => {
-    const programadas =
-      vehiculos.length * QUINCENAS.length;
-
-    const cerradasPeriodo = ordenes.filter(
-      orden => orden.estado === 'CERRADA'
-    );
-
-    const ejecutadas = cerradasPeriodo.length;
-
-    const cumplimiento = programadas
-      ? ((ejecutadas / programadas) * 100).toFixed(1)
-      : '0.0';
-
-    const vencidas = vehiculos.filter(
-      vehiculo =>
-        estadoUnidadFicha(vehiculo.placa) === 'VENCIDO'
-    ).length;
-
-    const datosPorNivel = [1, 2, 3].map(nivel => {
-      let programadasNivel = 0;
-
-      vehiculos.forEach((_, vehiculoIndex) => {
-        QUINCENAS.forEach((__, periodoIndex) => {
-          if (
-            nivelProgramado(
-              vehiculoIndex,
-              periodoIndex
-            ) === nivel
-          ) {
-            programadasNivel += 1;
-          }
-        });
-      });
-
-      const ejecutadasNivel = cerradasPeriodo.filter(
-        orden => Number(orden.nivel) === nivel
-      ).length;
-
-      return {
-        nivel,
-        programadas: programadasNivel,
-        ejecutadas: ejecutadasNivel,
-        porcentaje: programadasNivel
-          ? (
-              (ejecutadasNivel / programadasNivel) *
-              100
-            ).toFixed(1)
-          : '0.0'
-      };
-    });
-
-    const cicloPorEquipo = EQUIPOS.map(equipo => {
-      const conteo = {
-        'VENCIDO': 0,
-        'POR VENCER': 0,
-        'AL DÍA': 0,
-        'SIN FECHA BASE': 0,
-        'NO INSTALADO': 0
-      };
-
-      vehiculos.forEach(vehiculo => {
-        const estado = datosCicloEquipo(
-          vehiculo.placa,
-          equipo.key
-        ).estado;
-
-        conteo[estado] =
-          (conteo[estado] || 0) + 1;
-      });
-
-      return {
-        equipo,
-        conteo
-      };
-    });
-
-    const operacionesTablero = operaciones.map(op => {
-      const unidadesOp = vehiculos.filter(
-        vehiculo => vehiculo.operacion === op
-      );
-
-      const placas = new Set(
-        unidadesOp.map(vehiculo => vehiculo.placa)
-      );
-
-      const ejecutadasOp = cerradasPeriodo.filter(
-        orden => placas.has(orden.placa)
-      ).length;
-
-      const vencidasOp = unidadesOp.filter(
-        vehiculo =>
-          estadoUnidadFicha(vehiculo.placa) ===
-          'VENCIDO'
-      ).length;
-
-      return {
-        operacion: op,
-        unidades: unidadesOp.length,
-        ejecutadas: ejecutadasOp,
-        vencidas: vencidasOp
-      };
-    });
-
-    return (
-      <>
-        <div className="m2-kpis">
-          <div className="m2-kpi">
-            <span>Intervenciones programadas</span>
-            <strong>{programadas}</strong>
-          </div>
-
-          <div className="m2-kpi">
-            <span>Ejecutadas</span>
-            <strong className="green">
-              {ejecutadas}
-            </strong>
-          </div>
-
-          <div className="m2-kpi">
-            <span>Cumplimiento</span>
-            <strong>{cumplimiento}%</strong>
-          </div>
-
-          <div className="m2-kpi">
-            <span>Unidades vencidas</span>
-            <strong className="red">
-              {vencidas}
-            </strong>
-          </div>
-        </div>
-
-        <div className="m2-dashboard-grid">
-          <div className="m2-card">
-            <div className="m2-card-title">
-              Cumplimiento por nivel
-            </div>
-
-            <div className="m2-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nivel</th>
-                    <th>Programadas</th>
-                    <th>Ejecutadas</th>
-                    <th>%</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {datosPorNivel.map(item => (
-                    <tr key={item.nivel}>
-                      <td>
-                        <span
-                          className={`m2-level l${item.nivel}`}
-                        >
-                          M{item.nivel}
-                        </span>
-                      </td>
-
-                      <td className="m2-mono">
-                        {item.programadas}
-                      </td>
-
-                      <td className="m2-mono">
-                        {item.ejecutadas}
-                      </td>
-
-                      <td className="m2-mono">
-                        {item.porcentaje}%
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="m2-card">
-            <div className="m2-card-title">
-              Estado del ciclo por aparato
-            </div>
-
-            <div className="m2-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Aparato</th>
-                    <th>Vencido</th>
-                    <th>Por vencer</th>
-                    <th>Al día</th>
-                    <th>Sin fecha</th>
-                    <th>No instalado</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {cicloPorEquipo.map(
-                    ({ equipo, conteo }) => (
-                      <tr key={equipo.key}>
-                        <td>
-                          <strong>
-                            {equipo.nombre}
-                          </strong>
-                        </td>
-
-                        <td
-                          className="m2-mono"
-                          style={{
-                            color: 'var(--m2-red)'
-                          }}
-                        >
-                          {conteo['VENCIDO'] || 0}
-                        </td>
-
-                        <td
-                          className="m2-mono"
-                          style={{
-                            color:
-                              'var(--m2-amber)'
-                          }}
-                        >
-                          {conteo['POR VENCER'] || 0}
-                        </td>
-
-                        <td
-                          className="m2-mono"
-                          style={{
-                            color:
-                              'var(--m2-green)'
-                          }}
-                        >
-                          {conteo['AL DÍA'] || 0}
-                        </td>
-
-                        <td className="m2-mono">
-                          {conteo[
-                            'SIN FECHA BASE'
-                          ] || 0}
-                        </td>
-
-                        <td
-                          className="m2-mono"
-                          style={{
-                            color:
-                              'var(--m2-text3)'
-                          }}
-                        >
-                          {conteo[
-                            'NO INSTALADO'
-                          ] || 0}
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="m2-card m2-dashboard-wide">
-            <div className="m2-card-title">
-              Cumplimiento por operación
-            </div>
-
-            <div className="m2-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Operación</th>
-                    <th>Unidades</th>
-                    <th>Ejecutadas</th>
-                    <th>Vencidas</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {operacionesTablero.map(item => (
-                    <tr key={item.operacion}>
-                      <td>
-                        {item.operacion}
-                      </td>
-
-                      <td className="m2-mono">
-                        {item.unidades}
-                      </td>
-
-                      <td
-                        className="m2-mono"
-                        style={{
-                          color:
-                            'var(--m2-green)'
-                        }}
-                      >
-                        {item.ejecutadas}
-                      </td>
-
-                      <td
-                        className="m2-mono"
-                        style={{
-                          color: item.vencidas
-                            ? 'var(--m2-red)'
-                            : 'var(--m2-text2)'
-                        }}
-                      >
-                        {item.vencidas}
-                      </td>
-                    </tr>
-                  ))}
-
-                  {operacionesTablero.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan="4"
-                        className="m2-empty"
-                      >
-                        No hay operaciones disponibles.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div className="m2-dashboard-note">
-          Estos cálculos usan los vehículos reales del ERP y
-          las órdenes temporales de este frontend. Cuando el
-          backend nuevo esté aprobado, conservarás esta misma
-          interfaz y solo cambiaremos el origen de los datos.
-        </div>
-      </>
-    );
-  };
 
   if (loading) {
     return (
@@ -5282,7 +5108,6 @@ export function MantenimientoTecnico({
       {vista === 'unidades' && renderUnidades()}
       {vista === 'ots' && renderOrdenes()}
       {vista === 'historial' && renderHistorial()}
-      {vista === 'tablero' && renderTablero()}
       {vista === 'ficha' && renderFichaUnidad()}
       {vista === 'detalle' && renderDetalleOrden()}
       {vista === 'ejecucion' && renderEjecucion()}
@@ -5310,10 +5135,9 @@ export function MantenimientoTecnico({
                 <select
                   value={nuevaOT.placa}
                   onChange={e =>
-                    setNuevaOT(prev => ({
-                      ...prev,
+                    actualizarNuevaOTProgramada({
                       placa: e.target.value
-                    }))
+                    })
                   }
                   required
                 >
@@ -5338,14 +5162,12 @@ export function MantenimientoTecnico({
                   Fecha programada
                 </label>
 
-                <input
-                  type="date"
+                <FechaInput
                   value={nuevaOT.fecha}
-                  onChange={e =>
-                    setNuevaOT(prev => ({
-                      ...prev,
-                      fecha: e.target.value
-                    }))
+                  onChange={valor =>
+                    actualizarNuevaOTProgramada({
+                      fecha: valor
+                    })
                   }
                   required
                 />
@@ -5356,27 +5178,22 @@ export function MantenimientoTecnico({
                   Nivel
                 </label>
 
-                <select
-                  value={nuevaOT.nivel}
-                  onChange={e =>
-                    setNuevaOT(prev => ({
-                      ...prev,
-                      nivel: Number(e.target.value)
-                    }))
+                <input
+                  type="text"
+                  value={
+                    nuevaOT.nivel === 1
+                      ? 'M1 · mantenimiento quincenal'
+                      : nuevaOT.nivel === 2
+                        ? 'M2 · mantenimiento trimestral'
+                        : 'M3 · mantenimiento semestral'
                   }
-                >
-                  <option value={1}>
-                    M1 · verificación de operatividad
-                  </option>
+                  readOnly
+                  title="El nivel lo determina la programación y no puede modificarse"
+                />
 
-                  <option value={2}>
-                    M2 · revisión intermedia · incluye M1
-                  </option>
-
-                  <option value={3}>
-                    M3 · mantenimiento mayor · incluye M1 y M2
-                  </option>
-                </select>
+                <div className="m2-muted" style={{ marginTop: '6px' }}>
+                  El nivel se asigna automáticamente según la placa y la fecha programada.
+                </div>
               </div>
 
               <div className="m2-field">
@@ -5386,14 +5203,9 @@ export function MantenimientoTecnico({
 
                 <input
                   type="text"
-                  placeholder="Técnico TI"
-                  value={nuevaOT.tecnico}
-                  onChange={e =>
-                    setNuevaOT(prev => ({
-                      ...prev,
-                      tecnico: e.target.value
-                    }))
-                  }
+                  value={tecnicoActual}
+                  readOnly
+                  title="Se asigna automáticamente con el usuario de la cuenta"
                 />
               </div>
 
