@@ -140,6 +140,49 @@ export const insertarTicket =
     return result.rows[0] || null;
   };
 
+  // ==========================================
+// CREACIÓN DE PULSERAS
+// ==========================================
+
+export const insertarPulsera =
+  async ({
+    solicitantePersonaId,
+    receptorPersonaId,
+    operacion,
+    motivoRenovacion,
+    evidenciaUrl,
+    creadoPor
+  }) => {
+    const result = await pool.query(
+      `INSERT INTO pulseras (
+         solicitante_persona_id,
+         receptor_persona_id,
+         operacion,
+         motivo_renovacion,
+         evidencia_url,
+         creado_por
+       )
+       VALUES (
+         $1,
+         $2,
+         $3,
+         $4,
+         $5,
+         $6
+       )
+       RETURNING *`,
+      [
+        solicitantePersonaId,
+        receptorPersonaId,
+        operacion,
+        motivoRenovacion,
+        evidenciaUrl,
+        creadoPor
+      ]
+    );
+
+    return result.rows[0] || null;
+  };
 // ==========================================
 // LISTADO
 // ==========================================

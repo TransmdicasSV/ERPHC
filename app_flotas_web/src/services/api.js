@@ -62,14 +62,31 @@ export const api = {  // ==========================================
     return response.json();
   },
   updateVehiculo: async (placa, data) => {
-    const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, {
+  const response = await fetchWithAuth(
+    `${BASE_API_URL}/vehiculos/${encodeURIComponent(placa)}`,
+    {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Error al actualizar vehiculo');
-    return response.json();
-  },
+    }
+  );
+
+  const result =
+    await response
+      .json()
+      .catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.error ||
+      'Error al actualizar vehículo'
+    );
+  }
+
+  return result;
+},
   
   deleteVehiculo: async (placa) => {
     const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, { method: 'DELETE' });
@@ -223,6 +240,38 @@ getOpcionesPulseras: async () => {
   }
 
   return data;
+},
+createPulsera: async (data, evidencia) => {
+  const payload = new FormData();
+
+  Object.entries(data).forEach(([campo, valor]) => {
+    if (valor !== null && valor !== undefined) {
+      payload.append(campo, String(valor));
+    }
+  });
+
+  if (evidencia) {
+    payload.append('evidencia', evidencia);
+  }
+
+  const response = await fetchWithAuth(
+    `${BASE_API_URL}/api/incidentes/pulseras`,
+    {
+      method: 'POST',
+      body: payload
+    }
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.error ||
+      'Error al registrar el reporte de pulsera'
+    );
+  }
+
+  return result;
 },
   // === INCIDENTES ===
   getIncidentes: async () => {

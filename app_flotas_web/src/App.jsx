@@ -13,6 +13,7 @@ import { GestionUsuariosDashboard } from "./components/GestionUsuariosDashboard"
 import { Toaster } from "react-hot-toast";
 import "./index.css";
 import transmdicasLogo from "./assets/transmdicas-logo.png";
+import { AsistenteERPHSE } from "./components/AsistenteERPHSE";
 
 const APP_ICONS = {
   dashboard: (
@@ -154,7 +155,13 @@ function AppIcon({ name, size = 18 }) {
 }
 
 function App() {
-  const [viewMode, setViewMode] = useState("login"); // 'public', 'login', 'admin'
+  const [viewMode, setViewMode] = useState(() => {
+  const params = new URLSearchParams(window.location.search);
+
+  return params.get("placa")
+    ? "public"
+    : "login";
+});// 'public', 'login', 'admin'
   const [activeTab, setActiveTabState] = useState("resumen");
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -285,7 +292,6 @@ function App() {
       <>
         <Toaster position="bottom-right" />
         <Login
-          onPublicClick={() => setViewMode("public")}
           onLoginSuccess={(u) => {
             setUser(u);
             setViewMode("admin");
@@ -533,11 +539,7 @@ function App() {
                             icon="download"
                             label="Historial"
                           />
-                          <MantenimientoSubItem
-                            vista="tablero"
-                            icon="chart"
-                            label="Tablero"
-                          />
+                          
                         </div>
                       )}
                     </div>
@@ -693,6 +695,13 @@ function App() {
           {activeTab === "usuarios" && isAdmin && <GestionUsuariosDashboard />}
         </main>
       </div>
+      <AsistenteERPHSE
+  user={user}
+  isAdmin={isAdmin}
+  hasAccess={hasAccess}
+  onNavigate={(tab) => setActiveTab(tab)}
+/>
+      
     </div>
   );
 }

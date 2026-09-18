@@ -38,6 +38,21 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
   const itemsPerPage = 8;
 
+  const encargadoAutomatico = (() => {
+    const username = String(usuario?.username || '').trim();
+
+    const personaSesion = personalList.find(
+      persona =>
+        String(persona?.dni || '').trim() === username
+    );
+
+    return (
+      personaSesion?.nombre_completo ||
+      usuario?.nombre_completo ||
+      username
+    );
+  })();
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -137,7 +152,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
   const openCreateModal = () => {
     setFormData({
-      fecha: getLocalDateString(), encargado: '', nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+      fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
     });
     setActaFile(null);
     setIsEditing(false);
@@ -250,6 +265,11 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
           dataToSend.append(key, formData[key]);
         }
       });
+
+      if (!isEditing) {
+        dataToSend.set('encargado', encargadoAutomatico);
+      }
+
       dataToSend.set('dni', String(formData.dni || '').trim());
       if (actaFile) dataToSend.append('acta', actaFile);
 
@@ -603,7 +623,23 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Encargado TI</label>
-                  <input type="text" name="encargado" value={formData.encargado} onChange={handleFormChange} placeholder="Quien entrega" required style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }} />
+                  <input
+                    type="text"
+                    name="encargado"
+                    value={formData.encargado}
+                    onChange={handleFormChange}
+                    placeholder="Quien entrega"
+                    required
+                    readOnly={!isEditing}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: '0.375rem',
+                      border: '1px solid #d1d5db',
+                      backgroundColor: !isEditing ? '#f3f4f6' : 'var(--bg-color)',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
                 </div>
               </div>
 
