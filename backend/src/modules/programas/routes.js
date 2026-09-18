@@ -10,6 +10,8 @@ import {
   cambiarEstadoPrograma
 } from './controller.js';
 
+import unidadesRoutes from './unidades/routes.js';
+
 const router = Router();
 
 // ==========================================
@@ -41,6 +43,15 @@ router.put(
 router.patch(
   '/:id/estado',
   cambiarEstadoPrograma
+);
+
+// ==========================================
+// UNIDADES DEL PROGRAMA
+// ==========================================
+
+router.use(
+  '/:programaId/unidades',
+  unidadesRoutes
 );
 
 export default router;
