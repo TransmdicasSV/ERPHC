@@ -39,6 +39,10 @@ const PERMISSION_ROUTES = [
     modules: ['mantenimiento']
   },
   {
+    pattern: /^\/api\/programas-mantenimiento(?:\/|$)/,
+    modules: ['mantenimiento']
+  },
+  {
     pattern: /^\/api\/entregas(?:\/|$)/,
     modules: ['entregas', 'devoluciones']
   },
