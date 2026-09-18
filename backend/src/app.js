@@ -10,6 +10,7 @@ import vehiculosRoutes, {
 } from './modules/flota/routes.js';
 import inspeccionesRoutes from './modules/inspecciones/routes.js';
 import mantenimientosRoutes from './modules/mantenimiento/routes.js';
+import programasMantenimientoRoutes from './modules/programas/routes.js';
 import statsRoutes from './modules/stats/routes.js';
 import publicRoutes from './modules/publico/routes.js';
 
@@ -137,6 +138,11 @@ app.use(
 app.use(
   '/mantenimientos',
   mantenimientosRoutes
+);
+
+app.use(
+  '/api/programas-mantenimiento',
+  programasMantenimientoRoutes
 );
 
 app.use(
