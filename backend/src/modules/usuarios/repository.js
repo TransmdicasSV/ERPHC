@@ -149,3 +149,43 @@ export const actualizarEstadoUsuario =
 
     return result.rows[0] || null;
   };
+  export const actualizarUsuarioPorId =
+  async ({
+    id,
+    passwordHash,
+    rol,
+    permisos,
+    estado,
+    operacion
+  }) => {
+    const result = await pool.query(
+      `UPDATE usuarios
+       SET
+         password_hash = COALESCE(
+           $2::text,
+           password_hash
+         ),
+         rol = $3,
+         permisos = $4,
+         estado = $5,
+         operacion = $6
+       WHERE id = $1
+       RETURNING
+         id,
+         username,
+         rol,
+         estado,
+         operacion,
+         permisos`,
+      [
+        id,
+        passwordHash,
+        rol,
+        permisos,
+        estado,
+        operacion
+      ]
+    );
+
+    return result.rows[0] || null;
+  };

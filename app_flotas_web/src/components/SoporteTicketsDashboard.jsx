@@ -29,14 +29,16 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [showDniSuggestions, setShowDniSuggestions] = useState(false);
 
   const [pulseraForm, setPulseraForm] = useState({
-    solicitante: '',
-    operacion: '',
-    persona_pulsera: '',
-    dni_persona_pulsera: '',
-    motivo_renovacion: ''
-  });
-  const [formData, setFormData] = useState({
+  solicitante_persona_id: '',
+  operacion: '',
+  receptor_persona_id: '',
+  persona_pulsera: '',
+  dni_persona_pulsera: '',
+  motivo_renovacion: ''
+});
+const [formData, setFormData] = useState({
   placa: '',
+  persona_id: '',
   tipo_solicitud: 'Soporte Técnico',
   implemento: '',
   descripcion: ''
@@ -45,7 +47,9 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
   const rolActual = String(usuario?.rol || '').toLowerCase();
 
-  const canCreatePulsera = false;
+  const canCreatePulsera =
+  canCreate &&
+  ['admin', 'administrador', 'supervisor'].includes(rolActual);
 
   const [opcionesTicket, setOpcionesTicket] = useState(null);
 
@@ -461,6 +465,9 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   {
     placa,
 
+    persona_id:
+      formData.persona_id,
+
     tipo_solicitud:
       formData.tipo_solicitud,
 
@@ -500,6 +507,78 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     }
   };
 
+  const handleSavePulsera = async (event) => {
+    event.preventDefault();
+
+    if (!canCreatePulsera) {
+      return toast.error('No tienes permiso para registrar pulseras');
+    }
+
+    const solicitantePersonaId = Number(
+      pulseraForm.solicitante_persona_id
+    );
+
+    const receptorPersonaId = Number(
+      pulseraForm.receptor_persona_id
+    );
+
+    const operacion = pulseraForm.operacion.trim();
+    const motivoRenovacion = pulseraForm.motivo_renovacion.trim();
+
+    if (
+      !Number.isInteger(solicitantePersonaId) ||
+      !Number.isInteger(receptorPersonaId) ||
+      !operacion ||
+      !motivoRenovacion
+    ) {
+      return toast.error('Complete todos los campos del reporte');
+    }
+
+    if (!pulseraEvidencia) {
+      return toast.error('Adjunte una imagen como evidencia');
+    }
+
+    if (pulseraEvidencia.size > 5 * 1024 * 1024) {
+      return toast.error('La evidencia debe pesar como máximo 5 MB');
+    }
+
+    try {
+      setSavingPulsera(true);
+
+      await api.createPulsera(
+        {
+          solicitante_persona_id: solicitantePersonaId,
+          receptor_persona_id: receptorPersonaId,
+          operacion,
+          motivo_renovacion: motivoRenovacion
+        },
+        pulseraEvidencia
+      );
+
+      toast.success('Reporte de pulsera registrado');
+
+      setShowPulseraModal(false);
+      setPulseraEvidencia(null);
+      setShowDniSuggestions(false);
+
+      setPulseraForm({
+        solicitante_persona_id: '',
+        operacion: '',
+        receptor_persona_id: '',
+        persona_pulsera: '',
+        dni_persona_pulsera: '',
+        motivo_renovacion: ''
+      });
+    } catch (error) {
+      toast.error(
+        error.message ||
+          'Error al registrar el reporte de pulsera'
+      );
+    } finally {
+      setSavingPulsera(false);
+    }
+  };
+
   const renderPulseraButton = () => canCreatePulsera && (
     <button onClick={() => setShowPulseraModal(true)} className="ui-button ui-button-secondary">
       <UiIcon name="file" /> Reporte de Pulseras
@@ -526,7 +605,39 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Nombre del Solicitante</label>
 
-            <input type="text" value={pulseraForm.solicitante} onChange={event => setPulseraForm({ ...pulseraForm, solicitante: event.target.value })} placeholder="Ej. Juan Pérez" required maxLength={150} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }} />
+            <select
+              value={pulseraForm.solicitante_persona_id}
+              onChange={event =>
+                setPulseraForm({
+                  ...pulseraForm,
+                  solicitante_persona_id: event.target.value
+                })
+              }
+              required
+              disabled={loadingPulseraOptions}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '0.5rem',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
+                outlineColor: 'var(--accent-color)'
+              }}
+            >
+              <option value="">
+                {loadingPulseraOptions
+                  ? 'Cargando personal...'
+                  : 'Seleccione una persona'}
+              </option>
+
+              {pulseraPersonal.map(persona => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.nombre_completo}
+                  {persona.dni ? ` - ${persona.dni}` : ''}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label
@@ -601,6 +712,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
                 setPulseraForm(actual => ({
                   ...actual,
+                  receptor_persona_id: '',
                   dni_persona_pulsera: dni,
                   persona_pulsera: ''
                 }));
@@ -654,6 +766,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                         onClick={() => {
                           setPulseraForm(actual => ({
                             ...actual,
+                            receptor_persona_id: String(persona.id),
                             dni_persona_pulsera: String(persona.dni),
                             persona_pulsera: persona.nombre_completo
                           }));

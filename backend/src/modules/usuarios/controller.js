@@ -6,6 +6,7 @@ import {
 
 import {
   prepararNuevoUsuario,
+  actualizarUsuarioCompleto,
   cambiarEstadoUsuario,
   UsuarioValidationError
 } from './service.js';
@@ -143,7 +144,60 @@ export const registrarUsuario =
         });
     }
   };
+export const actualizarUsuario =
+  async (req, res) => {
+    try {
+      const {
+        usuarioAnterior,
+        usuarioActualizado
+      } =
+        await actualizarUsuarioCompleto({
+          id: req.params.id,
+          datos: req.body,
+          usuarioActualId:
+            req.user.id
+        });
 
+      await logAction(
+        req.user.id,
+        `Usuario actualizado: ${usuarioActualizado.username}`,
+        'usuarios',
+        req,
+        usuarioAnterior,
+        usuarioActualizado
+      );
+
+      return res.json({
+        success: true,
+        usuario:
+          usuarioActualizado
+      });
+    } catch (error) {
+      if (
+        error instanceof
+        UsuarioValidationError
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error:
+              error.message
+          });
+      }
+
+      console.error(
+        'Error editando usuario:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Error al actualizar usuario'
+        });
+    }
+  };
 export const cambiarEstado =
   async (req, res) => {
     try {

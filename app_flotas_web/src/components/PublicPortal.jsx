@@ -27,19 +27,19 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showResultModal, setShowResultModal] = useState(false);
-  
+
   const [stats, setStats] = useState({ totalFlota: 0, inspeccionesHoy: 0, ticker: [], trabajosTI: [] });
   const [recentSearches, setRecentSearches] = useState([]);
 
   // Estados del Formulario de Soporte
   const [showSupportModal, setShowSupportModal] = useState(openSupportOnLoad);
-  const [supportData, setSupportData] = useState({ 
-    placa: '', 
+  const [supportData, setSupportData] = useState({
+    placa: '',
     categoria: 'Equipos en Cabina (Mantenimiento)',
-    tipo_solicitud: 'Falla en Tablet (Piloto/Copiloto)', 
+    tipo_solicitud: 'Falla en Tablet (Piloto/Copiloto)',
     prioridad: 'Media',
-    descripcion: '', 
-    operador: '' 
+    descripcion: '',
+    operador: ''
   });
   const [supportLoading, setSupportLoading] = useState(false);
 
@@ -52,7 +52,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
     // Cargar historial de busquedas
     const saved = localStorage.getItem('recentSearches');
     if (saved) {
-      try { setRecentSearches(JSON.parse(saved)); } catch(e) {}
+      try { setRecentSearches(JSON.parse(saved)); } catch (e) { }
     }
 
     // Fetch Stats
@@ -62,7 +62,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
         if (!data.error) setStats(data);
       })
       .catch(err => console.error('Error fetching public stats:', err));
-      
+
     // Fetch Placas disponibles para el buscador
     fetch(`${BASE_API_URL}/api/public/placas`)
       .then(res => res.json())
@@ -72,30 +72,42 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
       .catch(err => console.error('Error fetching placas:', err));
   }, []);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!placa.trim()) return;
+  const consultarPlaca = async (placaABuscar, guardarReciente = true) => {
+    const placaNormalizada = String(placaABuscar || '').trim().toUpperCase();
+    if (!placaNormalizada) return;
 
     setLoading(true);
     setError('');
     setResult(null);
 
     try {
-      const res = await fetch(`${BASE_API_URL}/api/public/consulta/${placa.toUpperCase()}`);
+      const res = await fetch(
+        `${BASE_API_URL}/api/public/consulta/${encodeURIComponent(placaNormalizada)}`
+      );
+
       if (!res.ok) {
-        if (res.status === 404) throw new Error('Unidad no encontrada en nuestros registros.');
+        if (res.status === 404) {
+          throw new Error('Unidad no encontrada en nuestros registros.');
+        }
         throw new Error('Error al consultar el estado de la unidad.');
       }
+
       const data = await res.json();
+      setPlaca(placaNormalizada);
       setResult(data);
       setShowResultModal(true);
 
-      // Guardar en recientes
-      const upperPlaca = placa.toUpperCase();
-      let newRecent = [upperPlaca, ...recentSearches.filter(p => p !== upperPlaca)].slice(0, 5);
-      setRecentSearches(newRecent);
-      localStorage.setItem('recentSearches', JSON.stringify(newRecent));
+      if (guardarReciente) {
+        setRecentSearches(prev => {
+          const nuevos = [
+            placaNormalizada,
+            ...prev.filter(item => item !== placaNormalizada)
+          ].slice(0, 5);
 
+          localStorage.setItem('recentSearches', JSON.stringify(nuevos));
+          return nuevos;
+        });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -103,10 +115,25 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
     }
   };
 
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    await consultarPlaca(placa);
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const placaDesdeQR = params.get('placa');
+
+    if (placaDesdeQR) {
+      consultarPlaca(placaDesdeQR, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const executeSearch = (placaABuscar) => {
     setPlaca(placaABuscar);
     // Simular el submit del form
-    const pseudoEvent = { preventDefault: () => {} };
+    const pseudoEvent = { preventDefault: () => { } };
     // Usar un timeout pequeño para que el estado se actualice antes del fetch (o pasarlo directo)
     setTimeout(() => {
       document.getElementById('btn-buscar-publico').click();
@@ -125,13 +152,13 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
       if (res.ok) {
         toast.success("Solicitud enviada correctamente a Base Zero.", { id: 'support-ticket' });
         closeSupportForm();
-        setSupportData({ 
-          placa: '', 
+        setSupportData({
+          placa: '',
           categoria: 'Equipos en Cabina (Mantenimiento)',
-          tipo_solicitud: 'Falla en Tablet (Piloto/Copiloto)', 
+          tipo_solicitud: 'Falla en Tablet (Piloto/Copiloto)',
           prioridad: 'Media',
-          descripcion: '', 
-          operador: '' 
+          descripcion: '',
+          operador: ''
         });
       } else {
         toast.error("Error al enviar solicitud.", { id: 'support-ticket' });
@@ -146,14 +173,14 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
   const DynamicTruckBackground = () => (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0, overflow: 'hidden', pointerEvents: 'none', backgroundColor: '#101b33' }}>
       {/* Panning Background Image */}
-      <div style={{ 
-        position: 'absolute', top: '-5%', left: '-5%', width: '110vw', height: '110vh', 
+      <div style={{
+        position: 'absolute', top: '-5%', left: '-5%', width: '110vw', height: '110vh',
         backgroundImage: 'url(/bg-trucks.png)', backgroundSize: 'cover', backgroundPosition: 'center',
         animation: 'bg-pan 30s linear infinite alternate', opacity: 0.7
       }} />
       {/* Overlay Oscuro para legibilidad */}
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, rgba(16,27,51,0.55) 0%, rgba(16,27,51,0.92) 100%)' }} />
-      
+
       {/* Glowing accents */}
       <div style={{ position: 'absolute', top: '10%', left: '10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(36,88,232,0.08) 0%, rgba(16,27,51,0) 60%)', borderRadius: '50%', animation: 'blob 15s infinite alternate' }} />
       <style>{`
@@ -210,17 +237,17 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
         </div>
         {/* EN MÓVILES MOSTRAMOS EL TEXTO DEBAJO DEL HEADER O INTEGRADO */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button 
+          <button
             onClick={onAdminClick}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.3s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(36, 88, 232, 0.15)'; e.currentTarget.style.borderColor = 'rgba(36, 88, 232, 0.4)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(36, 88, 232, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
-            <span>🔒</span> Acceso Corporativo
+            <span></span> Acceso Corporativo
           </button>
         </div>
       </header>
-      
+
       {/* MENSAJE MÓVIL FIESTAS PATRIAS */}
       <div className="mobile-fiestas-patrias" style={{ display: 'none', width: '100%', background: 'linear-gradient(90deg, rgba(220,38,38,0.8) 0%, rgba(255,255,255,0.1) 50%, rgba(220,38,38,0.8) 100%)', padding: '0.4rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(5px)', zIndex: 9 }}>
         <span style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>🇵🇪 ¡Felices Fiestas Patrias Perú! 🇵🇪</span>
@@ -235,20 +262,20 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', zIndex: 10 }}>
         <h2 style={{ fontSize: '3rem', fontWeight: '700', color: 'white', margin: '0 0 1rem 0', textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.35)', letterSpacing: '-0.02em' }}>ERPHSE</h2>
         <p style={{ color: '#cbd5e1', fontSize: '1.2rem', marginBottom: '2rem', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
-          Sistema de Control de Flotas y Gestión HSE-TI. <br/> Por favor inicie sesión para acceder al sistema interno.
+          Sistema de Control de Flotas y Gestión HSE-TI. <br /> Por favor inicie sesión para acceder al sistema interno.
         </p>
-        <button 
+        <button
           onClick={onAdminClick}
           style={{ background: 'linear-gradient(135deg, #2458e8 0%, #1a46c4 100%)', border: 'none', color: 'white', padding: '1rem 2rem', borderRadius: '1rem', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'transform 0.2s', boxShadow: '0 10px 25px rgba(36, 88, 232, 0.35)' }}
           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
           onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          <span>🔒</span> Iniciar Sesión Segura
+          <span></span> Iniciar Sesión Segura
         </button>
       </main>
 
       {/* FLOATING SOS BUTTON */}
-      <button 
+      <button
         onClick={() => setShowSupportModal(true)}
         style={{ position: 'fixed', bottom: '3rem', left: '1.5rem', zIndex: 50, backgroundColor: '#dc3b2a', color: 'white', border: 'none', borderRadius: '3rem', padding: '1rem 1.5rem', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 10px 25px rgba(220, 59, 42, 0.35)', transition: 'transform 0.2s' }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05) translateY(-5px)'}
@@ -261,7 +288,7 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
       {showResultModal && result && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
           <div id="carnet-digital" style={{ backgroundColor: 'var(--card-bg)', width: '100%', maxWidth: '500px', borderRadius: '1.5rem', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', overflow: 'hidden', border: '2px solid #2458e8', animation: 'blob 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards', position: 'relative' }}>
-            
+
             {/* Cerrar modal */}
             <button className="no-print" onClick={() => setShowResultModal(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.2)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>X</button>
 
@@ -275,14 +302,25 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
             </div>
 
             <div style={{ padding: '1.5rem' }}>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Última Inspección</p>
                   <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{result.fecha} {result.hora}</p>
                 </div>
                 {/* QR Mockup */}
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://jdcali.com/flota/${result.placa}&color=0f172a&bgcolor=ffffff`} alt="QR" style={{ borderRadius: '0.5rem', border: '2px solid #e2e8f0', padding: '2px' }} />
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/?placa=${encodeURIComponent(result.placa)}`)}&color=0f172a&bgcolor=ffffff`}
+                  alt={`QR de la unidad ${result.placa}`}
+                  title={`Abrir ficha de ${result.placa}`}
+                  style={{
+                    borderRadius: '0.5rem',
+                    border: '2px solid #e2e8f0',
+                    padding: '2px',
+                    width: '80px',
+                    height: '80px'
+                  }}
+                />
               </div>
 
               {/* Componentes */}
@@ -354,13 +392,13 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
 
               {/* Botones de Acción */}
               <div className="no-print" style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
+                <button
                   onClick={() => window.print()}
                   style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
                   <span>🖨️</span> Imprimir
                 </button>
-                <button 
-                  onClick={() => { setShowResultModal(false); setSupportData({...supportData, placa: result.placa}); setShowSupportModal(true); }}
+                <button
+                  onClick={() => { setShowResultModal(false); setSupportData({ ...supportData, placa: result.placa }); setShowSupportModal(true); }}
                   style={{ flex: 2, backgroundColor: '#2458e8', color: '#ffffff', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
                   <span>🔧</span> Solicitar Soporte
                 </button>
@@ -378,16 +416,16 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
             <form onSubmit={submitSupportForm} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Placa de la Unidad</label>
-                <input required type="text" value={supportData.placa} onChange={e=>setSupportData({...supportData, placa: e.target.value.toUpperCase()})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db', textTransform: 'uppercase' }} />
+                <input required type="text" value={supportData.placa} onChange={e => setSupportData({ ...supportData, placa: e.target.value.toUpperCase() })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db', textTransform: 'uppercase' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Categoría Principal</label>
-                <select 
-                  value={supportData.categoria} 
+                <select
+                  value={supportData.categoria}
                   onChange={e => {
                     const newCat = e.target.value;
                     setSupportData({ ...supportData, categoria: newCat, tipo_solicitud: TICKET_CATEGORIES[newCat][0] });
-                  }} 
+                  }}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}
                 >
                   {Object.keys(TICKET_CATEGORIES).map(cat => (
@@ -398,9 +436,9 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <div style={{ flex: 2 }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Requerimiento Específico</label>
-                  <select 
-                    value={supportData.tipo_solicitud} 
-                    onChange={e => setSupportData({...supportData, tipo_solicitud: e.target.value})} 
+                  <select
+                    value={supportData.tipo_solicitud}
+                    onChange={e => setSupportData({ ...supportData, tipo_solicitud: e.target.value })}
                     style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}
                   >
                     {TICKET_CATEGORIES[supportData.categoria]?.map(sub => (
@@ -410,9 +448,9 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Prioridad</label>
-                  <select 
-                    value={supportData.prioridad} 
-                    onChange={e => setSupportData({...supportData, prioridad: e.target.value})} 
+                  <select
+                    value={supportData.prioridad}
+                    onChange={e => setSupportData({ ...supportData, prioridad: e.target.value })}
                     style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }}
                   >
                     <option value="Baja">Baja</option>
@@ -423,11 +461,11 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Descripción / Detalles</label>
-                <textarea required rows="3" value={supportData.descripcion} onChange={e=>setSupportData({...supportData, descripcion: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db', resize: 'none' }} placeholder="Detalle su requerimiento..."></textarea>
+                <textarea required rows="3" value={supportData.descripcion} onChange={e => setSupportData({ ...supportData, descripcion: e.target.value })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db', resize: 'none' }} placeholder="Detalle su requerimiento..."></textarea>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.25rem', color: '#374151' }}>Nombre del Operador (Opcional)</label>
-                <input type="text" value={supportData.operador} onChange={e=>setSupportData({...supportData, operador: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }} placeholder="Ej. Juan Pérez" />
+                <input type="text" value={supportData.operador} onChange={e => setSupportData({ ...supportData, operador: e.target.value })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #d1d5db' }} placeholder="Ej. Juan Pérez" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" onClick={closeSupportForm} style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid #d1d5db', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Cancelar</button>

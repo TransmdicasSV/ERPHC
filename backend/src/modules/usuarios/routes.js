@@ -11,9 +11,9 @@ import {
   listarPersonalAdministrativo,
   listarUsuarios,
   registrarUsuario,
+  actualizarUsuario,
   cambiarEstado
 } from './controller.js';
-
 const router = Router();
 
 router.use(
@@ -38,6 +38,10 @@ router.get(
 router.post(
   '/',
   registrarUsuario
+);
+router.put(
+  '/:id',
+  actualizarUsuario
 );
 
 router.patch(
