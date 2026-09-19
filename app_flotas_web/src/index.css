@@ -496,10 +496,24 @@ input:focus, select:focus, textarea:focus {
   .erp-mobile-brand { display: inline-flex; align-items: center; gap: 0.65rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.03em; }
   .hamburger-btn .erp-brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
   .sidebar-container, .sidebar-container.collapsed {
-    position: fixed; top: 60px; left: 0; width: min(280px, 86vw); height: calc(100vh - 60px);
-    flex-basis: auto; transform: translateX(-102%);
-    box-shadow: 18px 0 40px rgba(2, 12, 22, 0.24);
-  }
+  position: fixed;
+  top: 60px;
+  left: 0;
+  width: min(280px, 86vw);
+  height: calc(100vh - 60px);
+  flex-basis: auto;
+  transform: translateX(-102%);
+  box-shadow: 18px 0 40px rgba(2, 12, 22, 0.24);
+  z-index: 999;
+}
+
+.sidebar-container .erp-sidebar-header {
+  display: none;
+}
+
+.sidebar-container.open {
+  transform: translateX(0);
+}
   .sidebar-container.open { transform: translateX(0); }
   .sidebar-container.collapsed .erp-sidebar-header { min-height: 68px; flex-direction: row; justify-content: flex-start; padding: 0 0.9rem; }
   .sidebar-container.collapsed .erp-sidebar-nav { padding: 0.9rem 0.65rem; }
