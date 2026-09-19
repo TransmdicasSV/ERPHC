@@ -205,7 +205,10 @@ export const api = {  // ==========================================
       method: 'POST',
       body: formData,
     });
-    if (!response.ok) throw new Error('Error al crear inspeccion');
+    if (!response.ok) {
+      const detalle = await response.json().catch(() => ({}));
+      throw new Error(detalle.error || 'Error al crear inspeccion');
+    }
     return response.json();
   },
 

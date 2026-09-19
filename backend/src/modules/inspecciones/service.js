@@ -15,6 +15,27 @@ export class InspeccionValidationError extends Error {
   }
 }
 
+export const validarEvidenciasInspeccion = files => {
+  const archivos = ['img_tablet', 'img_radio', 'img_camaras']
+    .flatMap(campo => Array.isArray(files?.[campo]) ? files[campo] : []);
+
+  if (archivos.length === 0) {
+    throw new InspeccionValidationError(
+      'Adjunta al menos una foto de evidencia para registrar la inspección.'
+    );
+  }
+
+  if (archivos.some(archivo =>
+    !Buffer.isBuffer(archivo?.buffer) ||
+    archivo.buffer.length === 0 ||
+    !archivo.mimetype?.startsWith('image/')
+  )) {
+    throw new InspeccionValidationError(
+      'Las evidencias deben ser imágenes y no pueden estar vacías.'
+    );
+  }
+};
+
 export const fechaISOValida = valor => {
   if (
     typeof valor !== 'string' ||

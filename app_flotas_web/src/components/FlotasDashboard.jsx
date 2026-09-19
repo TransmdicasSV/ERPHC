@@ -71,15 +71,18 @@ const processImageWithWatermark = (file, placa, fecha, hora) => {
       ctx.fillText(text2, x + padding, y + padding * 2 + fontSize);
 
       canvas.toBlob((blob) => {
-        resolve(new File([blob], file.name, { type: file.type }));
+        resolve(blob ? new File([blob], file.name, { type: blob.type }) : null);
       }, file.type, 0.85);
     };
-    img.onerror = () => resolve(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
     img.src = url;
   });
 };
 
-function MobileCameraInput({ label, onSelect, preview, setPreview }) {
+function MobileCameraInput({ label, onSelect, preview, setPreview, disabled = false }) {
   const fileInputRef = useRef(null);
 
   const handleCapture = (e) => {
@@ -93,6 +96,7 @@ function MobileCameraInput({ label, onSelect, preview, setPreview }) {
         type="file"
         accept="image/*"
         capture="environment"
+        disabled={disabled}
         onChange={handleCapture}
         ref={fileInputRef}
         style={{ display: 'none' }}
@@ -100,6 +104,7 @@ function MobileCameraInput({ label, onSelect, preview, setPreview }) {
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <button
           type="button"
+          disabled={disabled}
           onClick={() => fileInputRef.current.click()}
           style={{
             flex: 1, padding: '0.8rem',
@@ -1004,6 +1009,14 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
   const [imgRadio, setImgRadio] = useState(null);
   const [imgCamaras, setImgCamaras] = useState(null);
 
+  const [procesandoImagen, setProcesandoImagen] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const procesandoImagenRef = useRef(false);
+  const guardandoRef = useRef(false);
+  const tieneEvidencia = [imgTablet, imgRadio, imgCamaras]
+    .some(archivo => archivo instanceof File && archivo.size > 0);
+  const envioBloqueado = procesandoImagen || guardando || (!editInsp && !tieneEvidencia);
+
   const [observaciones, setObservaciones] = useState(editInsp ? editInsp.observaciones || '' : '');
 
   const imgUrl = (filename) => `${BASE_API_URL}/uploads/${filename}`;
@@ -1012,11 +1025,19 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
   const [previewCamaras, setPreviewCamaras] = useState(editInsp && editInsp.img_camaras ? imgUrl(editInsp.img_camaras) : null);
 
   const handleImageSelect = async (file, setImg, setPreview) => {
+    if (procesandoImagenRef.current || guardandoRef.current) return;
+    setImg(null);
     if (!file) {
-      setImg(null);
       setPreview(null);
       return;
     }
+    if (!file.type.startsWith('image/') || file.size === 0) {
+      setPreview(null);
+      toast.error('Selecciona una imagen que no esté vacía.');
+      return;
+    }
+    procesandoImagenRef.current = true;
+    setProcesandoImagen(true);
     // Mostrar preview rápido
     setPreview(URL.createObjectURL(file));
 
@@ -1024,21 +1045,40 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
     toast.loading('Agregando marca de agua...', { id: 'watermark' });
     try {
       const processedBlob = await processImageWithWatermark(file, placaInput.trim().toUpperCase(), fecha, hora);
+      if (!processedBlob || processedBlob.size === 0) {
+        throw new Error('No se pudo preparar la evidencia');
+      }
       setImg(processedBlob);
       toast.success('Marca de agua lista', { id: 'watermark' });
     } catch (e) {
       toast.error('Error procesando imagen', { id: 'watermark' });
-      setImg(file); // fallback
+      setImg(null);
+      setPreview(null);
+    } finally {
+      procesandoImagenRef.current = false;
+      setProcesandoImagen(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (guardandoRef.current) return;
+    if (procesandoImagenRef.current) {
+      toast.error('Espera a que termine de prepararse la evidencia.');
+      return;
+    }
     if (!vehiculoSeleccionado) {
       toast.error("Por favor, seleccione una placa que exista en el sistema.", { duration: 5000 });
       return;
     }
 
+    if (!editInsp && !tieneEvidencia) {
+      toast.error('Adjunta al menos una foto de evidencia para registrar la inspección.');
+      return;
+    }
+
+    guardandoRef.current = true;
+    setGuardando(true);
     try {
       toast.loading(editInsp ? 'Actualizando inspección...' : 'Guardando inspección...', { id: 'save-inspeccion' });
       const formData = new FormData();
@@ -1077,6 +1117,9 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
       }
     } catch (error) {
       toast.error("Error al guardar la inspección: " + error.message, { id: 'save-inspeccion' });
+    } finally {
+      guardandoRef.current = false;
+      setGuardando(false);
     }
   };
 
@@ -1149,6 +1192,16 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
 
           <div style={{ borderTop: '1px solid var(--border-color)' }}></div>
 
+          {!editInsp && (
+            <p role="status" style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              {procesandoImagen
+                ? 'Preparando evidencia… Espera antes de registrar.'
+                : tieneEvidencia
+                  ? 'Evidencia lista para enviar.'
+                  : 'Evidencia obligatoria: adjunta al menos una foto de Tablet, Radio Base o Cámaras.'}
+            </p>
+          )}
+
           <div style={{ backgroundColor: 'var(--bg-color)', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1157,7 +1210,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                   <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
                 </select>
               </div>
-              <MobileCameraInput label="Tablet" onSelect={(file) => handleImageSelect(file, setImgTablet, setPreviewTablet)} preview={previewTablet} setPreview={setPreviewTablet} />
+              <MobileCameraInput label="Tablet" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgTablet, setPreviewTablet)} preview={previewTablet} setPreview={setPreviewTablet} />
             </div>
           </div>
 
@@ -1169,7 +1222,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                   <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
                 </select>
               </div>
-              <MobileCameraInput label="Radio" onSelect={(file) => handleImageSelect(file, setImgRadio, setPreviewRadio)} preview={previewRadio} setPreview={setPreviewRadio} />
+              <MobileCameraInput label="Radio" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgRadio, setPreviewRadio)} preview={previewRadio} setPreview={setPreviewRadio} />
             </div>
           </div>
 
@@ -1181,7 +1234,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
                   <option>OK</option><option>Error</option><option>Falta revision</option><option>No Aplica</option>
                 </select>
               </div>
-              <MobileCameraInput label="Cámaras" onSelect={(file) => handleImageSelect(file, setImgCamaras, setPreviewCamaras)} preview={previewCamaras} setPreview={setPreviewCamaras} />
+              <MobileCameraInput label="Cámaras" disabled={procesandoImagen || guardando} onSelect={(file) => handleImageSelect(file, setImgCamaras, setPreviewCamaras)} preview={previewCamaras} setPreview={setPreviewCamaras} />
             </div>
           </div>
 
@@ -1197,7 +1250,7 @@ function InspectionModal({ onClose, onReload, vehiculosExistentes, editInsp }) {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" onClick={onClose} style={{ padding: '0.5rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: '500' }}>Cancelar</button>
-            <button type="submit" style={{ padding: '0.5rem 1.5rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontWeight: '600' }}>Registrar Evidencias</button>
+            <button type="submit" disabled={envioBloqueado} style={{ padding: '0.5rem 1.5rem', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: envioBloqueado ? 'not-allowed' : 'pointer', opacity: envioBloqueado ? 0.6 : 1, fontWeight: '600' }}>{guardando ? 'Guardando…' : procesandoImagen ? 'Preparando evidencia…' : 'Registrar Evidencias'}</button>
           </div>
         </form>
 

@@ -8,6 +8,7 @@ import {
 
 import {
   validarDatosInspeccion,
+  validarEvidenciasInspeccion,
   subirImagenesInspeccion,
   eliminarImagenes,
   InspeccionValidationError
@@ -52,6 +53,8 @@ export const registrarInspeccion =
     };
 
     try {
+      validarEvidenciasInspeccion(req.files);
+
       const datos =
         await validarDatosInspeccion(
           req.body,
