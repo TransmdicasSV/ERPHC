@@ -128,12 +128,15 @@ export const contextoTicket =
       );
     }
 
-    return {
+    return{
       rol,
+      nombreSolicitante:
+      usuario.nombre_solicitante,
+
       operacion:
-        rol === 'supervisor'
-          ? operacion
-          : null
+      rol=== 'supervisor'
+      ? operacion
+      :null
     };
   };
 

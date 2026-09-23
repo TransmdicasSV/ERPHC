@@ -17,13 +17,21 @@
     "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "pdfkit": "^0.18.0",
     "pdfkit-table": "^0.2.11",
     "pg": "^8.11.5",
-    "streamifier": "^0.1.1",
-    "xlsx": "^0.18.5"
+    "streamifier": "^0.1.1"
+  },
+    "overrides": {
+    "express": {
+      "qs": "6.16.0"
+    },
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
   },
   "devDependencies": {
     "node-fetch": "^3.3.2",

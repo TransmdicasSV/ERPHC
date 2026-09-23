@@ -89,19 +89,24 @@ export const authorizeRequest = (
   );
 
   if (!rule) {
-    return next();
-  }
+  return res.status(404).json({
+    error: 'Ruta no encontrada'
+  });
+}
 
   if (rule.adminOnly) {
     return requireAdmin(req, res, next);
   }
 
   const esCreacionTicket =
-    req.method === 'POST' &&
+  req.method === 'POST' && (
     /^\/api\/incidentes_soporte\/?$/i.test(
       req.path
-    );
-
+    ) ||
+    /^\/api\/incidentes\/(?:pulseras|solicitudes-descarga-videos)\/?$/i.test(
+      req.path
+    )
+  );
   const accion = esCreacionTicket
     ? 'crear'
     : (

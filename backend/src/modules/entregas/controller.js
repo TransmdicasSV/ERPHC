@@ -9,8 +9,6 @@ import {
 } from '../../services/cloudinaryService.js';
 
 import {
-  obtenerEntregasLegacy,
-  crearEntregaLegacy,
   obtenerPersonalPorDni,
   obtenerInventario,
   crearMovimiento,
@@ -34,46 +32,29 @@ import {
 import {
   generarExcelEntregas
 } from '../../reports/excelentregas.js';
+import {
+  logAction
+}from '../../services/auditService.js'
 
 
 // ==========================================
 // LEGACY
 // ==========================================
 
-export const listarLegacy =
-  async (req, res) => {
-    try {
-      const entregas =
-        await obtenerEntregasLegacy();
+export const listarLegacy = (req, res) => {
+  return listarInventario(req, res);
+};
+export const registrarLegacy = (req, res) => {
+  const datos = req.body || {};
 
-      return res.json(
-        entregas
-      );
-    } catch {
-      return res.status(500).json({
-        error: 'Error'
-      });
-    }
+  req.body = {
+    ...datos,
+    fecha: datos.fecha ?? datos.fecha_entrega,
+    nombre: datos.nombre ?? datos.nombres
   };
 
-export const registrarLegacy =
-  async (req, res) => {
-    try {
-      const entrega =
-        await crearEntregaLegacy(
-          req.body
-        );
-
-      return res.json(
-        entrega
-      );
-    } catch {
-      return res.status(500).json({
-        error: 'Error'
-      });
-    }
-  };
-
+  return registrarMovimiento(req, res);
+};
 // ==========================================
 // PERSONAL
 // ==========================================
@@ -341,7 +322,13 @@ export const registrarMovimiento =
           documento_url:
             documentoFinal
         });
-
+        await logAction(req.user.id,
+          'Creo movimiento de inventario TI',
+          'entregas_ti',
+          req,
+          null,
+          movimiento
+        );
       return res
         .status(201)
         .json(
@@ -368,9 +355,7 @@ export const registrarMovimiento =
       return res
         .status(500)
         .json({
-          error:
-            'Error registrando entrega TI: ' +
-            error.message
+          error: 'No se pudo registrar el movimiento de inventario'
         });
     }
   };
@@ -546,6 +531,14 @@ export const editarMovimiento =
       if (
         !movimientoActualizado
       ) {
+        await logAction(
+          req.user.id,
+          'Actualizo movimiento de inventario TI',
+          'entregas_ti',
+          req,
+          actual,
+          movimientoActualizado
+        );
         return res
           .status(404)
           .json({
@@ -578,9 +571,7 @@ export const editarMovimiento =
       return res
         .status(500)
         .json({
-          error:
-            'Error actualizando entrega TI: ' +
-            error.message
+          error: 'No se pudo actualizar el movimiento de inventario'
         });
     }
   };
@@ -598,6 +589,14 @@ export const borrarMovimiento =
         );
 
       if (!eliminado) {
+        await logAction(
+          req.user.id,
+          'Elimino movimiento de inventario TI',
+          'entregas_ti',
+          req,
+          eliminado,
+          null
+        );
         return res
           .status(404)
           .json({

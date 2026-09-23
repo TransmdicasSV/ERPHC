@@ -1,4 +1,4 @@
-import xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import { createHash } from 'crypto';
 
 import {
@@ -86,7 +86,7 @@ export const normalizarFecha =
 export const obtenerResourceTypeActa =
   mimetype =>
     mimetype ===
-    'application/pdf'
+      'application/pdf'
       ? 'raw'
       : 'auto';
 
@@ -148,40 +148,54 @@ export const procesarImportacionExcel =
     }
 
     const workbook =
-      xlsx.read(
-        buffer,
-        {
-          type: 'buffer',
-          cellDates: false
-        }
-      );
+      new ExcelJS.Workbook();
+
+    await workbook.xlsx.load(
+      buffer
+    );
 
     const sheet =
-      workbook.Sheets[
-        workbook.SheetNames[0]
-      ];
+      workbook.worksheets[0];
 
     if (!sheet) {
       fallo(
         'El archivo no contiene una hoja'
       );
     }
+    const valorCelda =
+      celda => {
+        const valor =
+          celda?.value;
 
-    const data =
-      xlsx.utils.sheet_to_json(
-        sheet,
-        {
-          header: 1,
-          defval: null,
-          blankrows: true,
-          range: 0
+        if (
+          valor == null ||
+          valor === undefined
+        ) {
+          return null;
         }
-      );
+        if (typeof valor === 'object') {
+          if (Object.hasOwn(valor, 'result')) {
+            return valor.result ?? null;
+          }
+          if (Array.isArray(valor.richText)) {
+            return valor.richText.map(parte => parte.text || '').join('')
+          }
+          if (Object.hasOwn(valor, 'text')) {
+            return valor.text ?? null;
+          }
+        }
+        return valor;
+      };
+    const data = [];
 
-    const titulo =
-      normalizar(
-        sheet.D2?.v
-      );
+    for (let fila = 1; fila <= sheet.rowCount; fila += 1) {
+      const valores = [];
+      for (let columna = 1; columna <= sheet.columnCount; columna += 1) {
+        valores.push(valorCelda(sheet.getCell(fila, columna)));
+      }
+      data.push(valores);
+    }
+    const titulo = normalizar(valorCelda(sheet.getCell('D2')));
 
     const tipoArchivo =
       titulo.includes(
@@ -189,8 +203,8 @@ export const procesarImportacionExcel =
       )
         ? 'Devolución'
         : titulo.includes(
-            'ENTREGAS'
-          )
+          'ENTREGAS'
+        )
           ? 'Entrega'
           : null;
 
@@ -246,20 +260,22 @@ export const procesarImportacionExcel =
         let fechaISO;
 
         if (
+          valor instanceof Date
+        ) {
+          fechaISO =
+            valor
+              .toISOString()
+              .slice(0, 10);
+        } else if (
           typeof valor ===
           'number'
         ) {
-          const usa1904 = [
-            true,
-            1,
-            '1',
-            'true'
-          ].includes(
-            workbook
-              .Workbook
-              ?.WBProps
-              ?.date1904
-          );
+          const usa1904 =
+            Boolean(
+              workbook
+                .properties
+                ?.date1904
+            );
 
           const dias =
             Math.floor(
@@ -271,11 +287,11 @@ export const procesarImportacionExcel =
               valor
             ) ||
             dias <
-              (
-                usa1904
-                  ? 0
-                  : 1
-              ) ||
+            (
+              usa1904
+                ? 0
+                : 1
+            ) ||
             (
               !usa1904 &&
               dias === 60
@@ -289,23 +305,23 @@ export const procesarImportacionExcel =
           const base =
             usa1904
               ? Date.UTC(
-                  1904,
-                  0,
-                  1
-                )
+                1904,
+                0,
+                1
+              )
               : Date.UTC(
-                  1899,
-                  11,
-                  dias < 60
-                    ? 31
-                    : 30
-                );
+                1899,
+                11,
+                dias < 60
+                  ? 31
+                  : 30
+              );
 
           const fecha =
             new Date(
               base +
               dias *
-                86400000
+              86400000
             );
 
           if (
@@ -337,8 +353,8 @@ export const procesarImportacionExcel =
             partes
               ? `${partes[3]}-${partes[2].padStart(2, '0')}-${partes[1].padStart(2, '0')}`
               : texto(
-                  valor
-                );
+                valor
+              );
         }
 
         if (
@@ -441,14 +457,14 @@ export const procesarImportacionExcel =
                 campo,
                 index
               ) => [
-                campo,
-                texto(
-                  row[
+                  campo,
+                  texto(
+                    row[
                     index + 1
-                  ]
-                ) ||
+                    ]
+                  ) ||
                   null
-              ]
+                ]
             )
         );
 
@@ -462,19 +478,19 @@ export const procesarImportacionExcel =
         !texto(
           row[17]
         ) ||
-        /^-+$/.test(
-          texto(
-            row[17]
+          /^-+$/.test(
+            texto(
+              row[17]
+            )
           )
-        )
           ? null
           : Number(
-              row[17]
-            );
+            row[17]
+          );
 
       if (
         registro.precio !==
-          null &&
+        null &&
         !Number.isFinite(
           registro.precio
         )
@@ -498,7 +514,7 @@ export const procesarImportacionExcel =
     if (
       !registros.length ||
       registros.length >
-        10000
+      10000
     ) {
       fallo(
         'El Excel debe contener entre 1 y 10000 registros'
@@ -511,14 +527,14 @@ export const procesarImportacionExcel =
           normalizar(
             registro
               .tipo_movimiento ||
-              'Entrega'
+            'Entrega'
           ).replace(
             'DEVOLUCION',
             'DEVOLUCIÓN'
           ),
 
           registro.fecha ||
-            '',
+          '',
 
           normalizar(
             registro.dni
@@ -631,7 +647,7 @@ export const procesarImportacionExcel =
                   campos.map(
                     campo =>
                       registro[
-                        campo
+                      campo
                       ]
                   )
               )
@@ -681,14 +697,14 @@ export const procesarImportacionExcel =
         )
         VALUES (
           ${campos
-            .map(
-              (
-                _,
-                index
-              ) =>
-                `$${index + 1}`
-            )
-            .join(', ')}
+          .map(
+            (
+              _,
+              index
+            ) =>
+              `$${index + 1}`
+          )
+          .join(', ')}
         )
       `;
 
@@ -701,7 +717,7 @@ export const procesarImportacionExcel =
           campos.map(
             campo =>
               registro[
-                campo
+              campo
               ]
           )
         );
@@ -725,7 +741,7 @@ export const procesarImportacionExcel =
             'ROLLBACK'
           );
         } catch (
-          rollbackError
+        rollbackError
         ) {
           client.release(
             rollbackError
@@ -742,7 +758,7 @@ export const procesarImportacionExcel =
       }
     }
   };
-  // ==========================================
+// ==========================================
 // EXPORTACIÓN EXCEL
 // ==========================================
 
@@ -750,7 +766,7 @@ export const esFechaISOValida =
   value => {
     if (
       typeof value !==
-        'string' ||
+      'string' ||
       !/^\d{4}-\d{2}-\d{2}$/.test(
         value
       )

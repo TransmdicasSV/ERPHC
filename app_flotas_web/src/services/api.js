@@ -276,6 +276,53 @@ createPulsera: async (data, evidencia) => {
 
   return result;
 },
+getOpcionesSolicitudDescargaVideos:
+  async () => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/opciones`
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al cargar las opciones de descarga de videos'
+      );
+    }
+
+    return data;
+  },
+
+createSolicitudDescargaVideos:
+  async data => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data)
+        }
+      );
+
+    const result =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        'Error al registrar la solicitud de descarga de videos'
+      );
+    }
+
+    return result;
+  },
   // === INCIDENTES ===
   getIncidentes: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/incidentes`);
@@ -283,6 +330,55 @@ createPulsera: async (data, evidencia) => {
     return response.json();
   },
 
+  getSolicitudesDescargaVideos:
+  async () => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => []);
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al obtener las solicitudes'
+      );
+    }
+
+    return data;
+  },
+
+updateEstadoSolicitudDescargaVideos:
+  async (id, estado) => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/${id}/estado`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            estado
+          })
+        }
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al actualizar la solicitud'
+      );
+    }
+
+    return data;
+  },
 createIncidente: async (data, evidencias = []) => {
   const payload = new FormData();
 

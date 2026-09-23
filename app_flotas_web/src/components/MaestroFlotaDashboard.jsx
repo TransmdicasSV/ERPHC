@@ -291,7 +291,12 @@ function EditModal({ item, onClose, onSaved }) {
     tipo_vehiculo: item?.data?.tipo_vehiculo || '',
     marca_tracto: item?.data?.marca_tracto || '',
     modelo_tracto: item?.data?.modelo_tracto || '',
-    anio_fabricacion: item?.data?.anio_fabricacion || '',
+    anio_fabricacion:
+      item?.data?.anio_fabricacion
+        ? String(
+          item.data.anio_fabricacion
+        ).slice(0, 4)
+        : '',
     cliente: item?.data?.cliente || '',
     operacion: item?.data?.operacion || ''
   });
@@ -335,7 +340,7 @@ function EditModal({ item, onClose, onSaved }) {
 
         anio_fabricacion:
           formData.anio_fabricacion
-            ? Number(formData.anio_fabricacion)
+            ? `${formData.anio_fabricacion}-01-01`
             : null,
 
         cliente:

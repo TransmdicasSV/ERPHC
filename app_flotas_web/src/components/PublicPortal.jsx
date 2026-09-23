@@ -367,7 +367,6 @@ export function PublicPortal({ onAdminClick, openSupportOnLoad = false }) {
                     <div><strong>Estado:</strong> <span style={{ backgroundColor: '#f5deac', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>{result.incidente_pendiente.estado}</span></div>
                     <div><strong>Requerimiento:</strong> {result.incidente_pendiente.tipo_solicitud}</div>
                     <div><strong>Registrado el:</strong> {String(result.incidente_pendiente.fecha).split('T')[0]}</div>
-                    <div style={{ marginTop: '0.25rem', fontStyle: 'italic', color: '#8a5a15' }}>"{result.incidente_pendiente.descripcion}"</div>
                   </div>
                 </div>
               )}

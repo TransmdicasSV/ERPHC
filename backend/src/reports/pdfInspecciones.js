@@ -28,16 +28,16 @@ const fetchImage = async (urlOrFileName) => {
       });
 
       if (!response.ok || !response.body) {
-  const detalle =
-    response.headers.get('x-cld-error') || response.statusText;
+        const detalle =
+          response.headers.get('x-cld-error') || response.statusText;
 
-  await response.body?.cancel();
+        await response.body?.cancel();
 
-  throw new Error(
-    'HTTP ' + response.status + ': ' +
-    (detalle || 'Respuesta sin imagen')
-  );
-}
+        throw new Error(
+          'HTTP ' + response.status + ': ' +
+          (detalle || 'Respuesta sin imagen')
+        );
+      }
 
       const partes = [];
       let bytes = 0;
@@ -56,9 +56,9 @@ const fetchImage = async (urlOrFileName) => {
     }
 
     const carpeta = path.resolve(
-  __dirname,
-  '../../uploads'
-);
+      __dirname,
+      '../../uploads'
+    );
     const archivo = path.resolve(carpeta, origen);
 
     if (!archivo.startsWith(carpeta + path.sep)) return null;
@@ -66,10 +66,10 @@ const fetchImage = async (urlOrFileName) => {
     return fs.existsSync(archivo) ? archivo : null;
   } catch (error) {
     console.warn(
-  '[PDF: descarga de foto]',
-  error.cause?.code || error.code || error.name,
-  error.message
-);
+      '[PDF: descarga de foto]',
+      error.cause?.code || error.code || error.name,
+      error.message
+    );
     return null;
   }
 };
@@ -126,7 +126,16 @@ export const generatePDF = async (pool, queryParams, res) => {
     const { filtro, valor, fecha, operacion } = queryParams || {};
     const rangoFechas = getValidatedDateRange(queryParams);
 
-    let query = 'SELECT i.*, i.fecha::text AS fecha, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1';
+    let query = `
+  SELECT
+    i.*,
+    i.fecha_hora::date::text AS fecha,
+    to_char(i.fecha_hora, 'HH24:MI') AS hora,
+    v.operacion AS programa
+  FROM inspecciones_flota i
+  JOIN vehiculos v ON i.placa = v.placa
+  WHERE 1=1
+`;
     let params = [];
     let paramIndex = 1;
 
@@ -160,15 +169,15 @@ export const generatePDF = async (pool, queryParams, res) => {
     }
 
     if (rangoFechas) {
-      query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date BETWEEN $${paramIndex++}::date AND $${paramIndex++}::date`;
+      query += ` AND i.fecha_hora::date BETWEEN $${paramIndex++}::date AND $${paramIndex++}::date`;
       params.push(rangoFechas.fechaInicio, rangoFechas.fechaFin);
     } else if (fecha === 'hoy') {
-      query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
+      query += ` AND i.fecha_hora::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date`;
     } else if (fecha === 'semana') {
-      query += ` AND NULLIF(BTRIM(i.fecha::text), '')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
+      query += ` AND i.fecha_hora::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')::date - 7`;
     }
 
-    query += ' ORDER BY i.fecha DESC NULLS LAST, i.hora DESC NULLS LAST, i.id DESC';
+    query += ' ORDER BY i.fecha_hora DESC NULLS LAST, i.id DESC';
     const result = await pool.query(query, params);
     const inspecciones = result.rows;
 

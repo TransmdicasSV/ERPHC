@@ -21,6 +21,31 @@ export class UsuarioValidationError extends Error {
     this.status = status;
   }
 }
+const validarNuevaPassword = password => {
+  if (typeof password !== 'string') {
+    throw new UsuarioValidationError(
+      'La contraseña debe ser un texto'
+    );
+  }
+
+  if (!password.trim()) {
+    throw new UsuarioValidationError(
+      'La contraseña no puede contener solo espacios'
+    );
+  }
+
+  if ([...password].length < 15) {
+    throw new UsuarioValidationError(
+      'La contraseña debe tener al menos 15 caracteres'
+    );
+  }
+
+  if (bcrypt.truncates(password)) {
+    throw new UsuarioValidationError(
+      'La contraseña supera el límite de 72 bytes; usa una más corta'
+    );
+  }
+};
 
 export const prepararNuevoUsuario =
   async datos => {
@@ -84,8 +109,8 @@ export const prepararNuevoUsuario =
     const operacionFinal =
       rolFinal === 'supervisor'
         ? String(
-            operacion || ''
-          ).trim()
+          operacion || ''
+        ).trim()
         : null;
 
     if (
@@ -96,6 +121,8 @@ export const prepararNuevoUsuario =
         'Debe asignar una operación al supervisor'
       );
     }
+
+    validarNuevaPassword(password);
 
     const passwordHash =
       await bcrypt.hash(
@@ -110,7 +137,7 @@ export const prepararNuevoUsuario =
         rol: rolFinal,
         permisos:
           ROLE_PERMISSIONS[
-            rolFinal
+          rolFinal
           ],
         estado: estadoFinal,
         operacion:
@@ -208,9 +235,9 @@ export const actualizarUsuarioCompleto =
 
     if (
       idFinal ===
-        Number(usuarioActualId) &&
+      Number(usuarioActualId) &&
       estadoFinal ===
-        'inactivo'
+      'inactivo'
     ) {
       throw new UsuarioValidationError(
         'No puedes desactivar tu propio usuario'
@@ -220,10 +247,10 @@ export const actualizarUsuarioCompleto =
     const operacionFinal =
       rolFinal === 'supervisor'
         ? String(
-            operacion ??
-            usuarioAnterior.operacion ??
-            ''
-          ).trim()
+          operacion ??
+          usuarioAnterior.operacion ??
+          ''
+        ).trim()
         : null;
 
     if (
@@ -237,15 +264,9 @@ export const actualizarUsuarioCompleto =
 
     let passwordHash = null;
 
-    if (
-      typeof password === 'string' &&
-      password.trim()
-    ) {
-      passwordHash =
-        await bcrypt.hash(
-          password,
-          10
-        );
+    if (password !== undefined && password !== '') {
+      validarNuevaPassword(password);
+      passwordHash = await bcrypt.hash(password, 10);
     }
 
     const usuarioActualizado =
@@ -255,7 +276,7 @@ export const actualizarUsuarioCompleto =
         rol: rolFinal,
         permisos:
           ROLE_PERMISSIONS[
-            rolFinal
+          rolFinal
           ],
         estado: estadoFinal,
         operacion:
@@ -317,9 +338,9 @@ export const cambiarEstadoUsuario =
 
     if (
       idFinal ===
-        Number(usuarioActualId) &&
+      Number(usuarioActualId) &&
       estadoFinal ===
-        'inactivo'
+      'inactivo'
     ) {
       throw new UsuarioValidationError(
         'No puedes desactivar tu propio usuario'

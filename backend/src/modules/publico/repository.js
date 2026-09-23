@@ -109,7 +109,7 @@ export const obtenerTimelinePublico =
 export const obtenerUltimoIncidentePublico =
   async placa => {
     const result = await pool.query(
-      `SELECT *
+      `SELECT estado, tipo_solicitud, fecha
        FROM incidentes_soporte
        WHERE placa = $1
        ORDER BY id DESC

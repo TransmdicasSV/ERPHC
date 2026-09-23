@@ -12,8 +12,14 @@ export const obtenerUsuarioTicket =
          u.rol,
          u.estado,
          u.operacion,
-         u.persona_id
+         u.persona_id,
+         COALESCE(
+           p.nombre_completo,
+           u.username
+         ) AS nombre_solicitante
        FROM usuarios u
+       LEFT JOIN personal p
+         ON p.id = u.persona_id
        WHERE u.id = $1
        LIMIT 1`,
       [userId]
@@ -21,7 +27,6 @@ export const obtenerUsuarioTicket =
 
     return result.rows[0] || null;
   };
-
 // ==========================================
 // OPCIONES DE TICKETS
 // ==========================================
@@ -183,6 +188,181 @@ export const insertarPulsera =
 
     return result.rows[0] || null;
   };
+
+  // ==========================================
+// SOLICITUDES DE DESCARGA DE VIDEOS
+// ==========================================
+
+export const insertarSolicitudDescargaVideos =
+  async ({
+    operacion,
+    placas,
+    fechaDescarga,
+    horaInicio,
+    horaFin,
+    motivo,
+    solicitadoPor
+  }) => {
+    const client =
+      await pool.connect();
+
+    try {
+      await client.query(
+        'BEGIN'
+      );
+
+      const solicitudResult =
+        await client.query(
+          `INSERT INTO solicitudes_descarga_videos (
+             operacion,
+             fecha_descarga,
+             hora_inicio,
+             hora_fin,
+             motivo,
+             solicitado_por
+           )
+           VALUES (
+             $1,
+             $2,
+             $3,
+             $4,
+             $5,
+             $6
+           )
+           RETURNING *`,
+          [
+            operacion,
+            fechaDescarga,
+            horaInicio,
+            horaFin,
+            motivo,
+            solicitadoPor
+          ]
+        );
+
+      const solicitud =
+        solicitudResult.rows[0];
+
+      await client.query(
+        `INSERT INTO solicitud_descarga_video_placas (
+           solicitud_id,
+           placa
+         )
+         SELECT
+           $1,
+           UNNEST($2::text[])`,
+        [
+          solicitud.id,
+          placas
+        ]
+      );
+
+      await client.query(
+        'COMMIT'
+      );
+
+      return {
+        ...solicitud,
+        placas
+      };
+    } catch (error) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+  // ==========================================
+// LISTAR SOLICITUDES DE DESCARGA DE VIDEOS
+// ==========================================
+
+export const obtenerSolicitudesDescargaVideos =
+  async operacion => {
+    const result =
+      await pool.query(
+        `SELECT
+           s.id,
+           s.operacion,
+           s.fecha_descarga,
+           s.hora_inicio,
+           s.hora_fin,
+           s.motivo,
+           s.estado,
+           s.fecha_ingreso,
+           s.solicitado_por,
+
+           COALESCE(
+             p.nombre_completo,
+             u.username
+           ) AS nombre_solicitante,
+
+           COALESCE(
+             JSON_AGG(
+               sp.placa
+               ORDER BY sp.placa
+             ) FILTER (
+               WHERE sp.placa IS NOT NULL
+             ),
+             '[]'::json
+           ) AS placas
+
+         FROM solicitudes_descarga_videos s
+
+         INNER JOIN usuarios u
+           ON u.id = s.solicitado_por
+
+         LEFT JOIN personal p
+           ON p.id = u.persona_id
+
+         LEFT JOIN solicitud_descarga_video_placas sp
+           ON sp.solicitud_id = s.id
+
+         WHERE
+           $1::text IS NULL
+           OR LOWER(BTRIM(s.operacion)) =
+              LOWER(BTRIM($1))
+
+         GROUP BY
+           s.id,
+           u.username,
+           p.nombre_completo
+
+         ORDER BY
+           s.fecha_ingreso DESC,
+           s.id DESC`,
+        [operacion]
+      );
+
+    return result.rows;
+  };
+
+
+// ==========================================
+// CAMBIAR ESTADO DE SOLICITUD
+// ==========================================
+
+export const actualizarEstadoSolicitudDescargaVideos =
+  async ({
+    id,
+    estado
+  }) => {
+    const result =
+      await pool.query(
+        `UPDATE solicitudes_descarga_videos
+         SET estado = $1
+         WHERE id = $2
+         RETURNING *`,
+        [
+          estado,
+          id
+        ]
+      );
+
+    return result.rows[0] || null;
+  };
 // ==========================================
 // LISTADO
 // ==========================================
@@ -274,7 +454,8 @@ export const obtenerUltimaInspeccion =
   async placa => {
     const result = await pool.query(
       `SELECT *,
-              fecha::text AS fecha
+              fecha_hora::date::text AS fecha,
+to_char(fecha_hora, 'HH24:MI') AS hora
        FROM inspecciones_flota
        WHERE placa = $1
        ORDER BY id DESC
@@ -301,7 +482,8 @@ export const actualizarInspeccionTicket =
            observaciones = $4
        WHERE id = $5
        RETURNING *,
-                 fecha::text AS fecha`,
+                 fecha_hora::date::text AS fecha,
+to_char(fecha_hora, 'HH24:MI') AS hora`,
       [
         tablet,
         radio,

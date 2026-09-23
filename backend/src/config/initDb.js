@@ -6,7 +6,10 @@ const ESQUEMA_ESPERADO = {
     'user_id',
     'accion',
     'tabla_afectada',
-    'fecha'
+    'fecha',
+    'ip_address',
+    'valores_anteriores',
+    'valores_actuales'
   ],
 
   entregas_ti: [
@@ -63,20 +66,36 @@ const ESQUEMA_ESPERADO = {
     'fecha_creacion',
     'fecha_cierre'
   ],
+  solicitudes_descarga_videos: [
+  'id',
+  'operacion',
+  'fecha_descarga',
+  'hora_inicio',
+  'hora_fin',
+  'motivo',
+  'solicitado_por',
+  'estado',
+  'fecha_ingreso'
+],
+
+solicitud_descarga_video_placas: [
+  'solicitud_id',
+  'placa'
+],
 
   inspecciones_flota: [
-  'id',
-  'placa',
-  'fecha_hora',
-  'tablet',
-  'radio',
-  'camaras',
-  'img_tablet',
-  'img_radio',
-  'img_camaras',
-  'observaciones',
-  'estado'
-],
+    'id',
+    'placa',
+    'fecha_hora',
+    'tablet',
+    'radio',
+    'camaras',
+    'img_tablet',
+    'img_radio',
+    'img_camaras',
+    'observaciones',
+    'estado'
+  ],
 
   mantenimientos_tecnicos: [
     'id',
@@ -106,6 +125,18 @@ const ESQUEMA_ESPERADO = {
     'fecha_ingreso',
     'operacion',
     'fecha_cese'
+  ],
+  pulseras: [
+    'id',
+    'solicitante_persona_id',
+    'receptor_persona_id',
+    'operacion',
+    'motivo_renovacion',
+    'evidencia_url',
+    'estado',
+    'creado_por',
+    'fecha_creacion',
+    'fecha_cierre'
   ],
 
   usuarios: [
@@ -137,7 +168,8 @@ const CAMPOS_DATE = [
   'mantenimientos_tecnicos.fecha_ejecutada',
   'vehiculos.anio_fabricacion',
   'personal.fecha_ingreso',
-  'personal.fecha_cese'
+  'personal.fecha_cese',
+  'solicitudes_descarga_videos.fecha_descarga',
 ];
 
 export const initDb = async () => {
