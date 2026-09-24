@@ -175,7 +175,38 @@ snapshot se cargó cada cosa:
 |---|---|---|
 | `cargar-fase-b.mjs` | `414b5135…d21a62` | B0–B3 |
 | `cargar-b4-ciclos-m1.mjs` | `414b5135…d21a62` | 531 referencias M1 |
-| futuro loader M3 | el SHA vigente en su momento | referencias M3 de GPS y ADAS |
+| `cargar-m3-historico-anual.mjs` | `9fba58c9…07a2e` | 157 referencias M3: 156 GPS + 1 ADAS Tracklog |
+
+El SHA del loader M3 es posterior porque su fuente es la hoja `HISTORICO_GPS`, que se
+incorporó al libro después de B4, más la corrección de `C36`.
+
+## El loader M3 anual
+
+`cargar-m3-historico-anual.mjs` sólo inserta en `programa_mantenimiento_unidad_ciclos`,
+con `nivel_mantenimiento = 'M3'` y `tipo_equipo` en `GPS` o `ADAS`. Exige la migración
+`20260924_009` aplicada: antes de ella el dominio de `chk_ciclo_tipo_equipo` no admitía
+`ADAS`.
+
+Ni las placas ni las fechas ni el total están escritos en el fichero: todo se deriva en
+ejecución de `HISTORICO_GPS` cruzada con `vehiculo_equipos`. Los totales declarados
+(156 / 1 / 157) son **barreras**: si la derivación no da exactamente eso, aborta.
+
+El universo se cuenta por dos caminos independientes que deben coincidir: recorriendo las
+194 filas de la hoja, y recorriendo las 174 unidades activas. El embudo de la hoja es:
+
+| se descarta porque | filas |
+|---|---|
+| la placa no está en el universo de inventario (unidad histórica fuera de la flota) | 21 |
+| ADAS cuyo proveedor actual no es Tracklog | 6 |
+| el equipo no está `INSTALADO` hoy | 5 |
+| sin fecha de mantenimiento en `H` (`NUEVO EQUIPO`) | 4 |
+| la unidad no está en el programa activo (`V5K756`) | 1 |
+| **quedan** | **157** |
+
+De las 21 fuera del universo, 18 no existen en `vehiculos` y 3 existen pero guardadas
+**con guion** (`D4R-972`, `F3L-787`, `VFB-827`): son parte de las filas fuera de dominio
+pendientes de decisión humana. El loader las reporta y no las empareja. Ninguna placa
+necesita convertir `O` ↔ `0`, y el loader comprueba que siga siendo así.
 
 Un loader antiguo abortará si se lo ejecuta contra un Excel más reciente. Eso es
 deliberado: obliga a revalidar antes de reutilizarlo.
