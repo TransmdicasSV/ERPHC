@@ -4,9 +4,13 @@ Carga reproducible del programa **TI-PR-01** a partir del Excel fuente.
 
 ## Por qué está aquí y no en `backend/migrations`
 
-`backend/migrations` contiene `20260923_007` y `20260923_008`, que son *cleanup*
+`backend/migrations` contiene `20261001_010` y `20261001_011`, que son *cleanup*
 destructivos y **todavía no deben ejecutarse**. Un runner que recorriera la carpeta en
 orden los arrastraría. Además esta carga es un paso de **datos**, no de esquema.
+
+> Esos dos ficheros se numeraron antes `20260923_007` y `20260923_008`. Se renumeraron
+> el 2026-09-24, al aparecer `20260924_009`, para que el orden léxico siguiera siendo el
+> orden real de ejecución y los destructivos quedaran al final.
 
 ## Requisitos previos
 
@@ -86,8 +90,8 @@ crear una segunda fuente de verdad. El backend la aplicará cuando se adapte.
 | `CAMARAS` | `CAMARA_INTERNA` OR `CAMARA_EXTERNA` |
 | `COPILOTO` | `COPILOTO` (directo) |
 | `RADIO_BASE` | `RADIO_BASE` (directo) |
-| `GPS` | `GPS` (directo) |
-| `ADAS` | **ninguno**: se inventaria, no se mantiene |
+| `GPS` | `GPS` (directo). Familia anual: solo M3, 24 quincenas. |
+| `ADAS` | `ADAS`, **solo si el proveedor actual es Tracklog** (ver más abajo). Desde `20260924_009` es familia mantenible anual: solo M3, 24 quincenas. |
 
 Para `DVR` y `CAMARAS`, que agrupan dos equipos físicos, la lógica es de tres estados:
 
@@ -111,3 +115,67 @@ Por eso la evidencia de instalación y la marca del GPS salen de `AE`, y la seri
 La propia hoja derivada del libro, `IMP_EQUIPOS_STATUS`, hace lo mismo. Leer `AD` como
 evidencia daría 148 GPS instalados en vez de 171. El script contrasta su derivación
 contra esa hoja: 1400 filas, 1400 coincidencias.
+
+## La hoja `HISTORICO_GPS` del Excel
+
+**HISTORICO_GPS contiene referencias históricas M3 de GPS y de ADAS Tracklog. ADAS de
+otros proveedores puede permanecer en inventario, pero no participa del programa
+TI-PR-01 mientras la regla de negocio aplicable sea únicamente ADAS Tracklog.**
+
+La hoja conserva ese nombre a propósito, aunque cubra las dos familias: renombrarla sería
+técnicamente seguro (solo la citan `workbook.xml` y `docProps/app.xml`, ninguna fórmula),
+pero cambiaría un nombre visible para quien usa el libro.
+
+Cómo distingue las dos familias:
+
+| columna | contenido |
+|---|---|
+| `A` PLACA | con guion, y **sufijo `_EVO4`** en los registros de ADAS |
+| `B` CATEGORIA | fórmula sobre ese sufijo: `ADAS` o `GPS` |
+| `C` / `D` | fecha de mantenimiento 2025 / 2026; `C` puede decir `NUEVO EQUIPO` |
+| `E` NIVEL | `M3` en las 194 filas |
+| `F` / `G` | OT/evidencia y observación: **vacías en las 194** |
+| `H` | fecha consolidada, la más reciente de `C` y `D` |
+
+### Elegibilidad de ADAS
+
+La hoja **no dice cuál es el proveedor actual**: solo marca qué registros históricos
+fueron de Tracklog. El proveedor vigente se lee del inventario, en
+`vehiculo_equipos.marca` para `tipo_equipo='ADAS'`, cuyos únicos valores reales son:
+
+```
+MIX  TELEMATICS   (26 unidades, con dos espacios)   -> NO participa
+EVO TRACKLOG      ( 1 unidad)                       -> SI participa
+WISETRACK         ( 1 unidad)                       -> NO participa
+```
+
+Regla, **positiva y demostrable**:
+
+```
+ADAS elegible  <=>  estado_inventario = 'INSTALADO'  AND  marca ILIKE '%TRACKLOG%'
+```
+
+- **No** interpretar `MIX TELEMATICS` como Tracklog.
+- **No** usar la exclusión de MIX como criterio: una lista negativa haría elegible a
+  cualquier proveedor futuro que nadie haya previsto.
+- **No** emparejar por la subcadena `EVO` a secas: aparece dentro de `NUEVO EQUIPO`, un
+  marcador que la propia hoja usa, y produce falsos positivos.
+
+Un registro histórico de Tracklog en una unidad que hoy lleva otro proveedor se conserva
+como evidencia, pero **no genera ciclo activo**: el equipo al que se refiere ya no está
+instalado.
+
+## Huella del Excel en cada loader
+
+Cada loader fija el SHA-256 del fichero con el que **realmente** se ejecutó, y ese valor
+no se actualiza cuando el Excel evoluciona. Es lo que permite reconstruir con qué
+snapshot se cargó cada cosa:
+
+| loader | SHA-256 fijado | qué cargó |
+|---|---|---|
+| `cargar-fase-b.mjs` | `414b5135…d21a62` | B0–B3 |
+| `cargar-b4-ciclos-m1.mjs` | `414b5135…d21a62` | 531 referencias M1 |
+| futuro loader M3 | el SHA vigente en su momento | referencias M3 de GPS y ADAS |
+
+Un loader antiguo abortará si se lo ejecuta contra un Excel más reciente. Eso es
+deliberado: obliga a revalidar antes de reutilizarlo.

@@ -180,25 +180,35 @@ FROM x;
 
 
 -- V6 ---------------------------------------------------------------------------------
--- El GPS solo admite nivel M3. Se comprueba con las filas cargadas y con el CHECK.
+-- Las familias ANUALES solo admiten nivel M3. Se comprueba con las filas cargadas y con
+-- el CHECK que lo respalda.
+-- El nombre de ese CHECK cambio con 20260924_009: cubria solo el GPS
+-- (chk_frecuencia_gps_solo_m3) y ahora cubre GPS y ADAS (chk_frecuencia_anual_solo_m3).
+-- Se aceptan los dos nombres para que esta validacion sirva antes y despues de 009.
 WITH x AS (
   SELECT (SELECT count(*) FROM programa_mantenimiento_frecuencias) AS filas,
          (SELECT count(*) FROM programa_mantenimiento_frecuencias
-          WHERE tipo_equipo = 'GPS' AND nivel_mantenimiento <> 'M3') AS viol_datos,
+          WHERE tipo_equipo IN ('GPS','ADAS') AND nivel_mantenimiento <> 'M3') AS viol_datos,
          (SELECT count(*) FROM pg_constraint
           WHERE conrelid = to_regclass('public.programa_mantenimiento_frecuencias')
-            AND contype='c' AND conname='chk_frecuencia_gps_solo_m3') AS chk,
+            AND contype='c'
+            AND conname IN ('chk_frecuencia_gps_solo_m3','chk_frecuencia_anual_solo_m3')) AS chk,
+         (SELECT string_agg(conname, ', ' ORDER BY conname) FROM pg_constraint
+          WHERE conrelid = to_regclass('public.programa_mantenimiento_frecuencias')
+            AND contype='c'
+            AND conname IN ('chk_frecuencia_gps_solo_m3','chk_frecuencia_anual_solo_m3')) AS nombre_chk,
          (SELECT string_agg(tipo_equipo || '/' || nivel_mantenimiento, ', ' ORDER BY tipo_equipo, nivel_mantenimiento)
-          FROM programa_mantenimiento_frecuencias WHERE tipo_equipo='GPS') AS gps
+          FROM programa_mantenimiento_frecuencias WHERE tipo_equipo IN ('GPS','ADAS')) AS anuales
 )
 SELECT 'V6' AS id, 'NEGOCIO' AS clase,
-       'GPS solo existe en nivel M3, y el CHECK lo respalda' AS regla,
+       'las familias anuales (GPS y ADAS) solo existen en nivel M3, y el CHECK lo respalda' AS regla,
        filas AS filas_evaluadas,
        viol_datos + (CASE WHEN chk = 1 THEN 0 ELSE 1 END) AS violaciones,
        CASE WHEN viol_datos > 0 OR chk <> 1 THEN 'FAIL'
             WHEN filas = 0 THEN 'N/A (sin periodicidades cargadas)'
             ELSE 'PASS' END AS estado,
-       'GPS cargado como: ' || coalesce(gps,'(ninguno)') || ' · CHECK presente: ' || chk AS detalle
+       'anuales cargadas: ' || coalesce(anuales,'(ninguna)')
+       || ' · CHECK presente: ' || coalesce(nombre_chk,'NINGUNO') AS detalle
 FROM x;
 
 
@@ -467,22 +477,44 @@ FROM x;
 
 
 -- V19 --------------------------------------------------------------------------------
--- ADAS se inventaria pero NO se mantiene: existe en vehiculo_equipos y no en las
--- periodicidades del programa.
+-- ADAS se inventaria, y desde 20260924_009 tambien se mantiene, pero SOLO cuando el
+-- proveedor actual es Tracklog. Esta regla acepta los dos estados del modelo:
+--   antes de 009: ADAS existe en inventario y no tiene ninguna periodicidad;
+--   desde  009: ADAS tiene exactamente una periodicidad, M3 de 24 quincenas.
+-- Y en ambos casos exige que ningun ciclo ADAS pertenezca a una unidad cuyo proveedor
+-- actual no sea Tracklog: eso es lo que de verdad limita la elegibilidad.
 WITH x AS (
   SELECT (SELECT count(*) FROM vehiculo_equipos WHERE tipo_equipo = 'ADAS') AS en_inventario,
-         (SELECT count(*) FROM programa_mantenimiento_frecuencias WHERE tipo_equipo = 'ADAS') AS en_frecuencias,
+         (SELECT count(*) FROM programa_mantenimiento_frecuencias WHERE tipo_equipo = 'ADAS') AS frec,
+         (SELECT count(*) FROM programa_mantenimiento_frecuencias
+           WHERE tipo_equipo = 'ADAS' AND nivel_mantenimiento = 'M3' AND frecuencia_quincenas = 24) AS frec_ok,
          (SELECT count(*) FROM vehiculo_equipos
-          WHERE tipo_equipo = 'ADAS' AND estado_inventario = 'INSTALADO') AS instalados
+          WHERE tipo_equipo = 'ADAS' AND estado_inventario = 'INSTALADO') AS instalados,
+         (SELECT count(*) FROM vehiculo_equipos
+          WHERE tipo_equipo = 'ADAS' AND estado_inventario = 'INSTALADO'
+            AND marca ILIKE '%TRACKLOG%') AS tracklog,
+         (SELECT count(*) FROM programa_mantenimiento_unidad_ciclos k
+           JOIN programa_mantenimiento_unidades u ON u.id = k.programa_unidad_id
+          WHERE k.tipo_equipo = 'ADAS'
+            AND NOT EXISTS (SELECT 1 FROM vehiculo_equipos e
+                             WHERE e.placa = u.placa AND e.tipo_equipo = 'ADAS'
+                               AND e.estado_inventario = 'INSTALADO'
+                               AND e.marca ILIKE '%TRACKLOG%')) AS ciclos_no_tracklog
 )
 SELECT 'V19' AS id, 'NEGOCIO' AS clase,
-       'ADAS existe en inventario y NO existe en las periodicidades de mantenimiento' AS regla,
-       en_inventario + en_frecuencias AS filas_evaluadas,
+       'ADAS se inventaria; su periodicidad, si existe, es solo M3/24; y ningun ciclo ADAS es de un proveedor no Tracklog' AS regla,
+       en_inventario + frec AS filas_evaluadas,
        (CASE WHEN en_inventario > 0 THEN 0 ELSE 1 END)
-       + (CASE WHEN en_frecuencias = 0 THEN 0 ELSE 1 END) AS violaciones,
-       CASE WHEN en_inventario = 0 OR en_frecuencias > 0 THEN 'FAIL' ELSE 'PASS' END AS estado,
-       'filas ADAS en inventario: ' || en_inventario || ' (instaladas: ' || instalados
-       || ') · periodicidades ADAS: ' || en_frecuencias || ' (debe ser 0)' AS detalle
+       + (CASE WHEN frec = 0 OR (frec = 1 AND frec_ok = 1) THEN 0 ELSE 1 END)
+       + ciclos_no_tracklog AS violaciones,
+       CASE WHEN en_inventario = 0
+              OR NOT (frec = 0 OR (frec = 1 AND frec_ok = 1))
+              OR ciclos_no_tracklog > 0 THEN 'FAIL'
+            ELSE 'PASS' END AS estado,
+       'ADAS en inventario: ' || en_inventario || ' (instalados ' || instalados
+       || ', de ellos Tracklog ' || tracklog || ') · periodicidades ADAS: ' || frec
+       || CASE WHEN frec = 0 THEN ' (estado previo a 009)' ELSE ' (M3/24: ' || frec_ok || ')' END
+       || ' · ciclos ADAS de proveedor no Tracklog: ' || ciclos_no_tracklog || ' (debe ser 0)' AS detalle
 FROM x;
 
 
@@ -846,34 +878,67 @@ FROM x;
 
 
 -- V31 --------------------------------------------------------------------------------
--- 13 periodicidades: 4 tipos mantenibles x 3 niveles, mas GPS solo en M3.
+-- Periodicidades del programa. Se aceptan los dos estados del modelo:
+--   13 antes de 20260924_009 (4 familias quincenales x 3 niveles, mas GPS M3);
+--   14 desde 009, al sumarse ADAS M3 de 24 quincenas.
+-- En los dos casos las 12 quincenales deben estar intactas y GPS debe seguir en M3/24.
 WITH x AS (
   SELECT (SELECT count(*) FROM programa_mantenimiento_frecuencias) AS total,
+         (SELECT count(*) FROM programa_mantenimiento_frecuencias
+           WHERE tipo_equipo IN ('DVR','CAMARAS','COPILOTO','RADIO_BASE')) AS quincenales,
+         (SELECT count(*) FROM programa_mantenimiento_frecuencias
+           WHERE tipo_equipo = 'GPS' AND nivel_mantenimiento = 'M3' AND frecuencia_quincenas = 24) AS gps,
          (SELECT string_agg(tipo_equipo || ':' || nivel_mantenimiento || '=' || frecuencia_quincenas, ' ' ORDER BY tipo_equipo, nivel_mantenimiento)
-          FROM programa_mantenimiento_frecuencias) AS detalle
+          FROM programa_mantenimiento_frecuencias) AS lista
 )
 SELECT 'V31' AS id, 'NEGOCIO' AS clase,
-       'programa_mantenimiento_frecuencias = 13 periodicidades' AS regla,
+       'periodicidades = 13 (antes de 009) o 14 (con ADAS M3/24), con las 12 quincenales y GPS M3/24 intactas' AS regla,
        total AS filas_evaluadas,
-       CASE WHEN total = 13 THEN 0 ELSE 1 END AS violaciones,
-       CASE WHEN total <> 13 THEN 'FAIL'
+       (CASE WHEN total IN (13,14) THEN 0 ELSE 1 END)
+       + (CASE WHEN quincenales = 12 THEN 0 ELSE 1 END)
+       + (CASE WHEN gps = 1 THEN 0 ELSE 1 END) AS violaciones,
+       CASE WHEN total NOT IN (13,14) OR quincenales <> 12 OR gps <> 1 THEN 'FAIL'
             WHEN total = 0 THEN 'N/A (sin periodicidades)'
             ELSE 'PASS' END AS estado,
-       coalesce(detalle,'(vacio)') AS detalle
+       'total ' || total || ' · quincenales ' || quincenales || ' · GPS M3/24 ' || gps
+       || ' · ' || coalesce(lista,'(vacio)') AS detalle
 FROM x;
 
 
 -- V32 --------------------------------------------------------------------------------
--- Los ciclos por unidad NO se cargan todavia: cero filas es el estado correcto.
-SELECT 'V32' AS id, 'ESTADO-VACIO' AS clase,
-       'programa_mantenimiento_unidad_ciclos esta vacia por instruccion expresa' AS regla,
-       (SELECT count(*) FROM programa_mantenimiento_unidad_ciclos) AS filas_evaluadas,
-       CASE WHEN (SELECT count(*) FROM programa_mantenimiento_unidad_ciclos) = 0 THEN 0 ELSE 1 END AS violaciones,
-       CASE WHEN (SELECT count(*) FROM programa_mantenimiento_unidad_ciclos) = 0
-            THEN 'PASS (cero es el resultado esperado, no una regla sin ejercitar)'
-            ELSE 'FAIL' END AS estado,
-       'filas: ' || (SELECT count(*) FROM programa_mantenimiento_unidad_ciclos)
-       || ' · depende de las referencias M1/M2/M3, que aun no tienen fuente aprobada' AS detalle;
+-- Los ciclos por unidad contienen SOLO referencias historicas demostradas.
+-- Cuando se escribio esta validacion la tabla estaba vacia; desde B4 contiene las 531
+-- referencias M1 sembradas del Excel. Lo que hay que seguir garantizando no es que
+-- este vacia, sino que no aparezca ninguna ejecucion inventada:
+--   * 0 ciclos de nivel M2: no existe ni un M2 ejecutado en la fuente;
+--   * GPS y ADAS, si aparecen, solo con nivel M3;
+--   * toda combinacion equipo/nivel con periodicidad declarada en el programa;
+--   * fuente EXCEL en todo lo sembrado desde el libro.
+WITH x AS (
+  SELECT count(*)::int AS total,
+         count(*) FILTER (WHERE nivel_mantenimiento = 'M1')::int AS m1,
+         count(*) FILTER (WHERE nivel_mantenimiento = 'M2')::int AS m2,
+         count(*) FILTER (WHERE nivel_mantenimiento = 'M3')::int AS m3,
+         count(*) FILTER (WHERE tipo_equipo IN ('GPS','ADAS') AND nivel_mantenimiento <> 'M3')::int AS anual_mal,
+         count(*) FILTER (WHERE fuente <> 'EXCEL')::int AS otra_fuente,
+         count(*) FILTER (WHERE NOT EXISTS (
+             SELECT 1 FROM programa_mantenimiento_frecuencias f
+              WHERE f.programa_id = k.programa_id AND f.tipo_equipo = k.tipo_equipo
+                AND f.nivel_mantenimiento = k.nivel_mantenimiento))::int AS sin_periodicidad
+    FROM programa_mantenimiento_unidad_ciclos k
+)
+SELECT 'V32' AS id, 'NEGOCIO' AS clase,
+       'los ciclos solo contienen referencias demostradas: 0 de nivel M2, anuales solo M3, todas con periodicidad y fuente EXCEL' AS regla,
+       total AS filas_evaluadas,
+       m2 + anual_mal + otra_fuente + sin_periodicidad AS violaciones,
+       CASE WHEN m2 + anual_mal + otra_fuente + sin_periodicidad > 0 THEN 'FAIL'
+            WHEN total = 0 THEN 'PASS (tabla vacia: estado previo a B4)'
+            ELSE 'PASS' END AS estado,
+       'total ' || total || ' · M1 ' || m1 || ' · M2 ' || m2 || ' (debe ser 0) · M3 ' || m3
+       || ' · anuales con nivel != M3 ' || anual_mal
+       || ' · fuente distinta de EXCEL ' || otra_fuente
+       || ' · sin periodicidad declarada ' || sin_periodicidad AS detalle
+FROM x;
 
 
 -- V33 --------------------------------------------------------------------------------
