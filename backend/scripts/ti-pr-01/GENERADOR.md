@@ -74,8 +74,51 @@ La aplicabilidad sale de la proyección de tres estados sobre `vehiculo_equipos`
 `POR_VALIDAR` **nunca** se interpreta como «sí». Solo `APLICA` se programa. `NO_APLICA` no
 cuenta como incumplimiento.
 
-Una familia `APLICA` **sin referencia de fase** (sin ciclo ni ancla) no puede entrar: se
-reporta y no se le inventa fase.
+#### Una familia sin fase sí participa de una visita que ya existe
+
+Esto es una regla aparte y conviene no confundirla: **no tener fase impide *originar* una
+obligación, pero no impide *participar* de una visita ya generada.**
+
+Una familia sin ciclo ni ancla no tiene serie de la que derivar un término, así que no
+aparece en el paso 1 y por sí sola nunca produce una visita. Pero si otra familia sí generó
+la visita, esa familia entra como detalle con el `nivel_regular`, porque el técnico va a
+intervenir la unidad y el equipo está instalado.
+
+```
+CAMARAS      tiene fase                      CAMARAS     M3
+DVR          tiene fase          ------>     DVR         M3
+COPILOTO     tiene fase                      COPILOTO    M3
+RADIO_BASE   recién instalado,               RADIO_BASE  M3   <- sin fase previa
+             APLICA, sin histórico
+```
+
+**No se inventa ningún histórico previo.** El detalle se marca como *sin fase previa* y su
+primera referencia real **nace del cierre** de esa OT: al completarse M3 se crean los ciclos
+M3, M2 y M1 con la `quincena_efectiva` de la visita, por la regla acumulativa. Antes del
+cierre no existe ningún ciclo para esa familia.
+
+#### Los tres casos, diferenciados
+
+| caso | situación | resultado |
+|---|---|---|
+**A** | familia regular sin fase **y ya existe** visita regular por otra familia | **entra** a la visita con `nivel_regular`, marcada sin fase previa. Sin ciclo hasta el cierre |
+**B** | familia regular sin fase **y ninguna** obligación genera visita | **no** se inventa obligación. Aparece en el reporte como `SIN_REFERENCIA_REGULAR` |
+**C** | `GPS`/`ADAS` instalado sin referencia anual M3 | **no** se inventa obligación ni fecha. Aparece como `SIN_REFERENCIA_M3` |
+
+#### Reporte de excepciones operativas
+
+Un equipo instalado sin referencia no genera obligación, pero **no puede desaparecer del
+control**. El generador expone una salida con `unidad`, `tipo_equipo`, `estado_inventario` y
+`motivo`, para que TI ingrese después una referencia real cuando exista evidencia válida:
+
+```
+unidad     tipo_equipo  estado_inventario  motivo
+B6Z714     GPS          INSTALADO          SIN_REFERENCIA_M3
+...
+```
+
+Motivos: `SIN_REFERENCIA_M3` para las anuales, `SIN_REFERENCIA_REGULAR` para las regulares.
+**Esa condición por sí sola nunca materializa una programación ni una OT.**
 
 Medido el 2026-09-24, por familia:
 
@@ -88,16 +131,16 @@ Medido el 2026-09-24, por familia:
 `ADAS` | 1 | **0** |
 `GPS` | 170 | **14** |
 
-Que las cuatro regulares estén a 0 es **precondición de la elevación**: sin fase no se puede
-programar, y si faltara alguna la visita quedaría incompleta en silencio.
+Las cuatro regulares están hoy a 0, así que el caso **A** no se da todavía con datos reales;
+aparecerá en cuanto se instale un equipo en una unidad ya programada, y la regla está
+preparada para ello.
 
-Los **14 GPS** son un caso conocido y aceptado: instalados pero sin histórico M3 en
+Los **14 GPS** son el caso **C**, conocido y aceptado: instalados pero sin histórico M3 en
 `HISTORICO_GPS`, y por tanto sin ancla —las anclas se derivan de un M1 y GPS no tiene M1—.
 Son `B6Z714, B8D793, CJQ858, CJR734, CJR910, CJS849, CJT845, V6V850, V9T961, VAS917, VEW740,
-VEW763, VEW776, VEZ930`. No generan obligación y **no se les inventa fecha**: quedan fuera
-del calendario hasta que exista evidencia o se declare un arranque explícito. El mismo
-criterio se aplicará a cualquier equipo que se instale en el futuro en una unidad sin
-histórico.
+VEW763, VEW776, VEZ930`. No generan obligación y **no se les inventa fecha**, pero sí
+aparecen en el reporte de excepciones con motivo `SIN_REFERENCIA_M3`. Los otros 156 GPS, que
+sí tienen referencia, se programan con normalidad.
 
 ### Paso 5 · Excepción de las familias anuales
 

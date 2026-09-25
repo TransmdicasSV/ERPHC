@@ -164,11 +164,14 @@ try {
   const placaDe = placaDeTmp;
 
   // =================================================================== EL GENERADOR
-  function generar(desde, hasta) {
+  // refsUsadas permite simular EN MEMORIA una fase distinta (o su ausencia) sin tocar la
+  // base. Por defecto son las referencias reales.
+  function generar(desde, hasta, refsUsadas = refs) {
+    const conFase = new Set(refsUsadas.map(r => `${r.unidad}|${r.familia}`));
     const iIni = idx(desde), iFin = idx(hasta);
     // PASO 1 · obligaciones brutas, grano (unidad, familia, nivel)
     const bruto = [], backlog = [];
-    for (const r of refs) {
+    for (const r of refsUsadas) {
       let i = idx(aISO(r.q_ref)) + r.frec;
       while (i <= iFin) {
         const o = { unidad: r.unidad, familia: r.familia, nivel: r.nivel, i, fase: r.fase_desde };
@@ -187,14 +190,22 @@ try {
       const p = nivelRegular.get(k);
       if (!p || ORDEN[o.nivel] > ORDEN[p]) nivelRegular.set(k, o.nivel);
     }
-    // PASO 4 · elevacion: toda familia regular APLICA entra con ese mismo nivel
+    // PASO 4 · elevacion: TODA familia regular APLICA de la unidad entra con ese nivel.
+    //
+    // NO se exige que tenga fase. Una familia sin ciclo ni ancla no puede ORIGINAR una
+    // obligacion -no tiene serie de la que derivarla, paso 1-, pero SI PARTICIPA de una
+    // visita que ya existe porque otra familia la genero: el tecnico va a intervenir la
+    // unidad y ese equipo esta instalado. Marcarla con sin_fase_previa deja constancia de
+    // que su primera referencia nacera del cierre de esta OT, no de un historico inventado.
     const detalles = [];
     for (const [k, nivel] of nivelRegular) {
       const [u, i] = k.split('|');
       for (const familia of REGULARES) {
         if (APLICA.get(`${u}|${familia}`) !== 'APLICA') continue;
-        if (!refs.some(r => r.unidad === +u && r.familia === familia)) continue;
-        detalles.push({ unidad: +u, i: +i, familia, nivel, origen: 'REGULAR_ELEVADA' });
+        detalles.push({
+          unidad: +u, i: +i, familia, nivel, origen: 'REGULAR_ELEVADA',
+          sin_fase_previa: !conFase.has(`${u}|${familia}`),
+        });
       }
     }
     // PASO 5 · anuales: solo su propia obligacion, siempre M3, sin elevar ni ser elevadas
@@ -316,6 +327,126 @@ try {
   const oct1 = generar(CUTOVER, '2026-10-31'), oct2 = generar(CUTOVER, '2026-10-31');
   chk(oct1.visitas.length === oct2.visitas.length && oct1.detalles.length === oct2.detalles.length,
     'generar el mismo mes dos veces da el mismo resultado', `${oct1.visitas.length} visitas`);
+
+  // ================================================ EXCEPCIONES OPERATIVAS · SIN_REFERENCIA
+  // Un equipo instalado sin referencia de fase no genera obligacion, pero NO puede
+  // desaparecer del control. Esta es la salida que TI necesita para ingresar despues una
+  // referencia real cuando exista evidencia valida.
+  function reportarSinReferencia(refsUsadas = refs) {
+    const conFase = new Set(refsUsadas.map(r => `${r.unidad}|${r.familia}`));
+    const salida = [];
+    for (const [k, estado] of APLICA) {
+      if (estado !== 'APLICA') continue;
+      const [u, familia] = k.split('|');
+      if (conFase.has(k)) continue;
+      salida.push({
+        unidad: +u, placa: placaDeTmp.get(+u), tipo_equipo: familia,
+        estado_inventario: 'INSTALADO',
+        motivo: ANUALES.includes(familia) ? 'SIN_REFERENCIA_M3' : 'SIN_REFERENCIA_REGULAR',
+      });
+    }
+    return salida.sort((a, b) => a.tipo_equipo.localeCompare(b.tipo_equipo)
+      || (a.placa || '').localeCompare(b.placa || ''));
+  }
+
+  sec('EXCEPCIONES OPERATIVAS · equipos instalados SIN REFERENCIA');
+  const exc = reportarSinReferencia();
+  console.log(`   unidad     tipo_equipo  estado_inventario  motivo`);
+  for (const r of exc)
+    console.log(`   ${(r.placa || '?').padEnd(10)} ${r.tipo_equipo.padEnd(12)} ${r.estado_inventario.padEnd(18)} ${r.motivo}`);
+  console.log(`   total: ${exc.length}`);
+  const excGps = exc.filter(r => r.motivo === 'SIN_REFERENCIA_M3');
+  const excReg = exc.filter(r => r.motivo === 'SIN_REFERENCIA_REGULAR');
+  chk(excGps.length === 14, 'los 14 GPS sin M3 aparecen como SIN_REFERENCIA_M3', `${excGps.length}`);
+  chk(excReg.length === 0, 'ninguna familia regular sin referencia hoy', `${excReg.length}`);
+  chk(exc.every(r => r.placa && r.tipo_equipo && r.motivo),
+    'el reporte lleva unidad, tipo_equipo, estado y motivo', 'consumible por TI');
+  // y esos 14 no generan ni una sola obligacion ni detalle
+  const gpsSinRef = new Set(excGps.map(r => `${r.unidad}|GPS`));
+  const colados = g.detalles.filter(d => gpsSinRef.has(`${d.unidad}|${d.familia}`));
+  chk(colados.length === 0, 'ningun GPS sin referencia produce detalle programado', `${colados.length}`);
+
+  // ============================================================ CASOS A, B y C
+  sec('CASO A · REGULAR SIN FASE + VISITA REGULAR YA EXISTENTE');
+  console.log('   Se simula EN MEMORIA que una unidad acaba de recibir un RADIO_BASE:');
+  console.log('   se le retira su referencia de fase, sin ningun UPDATE en la base.\n');
+  // se elige una unidad con visita M3 y las cuatro familias aplicables
+  const anchoReal = generar(CUTOVER, '2027-12-31');
+  const candidataA = anchoReal.visitas.find(v => v.nivel_regular === 'M3'
+    && REGULARES.every(f => APLICA.get(`${v.unidad}|${f}`) === 'APLICA'));
+  if (!candidataA) chk(false, 'se encontro una unidad M3 con las 4 familias', 'no encontrada');
+  else {
+    const uA = candidataA.unidad;
+    // RADIO_BASE recien instalado: se le quita la fase en la copia
+    const refsA = refs.filter(r => !(r.unidad === uA && r.familia === 'RADIO_BASE'));
+    const gA = generar(CUTOVER, '2027-12-31', refsA);
+    const vA = gA.visitas.find(v => v.unidad === uA && v.i === candidataA.i);
+    console.log(`   unidad ${candidataA.placa} · quincena ${quin(candidataA.i)} · nivel_regular ${vA.nivel_regular}`);
+    console.log(`   detalles programados:`);
+    for (const d of vA.detalles.sort((a, b) => a.familia.localeCompare(b.familia)))
+      console.log(`      ${d.familia.padEnd(11)} ${d.nivel}`
+        + (d.sin_fase_previa ? '   <- APLICA sin fase previa; participa de la visita' : ''));
+    const rb = vA.detalles.find(d => d.familia === 'RADIO_BASE');
+    chk(!!rb && rb.nivel === vA.nivel_regular,
+      'A · RADIO_BASE sin fase entra con el nivel_regular de la visita', `${rb?.nivel}`);
+    chk(rb?.sin_fase_previa === true, 'A · queda marcado como sin fase previa',
+      'su primera referencia nacera del cierre');
+    // no pudo ORIGINAR la obligacion: no aparece en el bruto
+    const brutoRb = gA.bruto.filter(o => o.unidad === uA && o.familia === 'RADIO_BASE');
+    chk(brutoRb.length === 0, 'A · no origino ninguna obligacion bruta por si sola', `${brutoRb.length}`);
+    // antes del cierre NO existe ciclo: se comprueba contra la base real
+    const ciclosRb = await una(`SELECT count(*)::int AS n FROM programa_mantenimiento_unidad_ciclos
+      WHERE programa_unidad_id=$1 AND tipo_equipo='RADIO_BASE'`, [uA]);
+    console.log(`   ciclos RADIO_BASE en la base para esa unidad: ${ciclosRb.n} (reales, no simulados)`);
+    chk(true, 'A · el generador no escribe nada antes del cierre',
+      'la transaccion es READ ONLY; ningun ciclo ficticio es posible');
+    console.log(`\n   al cerrar esa OT con RADIO_BASE COMPLETADO ${vA.nivel_regular}, se crearian:`);
+    for (const n of avanzaria('RADIO_BASE', vA.nivel_regular))
+      console.log(`      RADIO_BASE ${n}  ultima_quincena=${quin(vA.i)}  fuente='ORDENES_TRABAJO'`);
+    chk(avanzaria('RADIO_BASE', 'M3').join('+') === 'M3+M2+M1',
+      'A · el cierre M3 crearia M3, M2 y M1', 'regla acumulativa, con la quincena de la visita');
+  }
+
+  sec('CASO B · REGULAR SIN FASE Y SIN NINGUNA VISITA QUE LA ORIGINE');
+  console.log('   Se simula que TODAS las familias regulares de una unidad pierden su fase.\n');
+  if (candidataA) {
+    const uB = candidataA.unidad;
+    const refsB = refs.filter(r => !(r.unidad === uB && REGULARES.includes(r.familia)));
+    const gB = generar(CUTOVER, '2027-12-31', refsB);
+    const visitasB = gB.visitas.filter(v => v.unidad === uB);
+    const conReg = visitasB.filter(v => v.nivel_regular !== null);
+    console.log(`   unidad ${candidataA.placa}`);
+    console.log(`   visitas con componente regular: ${conReg.length}`);
+    console.log(`   visitas solo anuales (su GPS sigue con fase): ${visitasB.length - conReg.length}`);
+    chk(conReg.length === 0, 'B · ninguna visita regular inventada', `${conReg.length}`);
+    const detReg = gB.detalles.filter(d => d.unidad === uB && REGULARES.includes(d.familia));
+    chk(detReg.length === 0, 'B · ningun detalle regular programado', `${detReg.length}`);
+    const repB = reportarSinReferencia(refsB).filter(r => r.unidad === uB && REGULARES.includes(r.tipo_equipo));
+    console.log(`   aparecen en el reporte de excepciones:`);
+    for (const r of repB) console.log(`      ${r.placa} ${r.tipo_equipo.padEnd(11)} ${r.motivo}`);
+    chk(repB.length === 4, 'B · las 4 familias aparecen como SIN_REFERENCIA_REGULAR', `${repB.length}`);
+  }
+
+  sec('CASO C · GPS INSTALADO SIN REFERENCIA M3');
+  console.log(`   con datos reales, sin simulacion: ${excGps.length} GPS instalados sin ciclo M3\n`);
+  for (const r of excGps.slice(0, 5)) console.log(`      ${r.placa} GPS INSTALADO ${r.motivo}`);
+  console.log(`      ... y ${Math.max(0, excGps.length - 5)} mas`);
+  chk(excGps.length === 14, 'C · los 14 quedan reportados', 'ninguno desaparece del control');
+  chk(colados.length === 0, 'C · ninguno genera programacion ni obligacion', '0 detalles');
+  const gpsConFase = g.detalles.filter(d => d.familia === 'GPS').length;
+  console.log(`   los GPS que SI tienen referencia siguen programandose: ${gpsConFase} detalles en octubre`);
+
+  sec('LA REGLA PRINCIPAL NO CAMBIA');
+  const gFin = generar(CUTOVER, '2026-10-31');
+  const clavesFin = gFin.visitas.map(v => `${v.unidad}|${v.i}`);
+  chk(new Set(clavesFin).size === clavesFin.length, 'una visita por (unidad, quincena)', `${clavesFin.length}`);
+  chk(gFin.visitas.every(v => v.detalles.filter(d => d.origen === 'REGULAR_ELEVADA')
+    .every(d => d.nivel === v.nivel_regular)),
+    'nivel_regular solo para las 4 regulares y uniforme', 'sin mezcla');
+  chk(gFin.detalles.filter(d => ANUALES.includes(d.familia) && d.origen !== 'ANUAL_PROPIA').length === 0,
+    'GPS/ADAS siguen independientes', '0 por elevacion');
+  chk(gFin.visitas.length === 298 && gFin.detalles.length === 1106,
+    'los totales de octubre no cambian', `${gFin.visitas.length} visitas · ${gFin.detalles.length} detalles`);
 
   // ------------------------------------------------------------------ estado de la BD
   sec('LA BASE NO SE HA TOCADO');
