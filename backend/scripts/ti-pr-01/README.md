@@ -4,13 +4,16 @@ Carga reproducible del programa **TI-PR-01** a partir del Excel fuente.
 
 ## Por qué está aquí y no en `backend/migrations`
 
-`backend/migrations` contiene `20261001_010` y `20261001_011`, que son *cleanup*
+`backend/migrations` contiene `20261001_900` y `20261001_901`, que son *cleanup*
 destructivos y **todavía no deben ejecutarse**. Un runner que recorriera la carpeta en
 orden los arrastraría. Además esta carga es un paso de **datos**, no de esquema.
 
-> Esos dos ficheros se numeraron antes `20260923_007` y `20260923_008`. Se renumeraron
-> el 2026-09-24, al aparecer `20260924_009`, para que el orden léxico siguiera siendo el
-> orden real de ejecución y los destructivos quedaran al final.
+> Esos dos ficheros se numeraron antes `20260923_007`/`20260923_008` y después
+> `20261001_010`/`20261001_011`. El 2026-09-24 pasaron a **900 y 901**, un bloque
+> terminal reservado, para que el orden léxico siga siendo el orden real de ejecución y
+> cualquier migración aditiva futura quepa delante sin volver a renumerarlos. Los
+> números 010 y 011 quedan retirados y no se reutilizan: así ninguna nota antigua que
+> diga «010 es destructiva» puede apuntar a un fichero distinto del que describía.
 
 ## Requisitos previos
 

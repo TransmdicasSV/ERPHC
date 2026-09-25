@@ -1,5 +1,5 @@
 -- =====================================================================================
--- TI-PR-01 · MIGRACION 20261001_011 · CLEANUP DEL VERSIONADO DOCUMENTAL
+-- TI-PR-01 · MIGRACION 20261001_901 · CLEANUP DEL VERSIONADO DOCUMENTAL
 -- =====================================================================================
 -- CLASIFICACION: CONTRACCION DESTRUCTIVA. Elimina columnas y constraints.
 --
