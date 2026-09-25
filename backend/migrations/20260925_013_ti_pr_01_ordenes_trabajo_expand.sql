@@ -122,6 +122,36 @@ BEGIN
     END IF;
 END $$;
 
+-- ------------------------- 1-bis · RETIRAR EL UNIQUE LEGACY POR fecha_programada
+-- uq_programacion_mantenimiento_unidad_fecha (programa_unidad_id, fecha_programada) ya no
+-- expresa una regla vigente. La unicidad de una visita la gobierna
+--   uq_programacion_unidad_quincena_efectiva (programa_unidad_id, quincena_efectiva)
+--   WHERE estado <> 'CANCELADO'
+-- que es la regla de negocio: una visita activa por unidad y quincena administrativa.
+--
+-- El legacy NO es parcial, asi que no excluye 'CANCELADO' y bloquea el flujo de
+-- sustitucion: obligaria a que la programacion sustituta usara una fecha_programada
+-- distinta solo para esquivarlo, cuando la razon por la que puede ocupar el slot debe ser
+-- que la anterior esta CANCELADA.
+--
+-- Auditado en la base antes de escribir esto:
+--   * contype='u' sobre (programa_unidad_id, fecha_programada);
+--   * 0 claves foraneas lo referencian. La unica FK que entra a programacion_mantenimiento
+--     es fk_programacion_equipo_visita, que apunta a uq_programacion_id_programa;
+--   * 0 dependencias no internas de su indice de respaldo: ni vistas, ni reglas, ni triggers;
+--   * 0 referencias en backend/src, app_flotas_web, initDb.js y los loaders;
+--   * la tabla tiene 0 filas, asi que retirarlo no puede crear duplicados;
+--   * idx_programacion_mantenimiento_fecha y ..._estado_fecha sobreviven, de modo que las
+--     consultas por fecha_programada conservan indice.
+--
+-- NO se retiran las columnas fecha_programada ni fecha_reprogramada: eso es trabajo del
+-- cleanup 900, que sigue sin ejecutar. fecha_programada continua siendo NOT NULL.
+--
+-- IF EXISTS para que la migracion sea idempotente y desplegable en una base donde ya no
+-- estuviera; la verificacion final comprueba que al terminar no existe.
+ALTER TABLE programacion_mantenimiento
+    DROP CONSTRAINT IF EXISTS uq_programacion_mantenimiento_unidad_fecha;
+
 -- --------------------------------- 2 · CLAVE QUE NECESITA LA FK COMPUESTA DEL DETALLE
 -- programacion_mantenimiento_equipos tiene PK(id) y UNIQUE(programacion_id, tipo_equipo),
 -- pero no UNIQUE(id, programacion_id). Sin ella, una FK de una sola columna permitiria que
@@ -787,6 +817,24 @@ BEGIN
         RAISE EXCEPTION 'Dominios no ampliados: fuente=% estado=%', v_fuentes, v_estados;
     END IF;
 
+    -- el unique legacy por fecha_programada ya no existe, y la proteccion por quincena si
+    IF EXISTS (SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_programacion_mantenimiento_unidad_fecha') THEN
+        RAISE EXCEPTION 'uq_programacion_mantenimiento_unidad_fecha sigue existiendo.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public'
+        AND indexname = 'uq_programacion_unidad_quincena_efectiva') THEN
+        RAISE EXCEPTION 'Falta uq_programacion_unidad_quincena_efectiva: sin ella no queda '
+            'ninguna proteccion de unicidad de visita.';
+    END IF;
+    -- las columnas legacy NO se tocan: eso es trabajo del cleanup 900
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+        AND table_name = 'programacion_mantenimiento' AND column_name = 'fecha_programada')
+    OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+        AND table_name = 'programacion_mantenimiento' AND column_name = 'fecha_reprogramada') THEN
+        RAISE EXCEPTION 'Esta migracion no debe retirar fecha_programada ni fecha_reprogramada.';
+    END IF;
+
     -- ningun ciclo existente quedo con trazabilidad de OT
     SELECT count(*) INTO v_ciclos_ot FROM programa_mantenimiento_unidad_ciclos
      WHERE orden_trabajo_detalle_id IS NOT NULL OR fuente = 'ORDENES_TRABAJO';
@@ -795,6 +843,6 @@ BEGIN
     END IF;
 
     RAISE NOTICE 'Ordenes de trabajo creadas: 2 tablas (14 y 10 columnas), 1 indice parcial, '
-        '7 funciones, 8 triggers, dominios de fuente y estado ampliados, '
+        '7 funciones, 8 triggers, unique legacy por fecha retirado, dominios ampliados, '
         'columna de trazabilidad nullable. Tablas vacias, 0 ciclos con OT.';
 END $$;

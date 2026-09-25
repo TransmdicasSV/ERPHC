@@ -63,10 +63,15 @@ ALTER TABLE programacion_mantenimiento
 
 -- 3.a UNIQUE antiguo por fecha_programada.
 --     Lo reemplaza el indice unico parcial por quincena efectiva, que ademas
---     permite reutilizar la quincena de una visita CANCELADO. Mientras este
---     constraint exista, esa semantica final NO esta vigente.
+--     permite reutilizar la quincena de una visita CANCELADO.
+--
+--     YA LO RETIRA 20260925_013, porque bloqueaba el flujo de sustitucion de una
+--     visita: al no ser parcial, no excluye 'CANCELADO'. Se conserva aqui con
+--     IF EXISTS por dos motivos: que este cleanup no falle sobre una base donde 013
+--     ya lo quito, y que siga funcionando sobre una base antigua donde 013 no se
+--     hubiera aplicado. Si no existe, es un no-op silencioso y correcto.
 ALTER TABLE programacion_mantenimiento
-  DROP CONSTRAINT uq_programacion_mantenimiento_unidad_fecha;
+  DROP CONSTRAINT IF EXISTS uq_programacion_mantenimiento_unidad_fecha;
 
 -- 3.b FK simple antigua hacia la unidad del programa.
 --     Verificada en la base antes de escribir esta sentencia:

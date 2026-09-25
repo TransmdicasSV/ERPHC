@@ -22,19 +22,21 @@ Mientras vivan en esta carpeta el problema desaparece: no hay orden que puedan e
 Dentro de `pending_cleanup/` los números 900 y 901 ya no expresan orden de ejecución.
 Se conservan solo para no renombrar los ficheros una tercera vez.
 
-## Un efecto secundario útil de `900`
+## `uq_programacion_mantenimiento_unidad_fecha` lo retira ya `013`
 
-`900` retira `uq_programacion_mantenimiento_unidad_fecha`, el unique sobre
-`(programa_unidad_id, fecha_programada)`, junto con la propia columna `fecha_programada`.
+Ese unique sobre `(programa_unidad_id, fecha_programada)` **no era parcial**, así que no
+excluía `CANCELADO` y bloqueaba el flujo de sustitución de una visita: obligaba a que la
+programación sustituta usara otra `fecha_programada` solo para esquivarlo. La protección que
+de verdad gobierna es `uq_programacion_unidad_quincena_efectiva`, que sí es parcial y libera
+el slot al cancelar.
 
-Ese unique **no es parcial**, así que no excluye `CANCELADO`. Mientras viva, el flujo de
-sustitución de una visita (anular OT → cancelar programación → crear una nueva) obliga a
-que la programación sustituta use una `fecha_programada` distinta, aunque comparta
-`quincena_programada`. La protección que de verdad importa,
-`uq_programacion_unidad_quincena_efectiva`, sí es parcial y libera el slot al cancelar.
+Por eso **`20260925_013` ya lo retira**, sin tocar las columnas. El paso `3.a` de `900`
+conserva la sentencia con `DROP CONSTRAINT IF EXISTS`: así este cleanup no falla sobre una
+base donde `013` ya lo quitó, y sigue funcionando sobre una base antigua donde `013` no se
+hubiera aplicado. Si no existe, es un no-op correcto.
 
-Cuando se ejecute `900`, esa incomodidad desaparece y el modelo queda gobernado solo por la
-quincena administrativa. Ver `backend/scripts/ti-pr-01/GENERADOR.md`.
+Lo que `900` sí sigue retirando: las columnas `fecha_programada` y `fecha_reprogramada`, y
+`nivel_mantenimiento`. Ver `backend/scripts/ti-pr-01/GENERADOR.md`.
 
 ## Requisitos antes de devolverlos a `migrations/`
 

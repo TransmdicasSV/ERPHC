@@ -290,13 +290,19 @@ El slot de quincena se libera porque `uq_programacion_unidad_quincena_efectiva` 
 cuando se abrió aquella OT. Una OT **CERRADA** nunca habilita este mecanismo: su
 programación no puede cancelarse, ni reprogramarse, ni cambiar de alcance.
 
-> **Nota transitoria para el generador.** `uq_programacion_mantenimiento_unidad_fecha`
-> —el unique legacy sobre `(programa_unidad_id, fecha_programada)`— **no es parcial**, así
-> que no excluye `CANCELADO`. Mientras exista, una programación sustituta debe escribir una
-> **`fecha_programada` distinta** de la cancelada, aunque comparta `quincena_programada`.
-> El cleanup `20261001_900` retira ese unique junto con la columna, y entonces la
-> restricción desaparece. La fase nunca depende de `fecha_programada`, solo de
-> `quincena_efectiva`.
+La programación sustituta puede reutilizar **la misma quincena y la misma
+`fecha_programada`** que la cancelada. No hay que desplazar ninguna fecha para esquivar una
+restricción: la única razón por la que el slot queda libre es que la anterior está
+`CANCELADO`.
+
+> Esto exigió retirar `uq_programacion_mantenimiento_unidad_fecha`, el unique legacy sobre
+> `(programa_unidad_id, fecha_programada)`, que **no era parcial** y por tanto no excluía
+> `CANCELADO`. Lo retira **`20260925_013`**, tras auditar que no lo referenciaba ninguna FK
+> ni ninguna vista, regla o trigger, y que no aparecía en `backend/src`, el frontend,
+> `initDb.js` ni los loaders. Las columnas `fecha_programada` y `fecha_reprogramada`
+> **siguen existiendo** —`fecha_programada` sigue siendo `NOT NULL`— y sus índices no únicos
+> se conservan; retirarlas es trabajo del cleanup `20261001_900`. La fase nunca dependió de
+> `fecha_programada`, solo de `quincena_efectiva`.
 
 ## Verificación
 
