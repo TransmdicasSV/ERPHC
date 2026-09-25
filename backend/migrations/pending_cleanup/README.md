@@ -22,6 +22,20 @@ Mientras vivan en esta carpeta el problema desaparece: no hay orden que puedan e
 Dentro de `pending_cleanup/` los números 900 y 901 ya no expresan orden de ejecución.
 Se conservan solo para no renombrar los ficheros una tercera vez.
 
+## Un efecto secundario útil de `900`
+
+`900` retira `uq_programacion_mantenimiento_unidad_fecha`, el unique sobre
+`(programa_unidad_id, fecha_programada)`, junto con la propia columna `fecha_programada`.
+
+Ese unique **no es parcial**, así que no excluye `CANCELADO`. Mientras viva, el flujo de
+sustitución de una visita (anular OT → cancelar programación → crear una nueva) obliga a
+que la programación sustituta use una `fecha_programada` distinta, aunque comparta
+`quincena_programada`. La protección que de verdad importa,
+`uq_programacion_unidad_quincena_efectiva`, sí es parcial y libera el slot al cancelar.
+
+Cuando se ejecute `900`, esa incomodidad desaparece y el modelo queda gobernado solo por la
+quincena administrativa. Ver `backend/scripts/ti-pr-01/GENERADOR.md`.
+
 ## Requisitos antes de devolverlos a `migrations/`
 
 1. Autorización humana explícita.

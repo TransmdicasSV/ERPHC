@@ -268,6 +268,36 @@ brutas:                          programado:
                                   por su obligación anual propia
 ```
 
+## Sustitución por error de alcance
+
+Una vez abierta una OT, el alcance de esa visita queda **congelado para siempre**: como
+`ordenes_trabajo_detalle` no duplica `tipo_equipo` ni `nivel_programado`, modificar
+`programacion_mantenimiento_equipos` reescribiría lo que esa OT declaró.
+
+Si el generador produjo un alcance equivocado, **la programación vieja no se reutiliza**:
+
+```
+1. ANULAR la OT activa        estado = 'ANULADA', motivo_anulacion obligatorio
+2. CANCELAR su programación   estado = 'CANCELADO'
+3. conservar ambas            no se borra ni se reescribe nada
+4. crear una programación NUEVA
+5. generar sus equipos previstos con las reglas de este documento
+6. abrir una OT nueva sobre ella
+```
+
+El slot de quincena se libera porque `uq_programacion_unidad_quincena_efectiva` excluye
+`CANCELADO`, pero la programación vieja permanece y sigue mostrando qué estaba previsto
+cuando se abrió aquella OT. Una OT **CERRADA** nunca habilita este mecanismo: su
+programación no puede cancelarse, ni reprogramarse, ni cambiar de alcance.
+
+> **Nota transitoria para el generador.** `uq_programacion_mantenimiento_unidad_fecha`
+> —el unique legacy sobre `(programa_unidad_id, fecha_programada)`— **no es parcial**, así
+> que no excluye `CANCELADO`. Mientras exista, una programación sustituta debe escribir una
+> **`fecha_programada` distinta** de la cancelada, aunque comparta `quincena_programada`.
+> El cleanup `20261001_900` retira ese unique junto con la columna, y entonces la
+> restricción desaparece. La fase nunca depende de `fecha_programada`, solo de
+> `quincena_efectiva`.
+
 ## Verificación
 
 `auditar-generador.mjs` implementa esta especificación y la contrasta contra los datos
