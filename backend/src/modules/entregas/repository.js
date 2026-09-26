@@ -84,6 +84,67 @@ export const obtenerPersonalPorDni =
     return result.rows[0] || null;
   };
 
+export const obtenerClientesOperacionesEntregas =
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result = await pool.query(
+      `SELECT
+         co.id,
+         c.nombre AS cliente,
+         co.nombre AS operacion
+       FROM cliente_operaciones co
+       INNER JOIN clientes c
+         ON c.id = co.cliente_id
+       WHERE co.activo = TRUE
+         AND c.activo = TRUE
+         AND (
+           $1::boolean = TRUE
+           OR co.id = ANY($2::integer[])
+         )
+       ORDER BY c.nombre, co.nombre`,
+      [
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
+    );
+
+    return result.rows;
+  };
+
+export const obtenerClienteOperacionEntrega =
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result = await pool.query(
+      `SELECT
+         co.id,
+         c.nombre AS cliente,
+         co.nombre AS operacion
+       FROM cliente_operaciones co
+       INNER JOIN clientes c
+         ON c.id = co.cliente_id
+       WHERE co.id = $1
+         AND co.activo = TRUE
+         AND c.activo = TRUE
+         AND (
+           $2::boolean = TRUE
+           OR co.id = ANY($3::integer[])
+         )
+       LIMIT 1`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
+    );
+
+    return result.rows[0] || null;
+  };
+
 // ==========================================
 // INVENTARIO
 // ==========================================
@@ -91,27 +152,47 @@ export const obtenerPersonalPorDni =
 export const obtenerInventario =
   async ({
     puedeVerEntregas,
-    puedeVerDevoluciones
+    puedeVerDevoluciones,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     let query =
-      'SELECT * FROM entregas_ti';
+      `SELECT
+         e.*,
+         c.nombre AS cliente
+       FROM entregas_ti e
+       LEFT JOIN cliente_operaciones co
+         ON co.id = e.cliente_operacion_id
+       LEFT JOIN clientes c
+         ON c.id = co.cliente_id
+       WHERE (
+         $1::boolean = TRUE
+         OR e.cliente_operacion_id =
+            ANY($2::integer[])
+       )`;
+
+    const params = [
+      Boolean(accesoTotal),
+      clienteOperacionIds || []
+    ];
 
     if (
       puedeVerEntregas &&
       !puedeVerDevoluciones
     ) {
       query += `
-        WHERE tipo_movimiento IS NULL
-           OR TRIM(tipo_movimiento) = ''
-           OR LOWER(TRIM(tipo_movimiento))
-              = 'entrega'
+        AND (
+          tipo_movimiento IS NULL
+          OR TRIM(tipo_movimiento) = ''
+          OR LOWER(TRIM(tipo_movimiento)) = 'entrega'
+        )
       `;
     } else if (
       !puedeVerEntregas &&
       puedeVerDevoluciones
     ) {
       query += `
-        WHERE LOWER(
+        AND LOWER(
           TRIM(tipo_movimiento)
         ) IN (
           'devolución',
@@ -123,7 +204,10 @@ export const obtenerInventario =
     query += ' ORDER BY id DESC';
 
     const result =
-      await pool.query(query);
+      await pool.query(
+        query,
+        params
+      );
 
     return result.rows;
   };
@@ -140,6 +224,7 @@ export const crearMovimiento =
     dni,
     cargo,
     operacion,
+    cliente_operacion_id,
     condicion,
     equipo_tipo,
     marca,
@@ -162,6 +247,7 @@ export const crearMovimiento =
          dni,
          cargo,
          operacion,
+         cliente_operacion_id,
          condicion,
          equipo_tipo,
          marca,
@@ -180,7 +266,7 @@ export const crearMovimiento =
          $1, $2, $3, $4, $5,
          $6, $7, $8, $9, $10,
          $11, $12, $13, $14, $15,
-         $16, $17, $18, $19
+         $16, $17, $18, $19, $20
        )
        RETURNING *`,
       [
@@ -190,6 +276,7 @@ export const crearMovimiento =
         dni,
         cargo,
         operacion,
+        cliente_operacion_id,
         condicion,
         equipo_tipo,
         marca,
@@ -214,12 +301,25 @@ export const crearMovimiento =
 // ==========================================
 
 export const obtenerMovimientoPorId =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
       `SELECT *
        FROM entregas_ti
-       WHERE id = $1`,
-      [id]
+       WHERE id = $1
+         AND (
+           $2::boolean = TRUE
+           OR cliente_operacion_id =
+              ANY($3::integer[])
+         )`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;
@@ -234,6 +334,7 @@ export const actualizarMovimiento =
     dni,
     cargo,
     operacion,
+    cliente_operacion_id,
     condicion,
     equipo_tipo,
     marca,
@@ -246,7 +347,9 @@ export const actualizarMovimiento =
     observaciones,
     precio,
     tipo_movimiento,
-    documento_url
+    documento_url,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     const result = await pool.query(
       `UPDATE entregas_ti
@@ -257,24 +360,30 @@ export const actualizarMovimiento =
          dni = $4,
          cargo = $5,
          operacion = $6,
-         condicion = $7,
-         equipo_tipo = $8,
-         marca = $9,
-         modelo = $10,
-         serie = $11,
-         laptop = $12,
-         mouse = $13,
-         cargador = $14,
-         motivo = $15,
-         observaciones = $16,
-         precio = $17,
-         tipo_movimiento = $18,
+         cliente_operacion_id = $7,
+         condicion = $8,
+         equipo_tipo = $9,
+         marca = $10,
+         modelo = $11,
+         serie = $12,
+         laptop = $13,
+         mouse = $14,
+         cargador = $15,
+         motivo = $16,
+         observaciones = $17,
+         precio = $18,
+         tipo_movimiento = $19,
          documento_url =
            COALESCE(
-             $19,
+             $20,
              documento_url
            )
-       WHERE id = $20
+       WHERE id = $21
+         AND (
+           $22::boolean = TRUE
+           OR cliente_operacion_id =
+              ANY($23::integer[])
+         )
        RETURNING *`,
       [
         fecha,
@@ -283,6 +392,7 @@ export const actualizarMovimiento =
         dni,
         cargo,
         operacion,
+        cliente_operacion_id,
         condicion,
         equipo_tipo,
         marca,
@@ -296,7 +406,9 @@ export const actualizarMovimiento =
         precio,
         tipo_movimiento,
         documento_url,
-        id
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
       ]
     );
 
@@ -327,15 +439,24 @@ export const obtenerMovimientosParaExportar =
     tipo,
     categoria,
     fechaInicio,
-    fechaFin
+    fechaFin,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     let query = `
       SELECT *
       FROM entregas_ti
-      WHERE 1 = 1
+      WHERE (
+        $1::boolean = TRUE
+        OR cliente_operacion_id =
+           ANY($2::integer[])
+      )
     `;
 
-    const params = [];
+    const params = [
+      Boolean(accesoTotal),
+      clienteOperacionIds || []
+    ];
 
     if (
       tipo === 'Devolución'

@@ -16,6 +16,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
     isAdmin || usuario?.permisos?.personal?.editar === true;
   const [entregas, setEntregas] = useState([]);
   const [personalList, setPersonalList] = useState([]);
+  const [clientesOperaciones, setClientesOperaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState('');
@@ -28,7 +29,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   const [isNewPersonal, setIsNewPersonal] = useState(false);
   const [dniSearchStatus, setDniSearchStatus] = useState(null); // null | 'loading' | 'found' | 'not_found'
   const [formData, setFormData] = useState({
-    fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+    fecha: '', encargado: '', nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
   });
   const [actaFile, setActaFile] = useState(null);
   const [docUrlViewer, setDocUrlViewer] = useState(null);
@@ -76,9 +77,32 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
     }
   };
 
+  const loadOpciones = async () => {
+    try {
+      const data =
+        await api.getOpcionesEntregas();
+
+      setClientesOperaciones(
+        Array.isArray(data?.clientesOperaciones)
+          ? data.clientesOperaciones
+          : []
+      );
+    } catch (error) {
+      console.error(
+        'Error cargando clientes y operaciones',
+        error
+      );
+      toast.error(
+        error.message ||
+        'No se pudieron cargar los clientes y operaciones'
+      );
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadPersonal();
+    loadOpciones();
   }, []);
 
   const handleFileUpload = async (e) => {
@@ -152,7 +176,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
   const openCreateModal = () => {
     setFormData({
-      fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
+      fecha: getLocalDateString(), encargado: encargadoAutomatico, nombre: '', dni: '', cargo: '', operacion: '', cliente_operacion_id: '', condicion: 'NUEVO', equipo_tipo: '', marca: '', modelo: '', serie: '', laptop: '', mouse: '', cargador: '', motivo: '', observaciones: '', precio: '', tipo_movimiento: vista || 'Entrega'
     });
     setActaFile(null);
     setIsEditing(false);
@@ -162,7 +186,19 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
   };
 
   const openEditModal = (item) => {
-    setFormData({ ...item, fecha: item.fecha ? item.fecha.split('T')[0] : '', tipo_movimiento: item.tipo_movimiento || 'Entrega' });
+    setFormData({
+      ...item,
+      fecha:
+        item.fecha
+          ? item.fecha.split('T')[0]
+          : '',
+      cliente_operacion_id:
+        item.cliente_operacion_id
+          ? String(item.cliente_operacion_id)
+          : '',
+      tipo_movimiento:
+        item.tipo_movimiento || 'Entrega'
+    });
     setActaFile(null);
     setIsEditing(true);
     setIsNewPersonal(false);
@@ -192,13 +228,40 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
         vista || formData.tipo_movimiento || 'Entrega'
       );
 
-      setFormData(prev => ({
-        ...prev,
-        dni,
-        nombre: person?.nombre_completo || '',
-        cargo: person?.cargo || '',
-        operacion: person?.area || ''
-      }));
+      setFormData(prev => {
+        const area =
+          String(person?.area || '')
+            .trim()
+            .toLowerCase();
+
+        const coincidencias =
+          clientesOperaciones.filter(
+            opcion =>
+              String(opcion.operacion || '')
+                .trim()
+                .toLowerCase() === area
+          );
+
+        const opcion =
+          coincidencias.length === 1
+            ? coincidencias[0]
+            : null;
+
+        return {
+          ...prev,
+          dni,
+          nombre:
+            person?.nombre_completo || '',
+          cargo:
+            person?.cargo || '',
+          operacion:
+            opcion?.operacion || '',
+          cliente_operacion_id:
+            opcion
+              ? String(opcion.id)
+              : ''
+        };
+      });
 
       if (person) {
         setDniSearchStatus('found');
@@ -224,6 +287,13 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
 
     if (!formData.dni || !formData.nombre) {
       toast.error('El DNI y Nombre del receptor son obligatorios');
+      return;
+    }
+
+    if (!formData.cliente_operacion_id) {
+      toast.error(
+        'Seleccione el cliente y la operación'
+      );
       return;
     }
 
@@ -405,7 +475,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                 <tr>
                   <th onClick={() => requestSort('fecha')} style={{ cursor: 'pointer', userSelect: 'none' }}>Fecha {sortConfig.key === 'fecha' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                   <th onClick={() => requestSort('nombre')} style={{ cursor: 'pointer', userSelect: 'none' }}>Receptor {sortConfig.key === 'nombre' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                  <th onClick={() => requestSort('operacion')} style={{ cursor: 'pointer', userSelect: 'none' }}>Operación {sortConfig.key === 'operacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                  <th onClick={() => requestSort('operacion')} style={{ cursor: 'pointer', userSelect: 'none' }}>Cliente / Operación {sortConfig.key === 'operacion' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</th>
                   <th style={{ padding: '0.75rem 1rem', cursor: 'pointer' }} onClick={() => requestSort('tipo_movimiento')}>
                     Tipo {sortConfig.key === 'tipo_movimiento' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
@@ -437,7 +507,10 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                         <div style={{ fontWeight: 'bold' }}>{item.nombre}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>DNI: {item.dni}</div>
                       </td>
-                      <td>{item.operacion}</td>
+                      <td>
+                        <div style={{ fontWeight: '600' }}>{item.cliente || 'Sin cliente asignado'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.operacion || '-'}</div>
+                      </td>
                       <td style={{ padding: '0.75rem 1rem' }}>
                         <span style={{ backgroundColor: item.tipo_movimiento === 'Devolución' ? 'var(--purple-bg)' : 'var(--blue-bg)', color: item.tipo_movimiento === 'Devolución' ? 'var(--purple-text)' : 'var(--blue-text)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold' }}>
                           {item.tipo_movimiento === 'Devolución' ? 'Devolución' : 'Entrega'}
@@ -559,7 +632,7 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
               <p style={{ margin: 0 }}><strong>Receptor:</strong> {selectedEntrega.nombre} <span style={{ color: 'var(--text-secondary)' }}>(DNI: {selectedEntrega.dni})</span></p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                 <p style={{ margin: 0 }}><strong>Cargo:</strong> {selectedEntrega.cargo || '-'}</p>
-                <p style={{ margin: 0 }}><strong>Operación:</strong> {selectedEntrega.operacion || '-'}</p>
+                <p style={{ margin: 0 }}><strong>Cliente / Operación:</strong> {selectedEntrega.cliente ? `${selectedEntrega.cliente} - ` : ''}{selectedEntrega.operacion || '-'}</p>
               </div>
 
               <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0.5rem 0' }} />
@@ -719,16 +792,39 @@ export function EntregasTIDashboard({ vista, permisos, usuario }) {
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Operación / Área</label>
-                    <input
-                      type="text"
-                      name="operacion"
-                      value={formData.operacion}
-                      onChange={handleFormChange}
-                      placeholder="Ej. Lima, Callao, Mina"
-                      disabled={dniSearchStatus === 'found' && !isEditing}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: dniSearchStatus === 'found' && !isEditing ? '#f3f4f6' : 'var(--bg-color)', color: 'var(--text-primary)' }}
-                    />
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Cliente / Operación</label>
+                    <select
+                      name="cliente_operacion_id"
+                      value={formData.cliente_operacion_id || ''}
+                      onChange={e => {
+                        const opcion =
+                          clientesOperaciones.find(
+                            item =>
+                              String(item.id) ===
+                              e.target.value
+                          );
+
+                        setFormData(prev => ({
+                          ...prev,
+                          cliente_operacion_id:
+                            e.target.value,
+                          operacion:
+                            opcion?.operacion || ''
+                        }));
+                      }}
+                      required
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="">-- Seleccionar --</option>
+                      {clientesOperaciones.map(opcion => (
+                        <option
+                          key={opcion.id}
+                          value={opcion.id}
+                        >
+                          {opcion.cliente} - {opcion.operacion}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

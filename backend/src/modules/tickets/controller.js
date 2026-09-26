@@ -9,6 +9,7 @@ import {
 
 import {
   obtenerVehiculosTickets,
+  obtenerVehiculoTicketPorPlaca,
   obtenerPersonalTickets,
   obtenerPersonaActivaPorId,
   insertarTicket,
@@ -30,7 +31,8 @@ import {
   OPERACIONES_INVALIDAS_TICKET,
   IMPLEMENTOS_PERMITIDOS,
   componenteConFalla,
-  obtenerOperacionesUnicas
+  obtenerOperacionesUnicas,
+  obtenerClientesOperacionesUnicas
 } from './service.js';
 
 
@@ -49,10 +51,14 @@ export const opcionesTickets =
         personal
       ] =
         await Promise.all([
-          obtenerVehiculosTickets(
-            contexto.operacion,
-            OPERACIONES_INVALIDAS_TICKET
-          ),
+          obtenerVehiculosTickets({
+            accesoTotal:
+              contexto.accesoTotal,
+            clienteOperacionIds:
+              contexto.clienteOperacionIds,
+            operacionesInvalidas:
+              OPERACIONES_INVALIDAS_TICKET
+          }),
 
           obtenerPersonalTickets()
         ]);
@@ -66,8 +72,10 @@ export const opcionesTickets =
         vehiculos,
         personal,
         operaciones,
-        operacionAsignada:
-          contexto.operacion
+        clientesOperaciones:
+          obtenerClientesOperacionesUnicas(
+            vehiculos
+          )
       });
 
     } catch (error) {
@@ -119,10 +127,14 @@ export const opcionesSolicitudDescargaVideos =
       }
 
       const vehiculos =
-        await obtenerVehiculosTickets(
-          contexto.operacion,
-          OPERACIONES_INVALIDAS_TICKET
-        );
+        await obtenerVehiculosTickets({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds,
+          operacionesInvalidas:
+            OPERACIONES_INVALIDAS_TICKET
+        });
 
       return res.json({
         vehiculos,
@@ -132,11 +144,13 @@ export const opcionesSolicitudDescargaVideos =
             vehiculos
           ),
 
-        nombreSolicitante:
-          contexto.nombreSolicitante,
+        clientesOperaciones:
+          obtenerClientesOperacionesUnicas(
+            vehiculos
+          ),
 
-        operacionAsignada:
-          contexto.operacion
+        nombreSolicitante:
+          contexto.nombreSolicitante
       });
     } catch (error) {
       console.error(
@@ -149,7 +163,7 @@ export const opcionesSolicitudDescargaVideos =
         .json({
           error:
             error.status === 401 ||
-            error.status === 403
+              error.status === 403
               ? error.message
               : 'Error al cargar las opciones de descarga de videos'
         });
@@ -194,11 +208,6 @@ const esFechaDescargaValida =
 
 export const crearSolicitudDescargaVideos =
   async (req, res) => {
-    const operacion =
-      String(
-        req.body?.operacion || ''
-      ).trim();
-
     const placasRecibidas =
       Array.isArray(
         req.body?.placas
@@ -217,6 +226,10 @@ export const crearSolicitudDescargaVideos =
           .filter(Boolean)
       )
     ];
+    const clienteOperacionId =
+      Number(
+        req.body?.cliente_operacion_id
+      );
 
     const fechaDescarga =
       String(
@@ -238,23 +251,23 @@ export const crearSolicitudDescargaVideos =
         req.body?.motivo || ''
       ).trim();
 
-    if (
-      !operacion ||
-      operacion.length > 100
-    ) {
-      return res.status(400).json({
-        error:
-          'Debe seleccionar una operación válida'
-      });
-    }
-
     if (placas.length === 0) {
       return res.status(400).json({
         error:
           'Debe seleccionar al menos una placa'
       });
     }
-
+    if (
+      !Number.isInteger(
+        clienteOperacionId
+      ) ||
+      clienteOperacionId <= 0
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe seleccionar un cliente y una operación'
+      });
+    }
     if (
       !esFechaDescargaValida(
         fechaDescarga
@@ -311,54 +324,69 @@ export const crearSolicitudDescargaVideos =
       }
 
       const vehiculos =
-        await obtenerVehiculosTickets(
-          contexto.operacion,
-          OPERACIONES_INVALIDAS_TICKET
+        await obtenerVehiculosTickets({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds,
+          operacionesInvalidas:
+            OPERACIONES_INVALIDAS_TICKET
+        });
+      const clientesOperaciones =
+        obtenerClientesOperacionesUnicas(
+          vehiculos
         );
 
-      const vehiculosDeOperacion =
-        vehiculos.filter(
-          vehiculo =>
-            String(
-              vehiculo.operacion || ''
-            )
-              .trim()
-              .toLowerCase() ===
-            operacion.toLowerCase()
+      const clienteOperacion =
+        clientesOperaciones.find(
+          item =>
+            Number(item.id) ===
+            clienteOperacionId
         );
 
-      const placasValidas =
-        new Set(
-          vehiculosDeOperacion.map(
-            vehiculo =>
-              String(
-                vehiculo.placa
-              )
-                .trim()
-                .toUpperCase()
-          )
-        );
-
-      const hayPlacaInvalida =
-        placas.some(
-          placa =>
-            !placasValidas.has(
-              placa
-            )
-        );
-
-      if (
-        placasValidas.size === 0 ||
-        hayPlacaInvalida
-      ) {
-        return res.status(400).json({
+      if (!clienteOperacion) {
+        return res.status(403).json({
           error:
-            'Todas las placas deben pertenecer a la operación seleccionada'
+            'El cliente y la operación no pertenecen a su alcance autorizado'
         });
       }
 
+      const vehiculosPorPlaca =
+        new Map(
+          vehiculos.map(
+            vehiculo => [
+              String(vehiculo.placa)
+                .trim()
+                .toUpperCase(),
+              vehiculo
+            ]
+          )
+        );
+
+      const vehiculosSeleccionados =
+        placas
+          .map(placa =>
+            vehiculosPorPlaca.get(placa)
+          )
+          .filter(Boolean);
+
+      if (
+        vehiculosSeleccionados.length !==
+        placas.length
+      ) {
+        return res.status(403).json({
+          error:
+            'Una o más placas no pertenecen a sus clientes y operaciones asignados'
+        });
+      }
+
+      const operacion =
+        clienteOperacion.operacion;
+
+
       const solicitud =
         await insertarSolicitudDescargaVideos({
+          clienteOperacionId,
           operacion,
           placas,
           fechaDescarga,
@@ -422,7 +450,7 @@ export const crearSolicitudDescargaVideos =
     }
   };
 
-  // ==========================================
+// ==========================================
 // LISTAR SOLICITUDES DE DESCARGA DE VIDEOS
 // ==========================================
 
@@ -436,9 +464,12 @@ export const listarSolicitudesDescargaVideos =
         );
 
       const solicitudes =
-        await obtenerSolicitudesDescargaVideos(
-          contexto.operacion
-        );
+        await obtenerSolicitudesDescargaVideos({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
       return res.json(
         solicitudes
@@ -524,15 +555,20 @@ export const cambiarEstadoSolicitudDescargaVideos =
     }
 
     try {
-      await contextoTicket(
-        req,
-        'gestionar'
-      );
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
+        );
 
       const solicitud =
         await actualizarEstadoSolicitudDescargaVideos({
           id,
-          estado
+          estado,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
         });
 
       if (!solicitud) {
@@ -615,10 +651,14 @@ export const opcionesReportePulseras =
         personal
       ] =
         await Promise.all([
-          obtenerVehiculosTickets(
-            contexto.operacion,
-            OPERACIONES_INVALIDAS_TICKET
-          ),
+          obtenerVehiculosTickets({
+            accesoTotal:
+              contexto.accesoTotal,
+            clienteOperacionIds:
+              contexto.clienteOperacionIds,
+            operacionesInvalidas:
+              OPERACIONES_INVALIDAS_TICKET
+          }),
 
           obtenerPersonalTickets()
         ]);
@@ -630,6 +670,10 @@ export const opcionesReportePulseras =
 
       return res.json({
         operaciones,
+        clientesOperaciones:
+          obtenerClientesOperacionesUnicas(
+            vehiculos
+          ),
         personal
       });
 
@@ -669,10 +713,10 @@ export const crearReportePulsera =
         req.body?.receptor_persona_id
       );
 
-    const operacion =
-      String(
-        req.body?.operacion || ''
-      ).trim();
+    const clienteOperacionId =
+      Number(
+        req.body?.cliente_operacion_id
+      );
 
     const motivoRenovacion =
       String(
@@ -703,10 +747,15 @@ export const crearReportePulsera =
       });
     }
 
-    if (!operacion) {
+    if (
+      !Number.isInteger(
+        clienteOperacionId
+      ) ||
+      clienteOperacionId <= 0
+    ) {
       return res.status(400).json({
         error:
-          'Debe seleccionar una operación'
+          'Debe seleccionar un cliente y una operación'
       });
     }
 
@@ -762,10 +811,14 @@ export const crearReportePulsera =
             receptorPersonaId
           ),
 
-          obtenerVehiculosTickets(
-            contexto.operacion,
-            OPERACIONES_INVALIDAS_TICKET
-          )
+          obtenerVehiculosTickets({
+            accesoTotal:
+              contexto.accesoTotal,
+            clienteOperacionIds:
+              contexto.clienteOperacionIds,
+            operacionesInvalidas:
+              OPERACIONES_INVALIDAS_TICKET
+          })
         ]);
 
       if (!solicitante) {
@@ -782,24 +835,22 @@ export const crearReportePulsera =
         });
       }
 
-      const operacionesValidas =
-        obtenerOperacionesUnicas(
+      const clientesOperaciones =
+        obtenerClientesOperacionesUnicas(
           vehiculos
         );
 
-      const operacionValida =
-        operacionesValidas.some(
+      const clienteOperacion =
+        clientesOperaciones.find(
           item =>
-            String(item)
-              .trim()
-              .toLowerCase() ===
-            operacion.toLowerCase()
+            Number(item.id) ===
+            clienteOperacionId
         );
 
-      if (!operacionValida) {
-        return res.status(400).json({
+      if (!clienteOperacion) {
+        return res.status(403).json({
           error:
-            'Seleccione una operación válida'
+            'El cliente y la operación no pertenecen a su alcance asignado'
         });
       }
 
@@ -814,7 +865,10 @@ export const crearReportePulsera =
         await insertarPulsera({
           solicitantePersonaId,
           receptorPersonaId,
-          operacion,
+          operacion:
+            clienteOperacion.operacion,
+          clienteOperacionId:
+            clienteOperacion.id,
           motivoRenovacion,
           evidenciaUrl,
           creadoPor:
@@ -991,28 +1045,48 @@ export const createSupportTicket =
           req,
           'crear'
         );
+
+      const vehiculoAutorizado =
+        await obtenerVehiculoTicketPorPlaca({
+          placa:
+            placaFinal,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
+
+      if (!vehiculoAutorizado) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'La placa no pertenece a sus clientes y operaciones asignados'
+          });
+      }
+
       const usuarioTicket =
-  await obtenerUsuarioTicket(
-    req.user.id
-  );
+        await obtenerUsuarioTicket(
+          req.user.id
+        );
 
-const personaIdSeleccionada =
-  Number(persona_id);
+      const personaIdSeleccionada =
+        Number(persona_id);
 
-const personaIdFinal =
-  usuarioTicket?.persona_id
-    ? Number(usuarioTicket.persona_id)
-    : personaIdSeleccionada;
+      const personaIdFinal =
+        usuarioTicket?.persona_id
+          ? Number(usuarioTicket.persona_id)
+          : personaIdSeleccionada;
 
-if (
-  !Number.isInteger(personaIdFinal) ||
-  personaIdFinal <= 0
-) {
-  return res.status(400).json({
-    error:
-      'Esta cuenta no está vinculada a una persona. Seleccione un solicitante.'
-  });
-}
+      if (
+        !Number.isInteger(personaIdFinal) ||
+        personaIdFinal <= 0
+      ) {
+        return res.status(400).json({
+          error:
+            'Esta cuenta no está vinculada a una persona. Seleccione un solicitante.'
+        });
+      }
 
 
       // ========================================
@@ -1032,34 +1106,6 @@ if (
               'La persona seleccionada no existe o está inactiva'
           });
       }
-
-
-      // ========================================
-      // VALIDAR OPERACIÓN DEL SUPERVISOR
-      // ========================================
-
-      if (
-        contexto.rol ===
-        'supervisor' &&
-        String(
-          persona.operacion || ''
-        )
-          .trim()
-          .toLowerCase() !==
-        String(
-          contexto.operacion || ''
-        )
-          .trim()
-          .toLowerCase()
-      ) {
-        return res
-          .status(403)
-          .json({
-            error:
-              'La persona seleccionada no pertenece a su operación'
-          });
-      }
-
 
       // ========================================
       // SUBIR EVIDENCIAS INICIALES
@@ -1200,9 +1246,12 @@ export const listarTickets =
         await contextoTicket(req);
 
       const tickets =
-        await obtenerTickets(
-          contexto.operacion
-        );
+        await obtenerTickets({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
       return res.json(
         tickets
@@ -1310,10 +1359,20 @@ export const actualizarTicket =
 
 
     try {
-      const valoresAnteriores =
-        await obtenerTicketPorId(
-          id
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
         );
+
+      const valoresAnteriores =
+        await obtenerTicketPorId({
+          id,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
 
       if (!valoresAnteriores) {
@@ -1348,7 +1407,13 @@ export const actualizarTicket =
             estadoFinal,
 
           evidencia:
-            evidenciaUrl
+            evidenciaUrl,
+
+          accesoTotal:
+            contexto.accesoTotal,
+
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
         });
 
 
@@ -1614,10 +1679,20 @@ export const eliminarTicket =
 
 
     try {
-      const ticketEliminado =
-        await eliminarTicketPorId(
-          id
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
         );
+
+      const ticketEliminado =
+        await eliminarTicketPorId({
+          id,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
 
       if (!ticketEliminado) {

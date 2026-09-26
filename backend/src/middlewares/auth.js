@@ -76,13 +76,35 @@ export const verifyToken = async (req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT
-         id,
-         username,
-         rol,
-         estado,
-         operacion
-       FROM usuarios
-       WHERE id = $1`,
+     u.id,
+     u.username,
+     u.rol,
+     u.estado,
+     u.operacion,
+
+     COALESCE(
+       (
+         SELECT array_agg(
+           sa.cliente_operacion_id
+           ORDER BY sa.cliente_operacion_id
+         )
+         FROM supervisor_asignaciones sa
+         INNER JOIN cliente_operaciones co
+           ON co.id =
+              sa.cliente_operacion_id
+         INNER JOIN clientes c
+           ON c.id =
+              co.cliente_id
+         WHERE sa.usuario_id = u.id
+           AND co.activo = TRUE
+           AND c.activo = TRUE
+           AND c.es_interno = FALSE
+       ),
+       ARRAY[]::integer[]
+     ) AS cliente_operacion_ids
+
+   FROM usuarios u
+   WHERE u.id = $1`,
       [decoded.id]
     );
 
@@ -124,13 +146,31 @@ export const verifyToken = async (req, res, next) => {
       });
     }
 
+    const clienteOperacionIds =
+      Array.isArray(
+        usuario.cliente_operacion_ids
+      )
+        ? usuario
+          .cliente_operacion_ids
+          .map(Number)
+          .filter(Number.isInteger)
+        : [];
+
     req.user = {
       ...decoded,
-      id: usuario.id,
-      username: usuario.username,
+      id:
+        usuario.id,
+      username:
+        usuario.username,
       rol,
       permisos,
-      operacion: usuario.operacion || null
+
+      // Se conserva temporalmente.
+      operacion:
+        usuario.operacion || null,
+
+      // Nuevo alcance real del supervisor.
+      clienteOperacionIds
     };
 
     return next();
@@ -145,6 +185,60 @@ export const verifyToken = async (req, res, next) => {
     });
   }
 };
+
+export const tieneAccesoTotalFlota =
+  req => {
+    const rol = String(
+      req.user?.rol || ''
+    )
+      .trim()
+      .toLowerCase();
+
+    return (
+      rol === 'admin' ||
+      rol === 'administrador' ||
+      rol === 'ti'
+    );
+  };
+
+export const obtenerClienteOperacionIds =
+  req => {
+    if (
+      tieneAccesoTotalFlota(req)
+    ) {
+      return null;
+    }
+
+    return Array.isArray(
+      req.user?.clienteOperacionIds
+    )
+      ? req.user
+        .clienteOperacionIds
+        .map(Number)
+        .filter(Number.isInteger)
+      : [];
+  };
+
+export const puedeAccederClienteOperacion =
+  (
+    req,
+    clienteOperacionId
+  ) => {
+    if (
+      tieneAccesoTotalFlota(req)
+    ) {
+      return true;
+    }
+
+    const id =
+      Number(clienteOperacionId);
+
+    return (
+      Number.isInteger(id) &&
+      obtenerClienteOperacionIds(req)
+        .includes(id)
+    );
+  };
 
 export const requireAdmin = (req, res, next) => {
   const rol = String(

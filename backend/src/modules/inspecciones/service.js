@@ -56,7 +56,11 @@ export const fechaISOValida = valor => {
 };
 
 export const validarDatosInspeccion =
-  async (datosOriginales, esNueva) => {
+  async (
+    datosOriginales,
+    esNueva,
+    alcance = {}
+  ) => {
     const datos = {
       ...(datosOriginales || {})
     };
@@ -118,13 +122,19 @@ export const validarDatosInspeccion =
           .toUpperCase();
 
       const existe =
-        await existeVehiculo(
-          datos.placa
-        );
+        await existeVehiculo({
+          placa:
+            datos.placa,
+          accesoTotal:
+            alcance.accesoTotal,
+          clienteOperacionIds:
+            alcance.clienteOperacionIds
+        });
 
       if (!existe) {
         throw new InspeccionValidationError(
-          'La placa no existe en el maestro de vehículos.'
+          'La placa no existe o no pertenece a sus clientes y operaciones asignados.',
+          403
         );
       }
     }

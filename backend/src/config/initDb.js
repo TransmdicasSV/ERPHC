@@ -32,7 +32,8 @@ const ESQUEMA_ESPERADO = {
     'observaciones',
     'precio',
     'tipo_movimiento',
-    'documento_url'
+    'documento_url',
+    'cliente_operacion_id'
   ],
 
   incidentes_soporte: [
@@ -66,6 +67,7 @@ const ESQUEMA_ESPERADO = {
     'fecha_creacion',
     'fecha_cierre'
   ],
+
   solicitudes_descarga_videos: [
   'id',
   'operacion',
@@ -75,13 +77,14 @@ const ESQUEMA_ESPERADO = {
   'motivo',
   'solicitado_por',
   'estado',
-  'fecha_ingreso'
+  'fecha_ingreso',
+  'cliente_operacion_id'
 ],
 
-solicitud_descarga_video_placas: [
-  'solicitud_id',
-  'placa'
-],
+  solicitud_descarga_video_placas: [
+    'solicitud_id',
+    'placa'
+  ],
 
   inspecciones_flota: [
     'id',
@@ -136,7 +139,8 @@ solicitud_descarga_video_placas: [
     'estado',
     'creado_por',
     'fecha_creacion',
-    'fecha_cierre'
+    'fecha_cierre',
+    'cliente_operacion_id'
   ],
 
   usuarios: [
@@ -159,7 +163,27 @@ solicitud_descarga_video_placas: [
     'modelo_tracto',
     'anio_fabricacion',
     'operacion',
-    'cliente'
+    'cliente',
+    'cliente_operacion_id'
+  ],
+
+  clientes: [
+    'id',
+    'nombre',
+    'activo',
+    'es_interno'
+  ],
+
+  cliente_operaciones: [
+    'id',
+    'cliente_id',
+    'nombre',
+    'activo'
+  ],
+
+  supervisor_asignaciones: [
+    'usuario_id',
+    'cliente_operacion_id'
   ]
 };
 

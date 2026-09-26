@@ -67,11 +67,29 @@ const TEMPLATES = {
     usuarios: { ver: false, editar: false }
   }
 };
+const generarUsernamePreview = nombreCompleto => {
+  const partes = String(nombreCompleto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .map(parte => parte.replace(/[^a-z0-9]/g, ''))
+    .filter(Boolean);
 
+  if (partes.length < 3) {
+    return '';
+  }
+
+  const primerApellido = partes[0];
+  const primerNombre = partes[2];
+
+  return `${primerNombre.charAt(0)}${primerApellido}`;
+};
 export function GestionUsuariosDashboard() {
   const [usuarios, setUsuarios] = useState([]);
   const [personal, setPersonal] = useState([]);
-  const [operaciones, setOperaciones] = useState([]);
+  const [clientesOperaciones, setClientesOperaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -82,7 +100,7 @@ export function GestionUsuariosDashboard() {
     username: '',
     password: '',
     rol: 'supervisor',
-    operacion: '',
+    clienteOperacionIds: [],
     estado: 'activo',
     permisos: TEMPLATES.supervisor
   });
@@ -92,7 +110,7 @@ export function GestionUsuariosDashboard() {
   useEffect(() => {
     fetchData();
     fetchPersonal();
-    fetchOperaciones();
+    fetchClientesOperaciones();
   }, []);
 
   const fetchData = async () => {
@@ -127,15 +145,15 @@ export function GestionUsuariosDashboard() {
       console.error(err);
     }
   };
-  const fetchOperaciones = async () => {
+  const fetchClientesOperaciones = async () => {
     try {
       const token = localStorage.getItem('nexus_token');
-      const res = await fetch(`${BASE_API_URL}/api/usuarios/operaciones`, {
+      const res = await fetch(`${BASE_API_URL}/api/usuarios/clientes-operaciones`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setOperaciones(data);
+        setClientesOperaciones(data);
       }
     } catch (err) {
       console.error(err);
@@ -150,7 +168,9 @@ export function GestionUsuariosDashboard() {
         username: user.username,
         password: '',
         rol: user.rol,
-        operacion: user.operacion || '',
+        clienteOperacionIds: Array.isArray(user.asignaciones)
+          ? user.asignaciones.map(asignacion => Number(asignacion.cliente_operacion_id))
+          : [],
         estado: user.estado,
         permisos: TEMPLATES[user.rol] || TEMPLATES.supervisor
       });
@@ -161,7 +181,7 @@ export function GestionUsuariosDashboard() {
         username: '',
         password: '',
         rol: 'supervisor',
-        operacion: '',
+        clienteOperacionIds: [],
         estado: 'activo',
         permisos: TEMPLATES.supervisor
       });
@@ -192,8 +212,49 @@ export function GestionUsuariosDashboard() {
     setFormData({
       ...formData,
       rol: newRol,
-      operacion: newRol === 'supervisor' ? formData.operacion : '',
+      clienteOperacionIds:
+        newRol === 'supervisor'
+          ? formData.clienteOperacionIds
+          : [],
       permisos: TEMPLATES[newRol] || TEMPLATES.supervisor
+    });
+  };
+
+  const handleOperacionToggle = operacionId => {
+    const id = Number(operacionId);
+
+    setFormData(actual => {
+      const seleccionadas = Array.isArray(actual.clienteOperacionIds)
+        ? actual.clienteOperacionIds
+        : [];
+
+      const yaSeleccionada = seleccionadas.includes(id);
+
+      return {
+        ...actual,
+        clienteOperacionIds: yaSeleccionada
+          ? seleccionadas.filter(item => item !== id)
+          : [...seleccionadas, id]
+      };
+    });
+  };
+
+  const handleClienteToggle = operacionesCliente => {
+    const idsCliente = operacionesCliente.map(operacion => Number(operacion.id));
+
+    setFormData(actual => {
+      const seleccionadas = Array.isArray(actual.clienteOperacionIds)
+        ? actual.clienteOperacionIds
+        : [];
+
+      const todasSeleccionadas = idsCliente.every(id => seleccionadas.includes(id));
+
+      return {
+        ...actual,
+        clienteOperacionIds: todasSeleccionadas
+          ? seleccionadas.filter(id => !idsCliente.includes(id))
+          : [...new Set([...seleccionadas, ...idsCliente])]
+      };
     });
   };
 
@@ -203,6 +264,14 @@ export function GestionUsuariosDashboard() {
     e.preventDefault();
     if (!editingId && !selectedPersonalId) {
       alert('Seleccione un trabajador de las sugerencias');
+      return;
+    }
+
+    if (
+      formData.rol === 'supervisor' &&
+      formData.clienteOperacionIds.length === 0
+    ) {
+      alert('Seleccione por lo menos una operación para el supervisor');
       return;
     }
     const token = localStorage.getItem('nexus_token');
@@ -268,6 +337,20 @@ export function GestionUsuariosDashboard() {
     }
   };
 
+  const personaSeleccionada =
+    personal.find(
+      persona =>
+        String(persona.id) ===
+        String(selectedPersonalId)
+    );
+
+  const usernamePreview =
+    editingId
+      ? formData.username
+      : generarUsernamePreview(
+        personaSeleccionada?.nombre_completo
+      );
+
   return (
     <div className="erp-module-page erp-users-page" style={{ color: 'var(--text-primary)', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -284,8 +367,9 @@ export function GestionUsuariosDashboard() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--th-bg)', borderBottom: '1px solid var(--border-color)' }}>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>DNI / Username</th>
+              <th style={{ padding: '1rem', textAlign: 'left' }}>Username</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Rol Base</th>
+              <th style={{ padding: '1rem', textAlign: 'center' }}>Alcance</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Módulos Asignados</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Estado</th>
               <th style={{ padding: '1rem', textAlign: 'center' }}>Acciones</th>
@@ -293,7 +377,7 @@ export function GestionUsuariosDashboard() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</td></tr>
+              <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</td></tr>
             ) : (() => {
               const itemsPerPage = 8;
               const indexOfLastItem = currentPage * itemsPerPage;
@@ -321,6 +405,11 @@ export function GestionUsuariosDashboard() {
                         {u.rol}
                       </span>
                     </td>
+                    <td style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      {u.rol === 'supervisor'
+                        ? `${Array.isArray(u.asignaciones) ? new Set(u.asignaciones.map(asignacion => asignacion.cliente)).size : 0} cliente(s) · ${Array.isArray(u.asignaciones) ? u.asignaciones.length : 0} operación(es)`
+                        : 'Acceso general'}
+                    </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>{activeModules} módulos</td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <span style={{ color: u.estado === 'activo' ? '#0e9f6e' : '#dc3b2a' }}>●</span> {u.estado}
@@ -328,7 +417,7 @@ export function GestionUsuariosDashboard() {
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
 
                       <button onClick={() => handleOpenModal(u)} style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', marginRight: '0.5rem' }}>✏️</button>
-                     
+
                       <button
                         type="button"
                         onClick={() => handleChangeStatus(u)}
@@ -430,29 +519,102 @@ export function GestionUsuariosDashboard() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Username (DNI)</label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '0.875rem',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      Username generado
+                    </label>
+
                     <input
                       type="text"
-                      required
-                      value={formData.username}
+                      value={usernamePreview}
                       readOnly
-                      onChange={e => setFormData({ ...formData, username: e.target.value })}
-                      disabled={!!editingId}
-                      style={{ padding: '0.75rem', borderRadius: '0.5rem', background: editingId ? '#eef0f5' : '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
+                      placeholder="Se generará al seleccionar al trabajador"
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: '0.5rem',
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                        outline: 'none',
+                        cursor: 'default'
+                      }}
                     />
+
+                    {!editingId && personaSeleccionada && (
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-secondary)'
+                        }}
+                      >
+                        Generado automáticamente a partir del nombre del trabajador.
+                      </span>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Contraseña {editingId && '(dejar en blanco para no cambiar)'}</label>
-                    <input
-                      type="password"
-                      required={!editingId}
-                      value={formData.password}
-                      onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
-                    />
-                  </div>
+                  {editingId ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <label
+                        style={{
+                          fontSize: '0.875rem',
+                          color: 'var(--text-secondary)'
+                        }}
+                      >
+                        Nueva contraseña (dejar en blanco para no cambiar)
+                      </label>
+
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={e =>
+                          setFormData({
+                            ...formData,
+                            password: e.target.value
+                          })
+                        }
+                        minLength={15}
+                        autoComplete="new-password"
+                        style={{
+                          padding: '0.75rem',
+                          borderRadius: '0.5rem',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-color)',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        padding: '0.875rem 1rem',
+                        borderRadius: '0.5rem',
+                        background: 'rgba(36, 88, 232, 0.08)',
+                        border: '1px solid rgba(36, 88, 232, 0.25)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <strong>Contraseña inicial:</strong>{' '}
+                      será automáticamente el DNI del trabajador.
+                    </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -480,20 +642,104 @@ export function GestionUsuariosDashboard() {
                     </div>
                   </div>
                   {formData.rol === 'supervisor' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Operación asignada</label>
-                      <select
-                        required
-                        value={formData.operacion}
-                        onChange={e => setFormData({ ...formData, operacion: e.target.value })}
-                        style={{ padding: '0.75rem', borderRadius: '0.5rem', background: '#ffffff', color: 'var(--text-primary)', border: '1px solid #e2e5ed', outline: 'none' }}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                        <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                          Clientes y operaciones asignadas
+                        </label>
+
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {formData.clienteOperacionIds.length} seleccionada(s)
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: '0.75rem'
+                        }}
                       >
-                        <option value="">-- Seleccionar Operación --</option>
-                        {operaciones.map(operacion => (
-                          <option key={operacion} value={operacion}>{operacion}</option>
-                        ))}
-                      </select>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>El supervisor solamente podrá consultar información perteneciente a esta operación.</span>
+                        {clientesOperaciones.map(cliente => {
+                          const idsCliente = cliente.operaciones.map(
+                            operacion => Number(operacion.id)
+                          );
+
+                          const todasSeleccionadas =
+                            idsCliente.length > 0 &&
+                            idsCliente.every(id =>
+                              formData.clienteOperacionIds.includes(id)
+                            );
+
+                          return (
+                            <div
+                              key={cliente.id}
+                              style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '0.75rem',
+                                background: 'var(--bg-secondary)',
+                                overflow: 'hidden'
+                              }}
+                            >
+                              <label
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem',
+                                  borderBottom: '1px solid var(--border-color)',
+                                  fontWeight: '700',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={todasSeleccionadas}
+                                  onChange={() => handleClienteToggle(cliente.operaciones)}
+                                />
+                                {cliente.nombre}
+                              </label>
+
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.5rem',
+                                  padding: '0.75rem'
+                                }}
+                              >
+                                {cliente.operaciones.map(operacion => {
+                                  const operacionId = Number(operacion.id);
+
+                                  return (
+                                    <label
+                                      key={operacion.id}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        cursor: 'pointer',
+                                        fontSize: '0.85rem'
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.clienteOperacionIds.includes(operacionId)}
+                                        onChange={() => handleOperacionToggle(operacionId)}
+                                      />
+                                      {operacion.nombre}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        El supervisor únicamente podrá consultar información de las combinaciones seleccionadas. La flota interna no está disponible para este rol.
+                      </span>
                     </div>
                   )}
 

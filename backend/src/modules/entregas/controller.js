@@ -1,6 +1,8 @@
 import {
   hasPermiso,
-  getModuloMovimiento
+  getModuloMovimiento,
+  tieneAccesoTotalFlota,
+  obtenerClienteOperacionIds
 } from '../../middlewares/auth.js';
 
 import {
@@ -10,6 +12,8 @@ import {
 
 import {
   obtenerPersonalPorDni,
+  obtenerClientesOperacionesEntregas,
+  obtenerClienteOperacionEntrega,
   obtenerInventario,
   crearMovimiento,
   obtenerMovimientoPorId,
@@ -34,7 +38,29 @@ import {
 } from '../../reports/excelentregas.js';
 import {
   logAction
-}from '../../services/auditService.js'
+} from '../../services/auditService.js';
+
+const obtenerAlcance = req => ({
+  accesoTotal:
+    tieneAccesoTotalFlota(req),
+  clienteOperacionIds:
+    obtenerClienteOperacionIds(req) || []
+});
+
+const obtenerClienteOperacionId = valor => {
+  const id = Number.parseInt(
+    valor,
+    10
+  );
+
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new EntregaValidationError(
+      'Seleccione un cliente y una operación válidos'
+    );
+  }
+
+  return id;
+};
 
 
 // ==========================================
@@ -138,6 +164,30 @@ export const buscarPersonal =
     }
   };
 
+export const listarOpcionesEntregas =
+  async (req, res) => {
+    try {
+      const clientesOperaciones =
+        await obtenerClientesOperacionesEntregas(
+          obtenerAlcance(req)
+        );
+
+      return res.json({
+        clientesOperaciones
+      });
+    } catch (error) {
+      console.error(
+        'Error obteniendo opciones de entregas:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'No se pudieron cargar los clientes y operaciones'
+      });
+    }
+  };
+
 // ==========================================
 // LISTAR INVENTARIO
 // ==========================================
@@ -174,7 +224,8 @@ export const listarInventario =
       const inventario =
         await obtenerInventario({
           puedeVerEntregas,
-          puedeVerDevoluciones
+          puedeVerDevoluciones,
+          ...obtenerAlcance(req)
         });
 
       return res.json(
@@ -224,6 +275,28 @@ export const registrarMovimiento =
             error:
               `No tienes permiso para crear registros de ${tipoMovimiento}`
           });
+      }
+
+      const alcance =
+        obtenerAlcance(req);
+
+      const clienteOperacionId =
+        obtenerClienteOperacionId(
+          req.body?.cliente_operacion_id
+        );
+
+      const clienteOperacion =
+        await obtenerClienteOperacionEntrega({
+          id:
+            clienteOperacionId,
+          ...alcance
+        });
+
+      if (!clienteOperacion) {
+        return res.status(403).json({
+          error:
+            'El cliente y la operación no pertenecen a su alcance asignado'
+        });
       }
 
       let documentoFinal =
@@ -279,7 +352,10 @@ export const registrarMovimiento =
             req.body?.cargo,
 
           operacion:
-            req.body?.operacion,
+            clienteOperacion.operacion,
+
+          cliente_operacion_id:
+            clienteOperacion.id,
 
           condicion:
             req.body?.condicion,
@@ -322,13 +398,13 @@ export const registrarMovimiento =
           documento_url:
             documentoFinal
         });
-        await logAction(req.user.id,
-          'Creo movimiento de inventario TI',
-          'entregas_ti',
-          req,
-          null,
-          movimiento
-        );
+      await logAction(req.user.id,
+        'Creo movimiento de inventario TI',
+        'entregas_ti',
+        req,
+        null,
+        movimiento
+      );
       return res
         .status(201)
         .json(
@@ -377,10 +453,14 @@ export const editarMovimiento =
           'Entrega'
         );
 
+      const alcance =
+        obtenerAlcance(req);
+
       const actual =
-        await obtenerMovimientoPorId(
-          id
-        );
+        await obtenerMovimientoPorId({
+          id,
+          ...alcance
+        });
 
       if (!actual) {
         return res
@@ -419,6 +499,25 @@ export const editarMovimiento =
             error:
               'No tienes permiso para modificar este tipo de movimiento'
           });
+      }
+
+      const clienteOperacionId =
+        obtenerClienteOperacionId(
+          req.body?.cliente_operacion_id
+        );
+
+      const clienteOperacion =
+        await obtenerClienteOperacionEntrega({
+          id:
+            clienteOperacionId,
+          ...alcance
+        });
+
+      if (!clienteOperacion) {
+        return res.status(403).json({
+          error:
+            'El cliente y la operación no pertenecen a su alcance asignado'
+        });
       }
 
       let documentoFinal =
@@ -484,7 +583,10 @@ export const editarMovimiento =
             req.body?.cargo,
 
           operacion:
-            req.body?.operacion,
+            clienteOperacion.operacion,
+
+          cliente_operacion_id:
+            clienteOperacion.id,
 
           condicion:
             req.body?.condicion,
@@ -525,27 +627,25 @@ export const editarMovimiento =
             tipoMovimiento,
 
           documento_url:
-            documentoFinal
+            documentoFinal,
+
+          ...alcance
         });
 
-      if (
-        !movimientoActualizado
-      ) {
-        await logAction(
-          req.user.id,
-          'Actualizo movimiento de inventario TI',
-          'entregas_ti',
-          req,
-          actual,
-          movimientoActualizado
-        );
-        return res
-          .status(404)
-          .json({
-            error:
-              'No encontrado'
-          });
+      if (!movimientoActualizado) {
+        return res.status(404).json({
+          error: 'Movimiento no encontrado'
+        });
       }
+
+      await logAction(
+        req.user?.id || null,
+        `Actualizó movimiento de inventario TI ID: ${id}`,
+        'entregas_ti',
+        req,
+        actual,
+        movimientoActualizado
+      );
 
       return res.json(
         movimientoActualizado
@@ -589,34 +689,38 @@ export const borrarMovimiento =
         );
 
       if (!eliminado) {
-        await logAction(
-          req.user.id,
-          'Elimino movimiento de inventario TI',
-          'entregas_ti',
-          req,
-          eliminado,
-          null
-        );
         return res
           .status(404)
           .json({
             error:
-              'No encontrado'
+              'Movimiento no encontrado'
           });
       }
 
+      await logAction(
+        req.user?.id || null,
+        `Eliminó movimiento de inventario TI ID: ${req.params.id}`,
+        'entregas_ti',
+        req,
+        eliminado,
+        null
+      );
+
       return res.json({
         message:
-          'Eliminado correctamente'
+          'Movimiento eliminado correctamente'
       });
     } catch (error) {
-      console.error(error);
+      console.error(
+        'Error eliminando movimiento TI:',
+        error
+      );
 
       return res
         .status(500)
         .json({
           error:
-            'Error eliminando entrega TI'
+            'Error eliminando movimiento de inventario TI'
         });
     }
   };
@@ -664,7 +768,7 @@ export const importarExcel =
         });
     }
   };
-  // ==========================================
+// ==========================================
 // EXPORTAR EXCEL
 // ==========================================
 
@@ -686,7 +790,7 @@ export const exportarExcel =
           fechaFin
         ) ||
         fechaInicio >
-          fechaFin
+        fechaFin
       ) {
         return res
           .status(400)
@@ -717,7 +821,7 @@ export const exportarExcel =
 
       if (
         tipoAutorizado ===
-          'Entrega' &&
+        'Entrega' &&
         !puedeVerEntregas
       ) {
         return res
@@ -730,7 +834,7 @@ export const exportarExcel =
 
       if (
         tipoAutorizado ===
-          'Devolución' &&
+        'Devolución' &&
         !puedeVerDevoluciones
       ) {
         return res
@@ -773,7 +877,8 @@ export const exportarExcel =
             tipoAutorizado,
           categoria,
           fechaInicio,
-          fechaFin
+          fechaFin,
+          ...obtenerAlcance(req)
         });
 
       const {

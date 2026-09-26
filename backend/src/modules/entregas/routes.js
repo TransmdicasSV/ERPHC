@@ -13,6 +13,7 @@ import {
   listarLegacy,
   registrarLegacy,
   buscarPersonal,
+  listarOpcionesEntregas,
   listarInventario,
   registrarMovimiento,
   editarMovimiento,
@@ -41,6 +42,11 @@ legacyEntregasRoutes.post(
 // ==========================================
 // CONSULTAR PERSONAL POR DNI
 // ==========================================
+
+entregasRoutes.get(
+  '/opciones',
+  listarOpcionesEntregas
+);
 
 entregasRoutes.get(
   '/personal/:dni',

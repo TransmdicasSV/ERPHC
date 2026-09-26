@@ -33,14 +33,17 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [showPulseraModal, setShowPulseraModal] = useState(false);
   const [savingPulsera, setSavingPulsera] = useState(false);
   const [pulseraEvidencia, setPulseraEvidencia] = useState(null);
-  const [pulseraOperaciones, setPulseraOperaciones] = useState([]);
+  const [
+    pulseraClientesOperaciones,
+    setPulseraClientesOperaciones
+  ] = useState([]);
   const [pulseraPersonal, setPulseraPersonal] = useState([]);
   const [loadingPulseraOptions, setLoadingPulseraOptions] = useState(false);
   const [showDniSuggestions, setShowDniSuggestions] = useState(false);
 
   const [pulseraForm, setPulseraForm] = useState({
     solicitante_persona_id: '',
-    operacion: '',
+    cliente_operacion_id: '',
     receptor_persona_id: '',
     persona_pulsera: '',
     dni_persona_pulsera: '',
@@ -92,8 +95,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       .then(data => {
         if (!vigente) return;
 
-        setPulseraOperaciones(
-          Array.isArray(data?.operaciones) ? data.operaciones : []
+        setPulseraClientesOperaciones(
+          Array.isArray(data?.clientesOperaciones)
+            ? data.clientesOperaciones
+            : []
         );
 
         setPulseraPersonal(
@@ -532,13 +537,15 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       pulseraForm.receptor_persona_id
     );
 
-    const operacion = pulseraForm.operacion.trim();
+    const clienteOperacionId = Number(
+      pulseraForm.cliente_operacion_id
+    );
     const motivoRenovacion = pulseraForm.motivo_renovacion.trim();
 
     if (
       !Number.isInteger(solicitantePersonaId) ||
       !Number.isInteger(receptorPersonaId) ||
-      !operacion ||
+      !Number.isInteger(clienteOperacionId) ||
       !motivoRenovacion
     ) {
       return toast.error('Complete todos los campos del reporte');
@@ -559,7 +566,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         {
           solicitante_persona_id: solicitantePersonaId,
           receptor_persona_id: receptorPersonaId,
-          operacion,
+          cliente_operacion_id: clienteOperacionId,
           motivo_renovacion: motivoRenovacion
         },
         pulseraEvidencia
@@ -573,7 +580,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
       setPulseraForm({
         solicitante_persona_id: '',
-        operacion: '',
+        cliente_operacion_id: '',
         receptor_persona_id: '',
         persona_pulsera: '',
         dni_persona_pulsera: '',
@@ -672,15 +679,15 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 fontWeight: '600'
               }}
             >
-              Operación
+              Cliente / Operación
             </label>
 
             <select
-              value={pulseraForm.operacion}
+              value={pulseraForm.cliente_operacion_id}
               onChange={event =>
                 setPulseraForm({
                   ...pulseraForm,
-                  operacion: event.target.value
+                  cliente_operacion_id: event.target.value
                 })
               }
               required
@@ -697,12 +704,12 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
               <option value="">
                 {loadingPulseraOptions
                   ? 'Cargando operaciones...'
-                  : 'Seleccione una operación'}
+                  : 'Seleccione un cliente y una operación'}
               </option>
 
-              {pulseraOperaciones.map(operacion => (
-                <option key={operacion} value={operacion}>
-                  {operacion}
+              {pulseraClientesOperaciones.map(opcion => (
+                <option key={opcion.id} value={opcion.id}>
+                  {opcion.etiqueta || `${opcion.cliente} - ${opcion.operacion}`}
                 </option>
               ))}
             </select>

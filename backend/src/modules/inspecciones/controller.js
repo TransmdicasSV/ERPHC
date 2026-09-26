@@ -22,13 +22,27 @@ import {
   logAction
 } from '../../services/auditService.js';
 
+import {
+  tieneAccesoTotalFlota,
+  obtenerClienteOperacionIds
+} from '../../middlewares/auth.js';
+
+const obtenerAlcance = req => ({
+  accesoTotal:
+    tieneAccesoTotalFlota(req),
+  clienteOperacionIds:
+    obtenerClienteOperacionIds(req) || []
+});
+
 export const listarHistorial =
   async (req, res) => {
     try {
       const historial =
-        await obtenerHistorial(
-          req.params.placa
-        );
+        await obtenerHistorial({
+          placa:
+            req.params.placa,
+          ...obtenerAlcance(req)
+        });
 
       return res.json(historial);
     } catch (error) {
@@ -53,12 +67,16 @@ export const registrarInspeccion =
     };
 
     try {
+      const alcance =
+        obtenerAlcance(req);
+
       validarEvidenciasInspeccion(req.files);
 
       const datos =
         await validarDatosInspeccion(
           req.body,
-          true
+          true,
+          alcance
         );
 
       imagenes =
@@ -80,8 +98,16 @@ export const registrarInspeccion =
           imgCamaras:
             imagenes.imgCamaras,
           observaciones:
-            datos.observaciones
+            datos.observaciones,
+          ...alcance
         });
+
+      if (!inspeccionCreada) {
+        throw new InspeccionValidationError(
+          'La placa no existe o no pertenece a sus clientes y operaciones asignados.',
+          403
+        );
+      }
 
       await logAction(
         req.user.id,
@@ -139,8 +165,14 @@ export const borrarInspeccion =
     const { id } = req.params;
 
     try {
+      const alcance =
+        obtenerAlcance(req);
+
       const inspeccionEliminada =
-        await eliminarInspeccion(id);
+        await eliminarInspeccion({
+          id,
+          ...alcance
+        });
 
       if (!inspeccionEliminada) {
         return res.status(404).json({
@@ -189,16 +221,21 @@ export const editarInspeccion =
     const urlsAnteriores = [];
 
     try {
+      const alcance =
+        obtenerAlcance(req);
+
       const datos =
         await validarDatosInspeccion(
           req.body,
-          false
+          false,
+          alcance
         );
 
       const actual =
-        await obtenerInspeccionPorId(
-          id
-        );
+        await obtenerInspeccionPorId({
+          id,
+          ...alcance
+        });
 
       if (!actual) {
         return res.status(404).json({
@@ -305,8 +342,16 @@ export const editarInspeccion =
           imgRadio,
           imgCamaras,
           observaciones:
-            datos.observaciones
+            datos.observaciones,
+          ...alcance
         });
+
+      if (!inspeccionActualizada) {
+        return res.status(404).json({
+          error:
+            'Inspección no encontrada'
+        });
+      }
 
       await logAction(
         req.user.id,

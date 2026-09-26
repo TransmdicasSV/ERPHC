@@ -2,12 +2,23 @@ import { pool } from '../../config/database.js';
 
 export const buscarVehiculos = async ({
   search,
-  operacion
+  operacion,
+  accesoTotal,
+  clienteOperacionIds
 }) => {
-  let whereClause = 'WHERE 1 = 1';
+  let whereClause = `
+    WHERE (
+      $1::boolean = TRUE
+      OR v.cliente_operacion_id =
+         ANY($2::integer[])
+    )
+  `;
 
-  const params = [];
-  let paramIndex = 1;
+  const params = [
+    Boolean(accesoTotal),
+    clienteOperacionIds || []
+  ];
+  let paramIndex = 3;
 
   if (search) {
     whereClause += `
@@ -76,6 +87,7 @@ export const buscarVehiculos = async ({
        v.anio_fabricacion,
        v.operacion,
        v.cliente,
+       v.cliente_operacion_id,
 
        i.tablet,
        i.radio,
@@ -229,11 +241,21 @@ export const eliminarVehiculo =
     return result.rows[0] || null;
   };
 
-export const obtenerTractos = async () => {
+export const obtenerTractos = async ({
+  accesoTotal,
+  clienteOperacionIds
+}) => {
   const result = await pool.query(
     `SELECT *
-     FROM vehiculos
-     ORDER BY placa ASC`
+     FROM vehiculos v
+     WHERE $1::boolean = TRUE
+        OR v.cliente_operacion_id =
+           ANY($2::integer[])
+     ORDER BY placa ASC`,
+    [
+      Boolean(accesoTotal),
+      clienteOperacionIds || []
+    ]
   );
 
   return result.rows;

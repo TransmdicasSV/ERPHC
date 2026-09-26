@@ -109,7 +109,7 @@ export const logAction = async (
         $1,
         $2,
         $3,
-        NOW(),
+        timezone('America/Lima', NOW()),,
         $4::inet,
         $5::jsonb,
         $6::jsonb

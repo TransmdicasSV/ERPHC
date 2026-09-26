@@ -32,33 +32,71 @@ export const obtenerUsuarioTicket =
 // ==========================================
 
 export const obtenerVehiculosTickets =
-  async (
-    operacion,
+  async ({
+    accesoTotal,
+    clienteOperacionIds,
     operacionesInvalidas
-  ) => {
+  }) => {
     const result = await pool.query(
       `SELECT
-         placa,
-         BTRIM(operacion) AS operacion
-       FROM vehiculos
+         v.placa,
+         BTRIM(v.cliente) AS cliente,
+         BTRIM(v.operacion) AS operacion,
+         v.cliente_operacion_id
+       FROM vehiculos v
        WHERE LOWER(
          BTRIM(
-           COALESCE(operacion, '')
+           COALESCE(v.operacion, '')
          )
-       ) <> ALL($2::text[])
+       ) <> ALL($3::text[])
          AND (
-           $1::text IS NULL
-           OR LOWER(BTRIM(operacion)) =
-              LOWER(BTRIM($1))
+           $1::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($2::integer[])
          )
-       ORDER BY placa ASC`,
+       ORDER BY
+         v.cliente,
+         v.operacion,
+         v.placa`,
       [
-        operacion,
+        Boolean(accesoTotal),
+        clienteOperacionIds || [],
         operacionesInvalidas
       ]
     );
 
     return result.rows;
+  };
+
+export const obtenerVehiculoTicketPorPlaca =
+  async ({
+    placa,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result = await pool.query(
+      `SELECT
+         v.placa,
+         v.cliente,
+         v.operacion,
+         v.cliente_operacion_id
+       FROM vehiculos v
+       WHERE UPPER(BTRIM(v.placa)) =
+             UPPER(BTRIM($1))
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )
+       LIMIT 1`,
+      [
+        placa,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
+    );
+
+    return result.rows[0] || null;
   };
 
 export const obtenerPersonalTickets =
@@ -154,6 +192,7 @@ export const insertarPulsera =
     solicitantePersonaId,
     receptorPersonaId,
     operacion,
+    clienteOperacionId,
     motivoRenovacion,
     evidenciaUrl,
     creadoPor
@@ -163,6 +202,7 @@ export const insertarPulsera =
          solicitante_persona_id,
          receptor_persona_id,
          operacion,
+         cliente_operacion_id,
          motivo_renovacion,
          evidencia_url,
          creado_por
@@ -173,13 +213,15 @@ export const insertarPulsera =
          $3,
          $4,
          $5,
-         $6
+         $6,
+         $7
        )
        RETURNING *`,
       [
         solicitantePersonaId,
         receptorPersonaId,
         operacion,
+        clienteOperacionId,
         motivoRenovacion,
         evidenciaUrl,
         creadoPor
@@ -195,6 +237,7 @@ export const insertarPulsera =
 
 export const insertarSolicitudDescargaVideos =
   async ({
+    clienteOperacionId,
     operacion,
     placas,
     fechaDescarga,
@@ -207,13 +250,12 @@ export const insertarSolicitudDescargaVideos =
       await pool.connect();
 
     try {
-      await client.query(
-        'BEGIN'
-      );
+      await client.query('BEGIN');
 
       const solicitudResult =
         await client.query(
           `INSERT INTO solicitudes_descarga_videos (
+             cliente_operacion_id,
              operacion,
              fecha_descarga,
              hora_inicio,
@@ -227,10 +269,12 @@ export const insertarSolicitudDescargaVideos =
              $3,
              $4,
              $5,
-             $6
+             $6,
+             $7
            )
            RETURNING *`,
           [
+            clienteOperacionId,
             operacion,
             fechaDescarga,
             horaInicio,
@@ -257,19 +301,14 @@ export const insertarSolicitudDescargaVideos =
         ]
       );
 
-      await client.query(
-        'COMMIT'
-      );
+      await client.query('COMMIT');
 
       return {
         ...solicitud,
         placas
       };
     } catch (error) {
-      await client.query(
-        'ROLLBACK'
-      );
-
+      await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
@@ -280,7 +319,10 @@ export const insertarSolicitudDescargaVideos =
 // ==========================================
 
 export const obtenerSolicitudesDescargaVideos =
-  async operacion => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
@@ -321,9 +363,27 @@ export const obtenerSolicitudesDescargaVideos =
            ON sp.solicitud_id = s.id
 
          WHERE
-           $1::text IS NULL
-           OR LOWER(BTRIM(s.operacion)) =
-              LOWER(BTRIM($1))
+           $1::boolean = TRUE
+           OR (
+             EXISTS (
+               SELECT 1
+               FROM solicitud_descarga_video_placas alcance_sp
+               INNER JOIN vehiculos alcance_v
+                 ON alcance_v.placa = alcance_sp.placa
+               WHERE alcance_sp.solicitud_id = s.id
+             )
+             AND NOT EXISTS (
+               SELECT 1
+               FROM solicitud_descarga_video_placas fuera_sp
+               INNER JOIN vehiculos fuera_v
+                 ON fuera_v.placa = fuera_sp.placa
+               WHERE fuera_sp.solicitud_id = s.id
+                 AND NOT (
+                   fuera_v.cliente_operacion_id =
+                   ANY($2::integer[])
+                 )
+             )
+           )
 
          GROUP BY
            s.id,
@@ -333,7 +393,10 @@ export const obtenerSolicitudesDescargaVideos =
          ORDER BY
            s.fecha_ingreso DESC,
            s.id DESC`,
-        [operacion]
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows;
@@ -347,17 +410,42 @@ export const obtenerSolicitudesDescargaVideos =
 export const actualizarEstadoSolicitudDescargaVideos =
   async ({
     id,
-    estado
+    estado,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     const result =
       await pool.query(
         `UPDATE solicitudes_descarga_videos
          SET estado = $1
          WHERE id = $2
+           AND (
+             $3::boolean = TRUE
+             OR (
+               EXISTS (
+                 SELECT 1
+                 FROM solicitud_descarga_video_placas alcance_sp
+                 WHERE alcance_sp.solicitud_id = solicitudes_descarga_videos.id
+               )
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM solicitud_descarga_video_placas fuera_sp
+                 INNER JOIN vehiculos fuera_v
+                   ON fuera_v.placa = fuera_sp.placa
+                 WHERE fuera_sp.solicitud_id = solicitudes_descarga_videos.id
+                   AND NOT (
+                     fuera_v.cliente_operacion_id =
+                     ANY($4::integer[])
+                   )
+               )
+             )
+           )
          RETURNING *`,
         [
           estado,
-          id
+          id,
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
         ]
       );
 
@@ -368,21 +456,31 @@ export const actualizarEstadoSolicitudDescargaVideos =
 // ==========================================
 
 export const obtenerTickets =
-  async operacion => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
       `SELECT
          t.*,
          p.nombre_completo,
          p.dni,
-         p.operacion
+         v.cliente,
+         v.operacion,
+         v.cliente_operacion_id
        FROM tickets_unidades t
        INNER JOIN personal p
          ON p.id = t.persona_id
-       WHERE $1::text IS NULL
-          OR LOWER(BTRIM(p.operacion)) =
-             LOWER(BTRIM($1))
+       INNER JOIN vehiculos v
+         ON v.placa = t.placa
+       WHERE $1::boolean = TRUE
+          OR v.cliente_operacion_id =
+             ANY($2::integer[])
        ORDER BY t.id DESC`,
-      [operacion]
+      [
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows;
@@ -393,18 +491,35 @@ export const obtenerTickets =
 // ==========================================
 
 export const obtenerTicketPorId =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
       `SELECT
          t.*,
          p.nombre_completo,
          p.dni,
-         p.operacion
+         v.cliente,
+         v.operacion,
+         v.cliente_operacion_id
        FROM tickets_unidades t
        INNER JOIN personal p
          ON p.id = t.persona_id
-       WHERE t.id = $1`,
-      [id]
+       INNER JOIN vehiculos v
+         ON v.placa = t.placa
+       WHERE t.id = $1
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;
@@ -414,7 +529,9 @@ export const actualizarEstadoTicket =
   async ({
     id,
     estado,
-    evidencia
+    evidencia,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     const result = await pool.query(
       `UPDATE tickets_unidades
@@ -434,12 +551,21 @@ export const actualizarEstadoTicket =
                     )
                   )
            END
-       WHERE id = $3
-       RETURNING *`,
+       FROM vehiculos v
+       WHERE tickets_unidades.id = $3
+         AND v.placa = tickets_unidades.placa
+         AND (
+           $4::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($5::integer[])
+         )
+       RETURNING tickets_unidades.*`,
       [
         estado,
         evidencia,
-        id
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
       ]
     );
 
@@ -501,12 +627,27 @@ to_char(fecha_hora, 'HH24:MI') AS hora`,
 // ==========================================
 
 export const eliminarTicketPorId =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
-      `DELETE FROM tickets_unidades
-       WHERE id = $1
-       RETURNING *`,
-      [id]
+      `DELETE FROM tickets_unidades t
+       USING vehiculos v
+       WHERE t.id = $1
+         AND v.placa = t.placa
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )
+       RETURNING t.*`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;

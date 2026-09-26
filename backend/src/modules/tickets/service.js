@@ -26,20 +26,22 @@ export const IMPLEMENTOS_PERMITIDOS = [
 ];
 
 const normalizarRol = rol => {
-  const rolNormalizado =
-    String(rol || '')
-      .trim()
-      .toLowerCase();
+  const rolNormalizado = String(rol || '')
+    .trim()
+    .toLowerCase();
 
-  if (
-    rolNormalizado ===
-    'administrador'
-  ) {
-    return 'admin';
-  }
-
-  return rolNormalizado;
+  return rolNormalizado === 'administrador'
+    ? 'admin'
+    : rolNormalizado;
 };
+
+const normalizarIds = valores => [
+  ...new Set(
+    (Array.isArray(valores) ? valores : [])
+      .map(valor => Number(valor))
+      .filter(valor => Number.isInteger(valor) && valor > 0)
+  )
+];
 
 export const contextoTicket =
   async (
@@ -49,7 +51,10 @@ export const contextoTicket =
     if (!req.user) {
       return {
         rol: 'publico',
-        operacion: null
+        nombreSolicitante: null,
+        personaId: null,
+        accesoTotal: false,
+        clienteOperacionIds: []
       };
     }
 
@@ -60,92 +65,80 @@ export const contextoTicket =
 
     if (!usuario) {
       throw Object.assign(
-        new Error(
-          'Usuario no encontrado'
-        ),
-        {
-          status: 401
-        }
+        new Error('Usuario no encontrado'),
+        { status: 401 }
       );
     }
 
     const rol =
-      normalizarRol(
-        usuario.rol
-      );
+      normalizarRol(usuario.rol);
 
-    const estado =
-      String(
-        usuario.estado || ''
-      )
-        .trim()
-        .toLowerCase();
-
-    const operacion =
-      String(
-        usuario.operacion || ''
-      ).trim();
+    const estado = String(
+      usuario.estado || ''
+    )
+      .trim()
+      .toLowerCase();
 
     if (estado !== 'activo') {
       throw Object.assign(
         new Error(
           'La cuenta del usuario está inactiva'
         ),
-        {
-          status: 403
-        }
+        { status: 403 }
       );
     }
 
     if (
-      !ROLE_PERMISSIONS[
-        rol
-      ]?.tickets?.[accion]
+      !ROLE_PERMISSIONS[rol]
+        ?.tickets?.[accion]
     ) {
       throw Object.assign(
         new Error(
           'La cuenta no tiene permiso para esta acción'
         ),
-        {
-          status: 403
-        }
+        { status: 403 }
       );
     }
+
+    const accesoTotal =
+      rol === 'admin' ||
+      rol === 'ti';
+
+    const clienteOperacionIds =
+      accesoTotal
+        ? []
+        : normalizarIds(
+          req.user.clienteOperacionIds
+        );
 
     if (
       rol === 'supervisor' &&
-      OPERACIONES_INVALIDAS_TICKET.includes(
-        operacion.toLowerCase()
-      )
+      clienteOperacionIds.length === 0
     ) {
       throw Object.assign(
         new Error(
-          'La cuenta no tiene una operación válida asignada'
+          'La cuenta no tiene clientes y operaciones asignados'
         ),
-        {
-          status: 403
-        }
+        { status: 403 }
       );
     }
 
-    return{
+    return {
       rol,
       nombreSolicitante:
-      usuario.nombre_solicitante,
-
-      operacion:
-      rol=== 'supervisor'
-      ? operacion
-      :null
+        usuario.nombre_solicitante,
+      personaId:
+        usuario.persona_id || null,
+      accesoTotal,
+      clienteOperacionIds
     };
   };
 
 export const componenteConFalla =
   valor => {
-    const estado =
-      String(valor || '')
-        .trim()
-        .toUpperCase();
+    const estado = String(valor || '')
+      .trim()
+      .toUpperCase();
 
     return [
       'FALTA',
@@ -168,12 +161,9 @@ export const obtenerEvidenciasIniciales =
     }
 
     try {
-      const resultado =
-        JSON.parse(valor);
+      const resultado = JSON.parse(valor);
 
-      return Array.isArray(
-        resultado
-      )
+      return Array.isArray(resultado)
         ? resultado
         : [];
     } catch {
@@ -185,22 +175,68 @@ export const obtenerOperacionesUnicas =
   vehiculos => {
     return [
       ...new Map(
-        vehiculos.map(
-          vehiculo => [
-            vehiculo.operacion
+        (vehiculos || [])
+          .filter(vehiculo =>
+            String(
+              vehiculo?.operacion || ''
+            ).trim()
+          )
+          .map(vehiculo => [
+            String(vehiculo.operacion)
+              .trim()
               .toLowerCase(),
-            vehiculo.operacion
-          ]
-        )
+            String(vehiculo.operacion)
+              .trim()
+          ])
       ).values()
-    ].sort(
-      (
-        operacionA,
-        operacionB
-      ) =>
-        operacionA.localeCompare(
-          operacionB,
+    ].sort((operacionA, operacionB) =>
+      operacionA.localeCompare(
+        operacionB,
+        'es'
+      )
+    );
+  };
+
+export const obtenerClientesOperacionesUnicas =
+  vehiculos => {
+    const relaciones = new Map();
+
+    for (const vehiculo of vehiculos || []) {
+      const id = Number(
+        vehiculo?.cliente_operacion_id
+      );
+
+      const cliente = String(
+        vehiculo?.cliente || ''
+      ).trim();
+
+      const operacion = String(
+        vehiculo?.operacion || ''
+      ).trim();
+
+      if (
+        !Number.isInteger(id) ||
+        id <= 0 ||
+        !cliente ||
+        !operacion
+      ) {
+        continue;
+      }
+
+      relaciones.set(id, {
+        id,
+        cliente,
+        operacion,
+        etiqueta:
+          `${cliente} - ${operacion}`
+      });
+    }
+
+    return [...relaciones.values()]
+      .sort((relacionA, relacionB) =>
+        relacionA.etiqueta.localeCompare(
+          relacionB.etiqueta,
           'es'
         )
-    );
+      );
   };

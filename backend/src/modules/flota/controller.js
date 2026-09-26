@@ -20,6 +20,11 @@ import {
   logAction
 } from '../../services/auditService.js';
 
+import {
+  tieneAccesoTotalFlota,
+  obtenerClienteOperacionIds
+} from '../../middlewares/auth.js';
+
 export const listarVehiculos =
   async (req, res) => { 
     try {
@@ -33,7 +38,11 @@ export const listarVehiculos =
           search:
             filtros.search,
           operacion:
-            filtros.operacion
+            filtros.operacion,
+          accesoTotal:
+            tieneAccesoTotalFlota(req),
+          clienteOperacionIds:
+            obtenerClienteOperacionIds(req) || []
         });
 
       let vehiculos =
@@ -320,7 +329,12 @@ export const borrarVehiculo =
   async (req, res) => {
     try {
       const tractos =
-        await obtenerTractos();
+        await obtenerTractos({
+          accesoTotal:
+            tieneAccesoTotalFlota(req),
+          clienteOperacionIds:
+            obtenerClienteOperacionIds(req) || []
+        });
 
       return res.json(
         tractos

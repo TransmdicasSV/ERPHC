@@ -5,10 +5,14 @@ import {
 } from '../../config/permissions.js';
 
 import {
-  crearUsuario,
+  crearUsuarioConAsignaciones,
   obtenerUsuarioPorId,
   actualizarEstadoUsuario,
-  actualizarUsuarioPorId
+  actualizarUsuarioConAsignaciones,
+  obtenerPersonalAdministrativoPorDni,
+  obtenerUsuarioPorPersonaId,
+  obtenerUsuarioPorUsername,
+  contarClienteOperacionesAsignables
 } from './repository.js';
 
 export class UsuarioValidationError extends Error {
@@ -21,61 +25,211 @@ export class UsuarioValidationError extends Error {
     this.status = status;
   }
 }
-const validarNuevaPassword = password => {
-  if (typeof password !== 'string') {
-    throw new UsuarioValidationError(
-      'La contraseña debe ser un texto'
-    );
-  }
 
-  if (!password.trim()) {
-    throw new UsuarioValidationError(
-      'La contraseña no puede contener solo espacios'
-    );
-  }
+// ==========================================
+// USERNAME AUTOMÁTICO
+// ==========================================
 
-  if ([...password].length < 15) {
-    throw new UsuarioValidationError(
-      'La contraseña debe tener al menos 15 caracteres'
-    );
-  }
+const generarUsername =
+  nombreCompleto => {
+    const partes =
+      String(nombreCompleto || '')
+        .normalize('NFD')
+        .replace(
+          /[\u0300-\u036f]/g,
+          ''
+        )
+        .toLowerCase()
+        .trim()
+        .split(/\s+/)
+        .map(
+          parte =>
+            parte.replace(
+              /[^a-z0-9]/g,
+              ''
+            )
+        )
+        .filter(Boolean);
 
-  if (bcrypt.truncates(password)) {
-    throw new UsuarioValidationError(
-      'La contraseña supera el límite de 72 bytes; usa una más corta'
+    if (partes.length < 3) {
+      throw new UsuarioValidationError(
+        'El nombre completo no permite generar el username'
+      );
+    }
+
+    const primerApellido =
+      partes[0];
+
+    const primerNombre =
+      partes[2];
+
+    return (
+      `${primerNombre.charAt(0)}` +
+      `${primerApellido}`
     );
-  }
-};
+  };
+
+// ==========================================
+// VALIDACIÓN DE CONTRASEÑA AL EDITAR
+// ==========================================
+
+const validarNuevaPassword =
+  password => {
+    if (typeof password !== 'string') {
+      throw new UsuarioValidationError(
+        'La contraseña debe ser un texto'
+      );
+    }
+
+    if (!password.trim()) {
+      throw new UsuarioValidationError(
+        'La contraseña no puede contener solo espacios'
+      );
+    }
+
+    if ([...password].length < 15) {
+      throw new UsuarioValidationError(
+        'La contraseña debe tener al menos 15 caracteres'
+      );
+    }
+
+    if (bcrypt.truncates(password)) {
+      throw new UsuarioValidationError(
+        'La contraseña supera el límite de 72 bytes; usa una más corta'
+      );
+    }
+  };
+
+// ==========================================
+// NORMALIZAR ASIGNACIONES
+// ==========================================
+
+const normalizarClienteOperacionIds =
+  valor => {
+    if (!Array.isArray(valor)) {
+      throw new UsuarioValidationError(
+        'Las operaciones asignadas deben enviarse como una lista'
+      );
+    }
+
+    const ids = valor.map(
+      id => Number(id)
+    );
+
+    if (
+      ids.some(
+        id =>
+          !Number.isInteger(id) ||
+          id <= 0
+      )
+    ) {
+      throw new UsuarioValidationError(
+        'Existe una operación seleccionada no válida'
+      );
+    }
+
+    return [
+      ...new Set(ids)
+    ];
+  };
+
+const validarAsignacionesSupervisor =
+  async clienteOperacionIds => {
+    if (clienteOperacionIds.length === 0) {
+      throw new UsuarioValidationError(
+        'Debe asignar por lo menos una operación al supervisor'
+      );
+    }
+
+    const cantidadValida =
+      await contarClienteOperacionesAsignables(
+        clienteOperacionIds
+      );
+
+    if (
+      cantidadValida !==
+      clienteOperacionIds.length
+    ) {
+      throw new UsuarioValidationError(
+        'Una o más operaciones seleccionadas no existen, están inactivas o son internas'
+      );
+    }
+  };
+
+// ==========================================
+// CREAR USUARIO
+// ==========================================
 
 export const prepararNuevoUsuario =
   async datos => {
     const {
       username,
-      password,
       rol,
       estado,
-      operacion
+      clienteOperacionIds
     } = datos || {};
 
-    const usernameFinal = String(
-      username || ''
-    ).trim();
+    /*
+     * Por compatibilidad, el frontend envía
+     * el DNI dentro de username.
+     */
+    const dniSeleccionado =
+      String(username || '').trim();
 
     if (
-      !usernameFinal ||
-      typeof password !== 'string' ||
-      !password
+      !/^\d{8}$/.test(
+        dniSeleccionado
+      )
     ) {
       throw new UsuarioValidationError(
-        'Faltan campos obligatorios'
+        'Seleccione un trabajador con un DNI válido'
       );
     }
 
-    const rolFinal = String(
-      rol || 'supervisor'
-    )
-      .trim()
-      .toLowerCase();
+    const persona =
+      await obtenerPersonalAdministrativoPorDni(
+        dniSeleccionado
+      );
+
+    if (!persona) {
+      throw new UsuarioValidationError(
+        'Seleccione un trabajador administrativo activo'
+      );
+    }
+
+    const usuarioDePersona =
+      await obtenerUsuarioPorPersonaId(
+        persona.id
+      );
+
+    if (usuarioDePersona) {
+      throw new UsuarioValidationError(
+        'La persona seleccionada ya tiene un usuario',
+        409
+      );
+    }
+
+    const usernameFinal =
+      generarUsername(
+        persona.nombre_completo
+      );
+
+    const usernameExistente =
+      await obtenerUsuarioPorUsername(
+        usernameFinal
+      );
+
+    if (usernameExistente) {
+      throw new UsuarioValidationError(
+        `El nombre de usuario ${usernameFinal} ya está registrado`,
+        409
+      );
+    }
+
+    const rolFinal =
+      String(rol || 'supervisor')
+        .trim()
+        .toLowerCase();
 
     if (
       ![
@@ -89,11 +243,10 @@ export const prepararNuevoUsuario =
       );
     }
 
-    const estadoFinal = String(
-      estado || 'activo'
-    )
-      .trim()
-      .toLowerCase();
+    const estadoFinal =
+      String(estado || 'activo')
+        .trim()
+        .toLowerCase();
 
     if (
       ![
@@ -106,55 +259,62 @@ export const prepararNuevoUsuario =
       );
     }
 
-    const operacionFinal =
-      rolFinal === 'supervisor'
-        ? String(
-          operacion || ''
-        ).trim()
-        : null;
+    let asignacionesFinales = [];
 
-    if (
-      rolFinal === 'supervisor' &&
-      !operacionFinal
-    ) {
-      throw new UsuarioValidationError(
-        'Debe asignar una operación al supervisor'
+    if (rolFinal === 'supervisor') {
+      asignacionesFinales =
+        normalizarClienteOperacionIds(
+          clienteOperacionIds
+        );
+
+      await validarAsignacionesSupervisor(
+        asignacionesFinales
       );
     }
 
-    validarNuevaPassword(password);
-
+    /*
+     * La contraseña inicial es el DNI.
+     * En la base solamente se almacena el hash.
+     */
     const passwordHash =
       await bcrypt.hash(
-        password,
+        persona.dni,
         10
       );
 
     const usuarioCreado =
-      await crearUsuario({
-        username: usernameFinal,
-        passwordHash,
-        rol: rolFinal,
-        permisos:
-          ROLE_PERMISSIONS[
-          rolFinal
-          ],
-        estado: estadoFinal,
-        operacion:
-          operacionFinal
-      });
+      await crearUsuarioConAsignaciones({
+        personaId:
+          persona.id,
 
-    if (!usuarioCreado) {
-      throw new UsuarioValidationError(
-        'Seleccione un trabajador con modalidad de contrato Administrativo'
-      );
-    }
+        username:
+          usernameFinal,
+
+        passwordHash,
+
+        rol:
+          rolFinal,
+
+        permisos:
+          ROLE_PERMISSIONS[rolFinal],
+
+        estado:
+          estadoFinal,
+
+        clienteOperacionIds:
+          asignacionesFinales
+      });
 
     return {
       usernameFinal,
       usuarioCreado
     };
   };
+
+// ==========================================
+// EDITAR USUARIO
+// ==========================================
+
 export const actualizarUsuarioCompleto =
   async ({
     id,
@@ -168,9 +328,8 @@ export const actualizarUsuarioCompleto =
       );
 
     if (
-      !Number.isInteger(
-        idFinal
-      )
+      !Number.isInteger(idFinal) ||
+      idFinal <= 0
     ) {
       throw new UsuarioValidationError(
         'ID de usuario no válido'
@@ -193,15 +352,16 @@ export const actualizarUsuarioCompleto =
       password,
       rol,
       estado,
-      operacion
+      clienteOperacionIds
     } = datos || {};
 
-    const rolFinal = String(
-      rol ||
-      usuarioAnterior.rol
-    )
-      .trim()
-      .toLowerCase();
+    const rolFinal =
+      String(
+        rol ||
+        usuarioAnterior.rol
+      )
+        .trim()
+        .toLowerCase();
 
     if (
       ![
@@ -215,12 +375,13 @@ export const actualizarUsuarioCompleto =
       );
     }
 
-    const estadoFinal = String(
-      estado ||
-      usuarioAnterior.estado
-    )
-      .trim()
-      .toLowerCase();
+    const estadoFinal =
+      String(
+        estado ||
+        usuarioAnterior.estado
+      )
+        .trim()
+        .toLowerCase();
 
     if (
       ![
@@ -236,51 +397,84 @@ export const actualizarUsuarioCompleto =
     if (
       idFinal ===
       Number(usuarioActualId) &&
-      estadoFinal ===
-      'inactivo'
+      estadoFinal === 'inactivo'
     ) {
       throw new UsuarioValidationError(
         'No puedes desactivar tu propio usuario'
       );
     }
 
-    const operacionFinal =
-      rolFinal === 'supervisor'
-        ? String(
-          operacion ??
-          usuarioAnterior.operacion ??
-          ''
-        ).trim()
-        : null;
+    let asignacionesFinales = [];
 
-    if (
-      rolFinal === 'supervisor' &&
-      !operacionFinal
-    ) {
-      throw new UsuarioValidationError(
-        'Debe asignar una operación al supervisor'
+    if (rolFinal === 'supervisor') {
+      let asignacionesRecibidas =
+        clienteOperacionIds;
+
+      /*
+       * Si se edita otro dato del supervisor
+       * sin mandar asignaciones, conserva las actuales.
+       */
+      if (
+        asignacionesRecibidas ===
+        undefined
+      ) {
+        asignacionesRecibidas =
+          Array.isArray(
+            usuarioAnterior.asignaciones
+          )
+            ? usuarioAnterior
+              .asignaciones
+              .map(
+                asignacion =>
+                  asignacion
+                    .cliente_operacion_id
+              )
+            : [];
+      }
+
+      asignacionesFinales =
+        normalizarClienteOperacionIds(
+          asignacionesRecibidas
+        );
+
+      await validarAsignacionesSupervisor(
+        asignacionesFinales
       );
     }
 
     let passwordHash = null;
 
-    if (password !== undefined && password !== '') {
+    if (
+      password !== undefined &&
+      password !== ''
+    ) {
       validarNuevaPassword(password);
-      passwordHash = await bcrypt.hash(password, 10);
+
+      passwordHash =
+        await bcrypt.hash(
+          password,
+          10
+        );
     }
 
     const usuarioActualizado =
-      await actualizarUsuarioPorId({
-        id: idFinal,
+      await actualizarUsuarioConAsignaciones({
+        id:
+          idFinal,
+
         passwordHash,
-        rol: rolFinal,
+
+        rol:
+          rolFinal,
+
         permisos:
-          ROLE_PERMISSIONS[
-          rolFinal
-          ],
-        estado: estadoFinal,
-        operacion:
-          operacionFinal
+          ROLE_PERMISSIONS[rolFinal],
+
+        estado:
+          estadoFinal,
+
+        clienteOperacionIds:
+          asignacionesFinales
       });
 
     if (!usuarioActualizado) {
@@ -295,6 +489,11 @@ export const actualizarUsuarioCompleto =
       usuarioActualizado
     };
   };
+
+// ==========================================
+// ACTIVAR O DESACTIVAR
+// ==========================================
+
 export const cambiarEstadoUsuario =
   async ({
     id,
@@ -307,16 +506,14 @@ export const cambiarEstadoUsuario =
         10
       );
 
-    const estadoFinal = String(
-      estado || ''
-    )
-      .trim()
-      .toLowerCase();
+    const estadoFinal =
+      String(estado || '')
+        .trim()
+        .toLowerCase();
 
     if (
-      !Number.isInteger(
-        idFinal
-      )
+      !Number.isInteger(idFinal) ||
+      idFinal <= 0
     ) {
       throw new UsuarioValidationError(
         'ID de usuario no válido'
@@ -327,9 +524,7 @@ export const cambiarEstadoUsuario =
       ![
         'activo',
         'inactivo'
-      ].includes(
-        estadoFinal
-      )
+      ].includes(estadoFinal)
     ) {
       throw new UsuarioValidationError(
         'El estado debe ser activo o inactivo'
@@ -339,8 +534,7 @@ export const cambiarEstadoUsuario =
     if (
       idFinal ===
       Number(usuarioActualId) &&
-      estadoFinal ===
-      'inactivo'
+      estadoFinal === 'inactivo'
     ) {
       throw new UsuarioValidationError(
         'No puedes desactivar tu propio usuario'

@@ -520,6 +520,23 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     return data.persona;
   },
   // === ENTREGAS ===
+  getOpcionesEntregas: async () => {
+    const response = await fetchWithAuth(
+      `${BASE_URL}/api/entregas/opciones`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al cargar clientes y operaciones'
+      );
+    }
+
+    return data;
+  },
+
   getEntregas: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/entregas`);
     if (!response.ok) throw new Error('Error al cargar entregas');
