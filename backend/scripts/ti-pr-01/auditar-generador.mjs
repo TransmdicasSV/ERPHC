@@ -455,11 +455,22 @@ try {
     (SELECT count(*)::int FROM programa_mantenimiento_unidad_anclas) AS anclas,
     (SELECT count(*)::int FROM programacion_mantenimiento) AS prog,
     (SELECT count(*)::int FROM programacion_mantenimiento_equipos) AS det,
-    to_regclass('public.ordenes_trabajo') IS NULL AS sin_ot`);
+    to_regclass('public.ordenes_trabajo')         IS NOT NULL AS ot_existe,
+    to_regclass('public.ordenes_trabajo_detalle') IS NOT NULL AS otd_existe`);
   chk(n.ciclos === 688, 'ciclos', `${n.ciclos}`);
   chk(n.anclas === 1062, 'anclas', `${n.anclas}`);
   chk(n.prog === 0 && n.det === 0, 'programaciones y detalles', `${n.prog} / ${n.det}`);
-  chk(n.sin_ot === true, 'ordenes_trabajo no existe', 'el generador aun no esta implementado');
+  // 20260925_013 ya esta aplicada: las tablas de OT EXISTEN. Lo que debe seguir siendo
+  // cierto es que estan VACIAS, porque generar programacion no abre ordenes de trabajo.
+  chk(n.ot_existe && n.otd_existe, 'las tablas de OT existen (013 aplicada)',
+    `ordenes_trabajo=${n.ot_existe} detalle=${n.otd_existe}`);
+  // el conteo va en su propia consulta y solo si existen: si faltara una tabla, esto
+  // debe reportarse como FALLA en la linea de arriba, no romper toda la auditoria.
+  if (n.ot_existe && n.otd_existe) {
+    const v = await una(`SELECT (SELECT count(*)::int FROM ordenes_trabajo) AS ot,
+      (SELECT count(*)::int FROM ordenes_trabajo_detalle) AS det`);
+    chk(v.ot === 0 && v.det === 0, 'y ambas siguen vacias: ninguna OT real', `${v.ot} / ${v.det}`);
+  }
 } finally {
   try { await cliente.query('ROLLBACK'); } catch { /* ya cerrada */ }
   cliente.release();
