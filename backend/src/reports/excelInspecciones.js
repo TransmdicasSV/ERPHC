@@ -57,7 +57,8 @@ export const generateExcel = async (pool, queryParams, res) => {
       query = `
         SELECT 
           v.placa, v.tipo_vehiculo as tipo, v.operacion as programa, 'Activo' as estado_vehiculo,
-          i.fecha_hora::date::text AS fecha, to_char(i.fecha_hora, 'HH24:MI') AS hora, i.tablet, i.radio, i.camaras, i.img_tablet, i.img_radio, i.img_camaras, i.observaciones
+          i.fecha_hora::date::text AS fecha,
+to_char(i.fecha_hora, 'HH24:MI') AS hora, i.tablet, i.radio, i.camaras, i.img_tablet, i.img_radio, i.img_camaras, i.observaciones
         FROM vehiculos v
         LEFT JOIN inspecciones_flota i ON v.placa = i.placa
         WHERE 1=1
@@ -87,7 +88,16 @@ export const generateExcel = async (pool, queryParams, res) => {
 
       query += ` ORDER BY i.fecha_hora DESC NULLS LAST, v.placa ASC`;
     } else {
-      query = "SELECT i.*, i.fecha_hora::date::text AS fecha, to_char(i.fecha_hora, 'HH24:MI') AS hora, v.operacion as programa FROM inspecciones_flota i JOIN vehiculos v ON i.placa = v.placa WHERE 1=1";
+      query = `
+  SELECT
+    i.*,
+    i.fecha_hora::date::text AS fecha,
+    to_char(i.fecha_hora, 'HH24:MI') AS hora,
+    v.operacion AS programa
+  FROM inspecciones_flota i
+  JOIN vehiculos v ON i.placa = v.placa
+  WHERE 1=1
+`;
       if (filtro === 'placa') {
         query += ` AND i.placa = $${paramIndex++}`;
         params.push(valor.toUpperCase());

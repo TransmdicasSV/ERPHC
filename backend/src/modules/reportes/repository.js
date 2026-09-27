@@ -60,7 +60,7 @@ export const obtenerDatosMantenimientoReporte =
       SELECT
         v.*,
 
-        COALESCE(
+          COALESCE(
           i.fecha_hora::date::text,
           m.fecha_ejecutada::text
         ) AS fecha_ejecutada_raw,

@@ -12,6 +12,10 @@ import inspeccionesRoutes from './modules/inspecciones/routes.js';
 import mantenimientosRoutes from './modules/mantenimiento/routes.js';
 import statsRoutes from './modules/stats/routes.js';
 import publicRoutes from './modules/publico/routes.js';
+import {
+  notFound,
+  handleError
+} from './middlewares/errors.js';
 
 import {
   legacyEntregasRoutes,
@@ -31,6 +35,7 @@ import ticketsRoutes, {
   publicTicketCreationRoutes,
   protectedTicketCreationRoutes
 } from './modules/tickets/routes.js';
+
 
 import usuariosRoutes from './modules/usuarios/routes.js';
 import authRoutes from './modules/auth/routes.js';
@@ -54,7 +59,20 @@ if (!fs.existsSync(uploadDir)) {
   });
 }
 
-app.use(cors());
+const origenesPermitidos = [
+  'https://erphse.transmdicas.com',
+];
+
+if (process.env.NODE_ENV !== 'production') {
+  origenesPermitidos.push(
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+  );
+}
+
+app.use(cors({
+  origin: origenesPermitidos
+}));
 
 app.use(
   express.json({
@@ -77,6 +95,13 @@ app.use(
 // ==========================================
 // RUTAS PÚBLICAS
 // ==========================================
+app.get('/health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+
+  return res.json({
+    status: 'ok'
+  });
+});
 
 app.use(
   '/api/auth',
@@ -173,5 +198,8 @@ app.use(
   '/api/entregas',
   entregasRoutes
 );
+
+app.use(notFound);
+app.use(handleError);
 
 export default app;

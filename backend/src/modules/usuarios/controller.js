@@ -1,5 +1,6 @@
 import {
   obtenerOperaciones,
+  obtenerClientesConOperaciones,
   obtenerPersonalAdministrativo,
   obtenerUsuarios
 } from './repository.js';
@@ -14,6 +15,10 @@ import {
 import {
   logAction
 } from '../../services/auditService.js';
+
+// ==========================================
+// OPERACIONES ANTIGUAS
+// ==========================================
 
 export const listarOperaciones =
   async (req, res) => {
@@ -37,6 +42,36 @@ export const listarOperaciones =
     }
   };
 
+// ==========================================
+// CLIENTES Y OPERACIONES NUEVAS
+// ==========================================
+
+export const listarClientesOperaciones =
+  async (req, res) => {
+    try {
+      const clientes =
+        await obtenerClientesConOperaciones();
+
+      return res.json(
+        clientes
+      );
+    } catch (error) {
+      console.error(
+        'Error obteniendo clientes y operaciones:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Error al obtener clientes y operaciones'
+      });
+    }
+  };
+
+// ==========================================
+// PERSONAL ADMINISTRATIVO
+// ==========================================
+
 export const listarPersonalAdministrativo =
   async (req, res) => {
     try {
@@ -58,6 +93,10 @@ export const listarPersonalAdministrativo =
       });
     }
   };
+
+// ==========================================
+// LISTADO DE USUARIOS
+// ==========================================
 
 export const listarUsuarios =
   async (req, res) => {
@@ -81,6 +120,10 @@ export const listarUsuarios =
     }
   };
 
+// ==========================================
+// CREAR USUARIO
+// ==========================================
+
 export const registrarUsuario =
   async (req, res) => {
     try {
@@ -103,7 +146,8 @@ export const registrarUsuario =
 
       return res.status(201).json({
         success: true,
-        id: usuarioCreado.id,
+        id:
+          usuarioCreado.id,
         usuario:
           usuarioCreado
       });
@@ -120,14 +164,26 @@ export const registrarUsuario =
           });
       }
 
-      if (
-        error.code === '23505'
-      ) {
+      if (error.code === '23505') {
         return res
           .status(409)
           .json({
             error:
-              'El usuario ya existe'
+              'La persona o el nombre de usuario ya están registrados'
+          });
+      }
+
+      if (
+        error.code === '23503' ||
+        error.code === 'P0001'
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              error.code === 'P0001'
+                ? error.message
+                : 'Una de las operaciones seleccionadas no es válida'
           });
       }
 
@@ -144,6 +200,11 @@ export const registrarUsuario =
         });
     }
   };
+
+// ==========================================
+// EDITAR USUARIO
+// ==========================================
+
 export const actualizarUsuario =
   async (req, res) => {
     try {
@@ -152,8 +213,12 @@ export const actualizarUsuario =
         usuarioActualizado
       } =
         await actualizarUsuarioCompleto({
-          id: req.params.id,
-          datos: req.body,
+          id:
+            req.params.id,
+
+          datos:
+            req.body,
+
           usuarioActualId:
             req.user.id
         });
@@ -185,6 +250,29 @@ export const actualizarUsuario =
           });
       }
 
+      if (error.code === '23505') {
+        return res
+          .status(409)
+          .json({
+            error:
+              'El nombre de usuario ya está registrado'
+          });
+      }
+
+      if (
+        error.code === '23503' ||
+        error.code === 'P0001'
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              error.code === 'P0001'
+                ? error.message
+                : 'Una de las operaciones seleccionadas no es válida'
+          });
+      }
+
       console.error(
         'Error editando usuario:',
         error
@@ -198,6 +286,11 @@ export const actualizarUsuario =
         });
     }
   };
+
+// ==========================================
+// ACTIVAR O DESACTIVAR
+// ==========================================
+
 export const cambiarEstado =
   async (req, res) => {
     try {
@@ -207,9 +300,12 @@ export const cambiarEstado =
         usuarioActualizado
       } =
         await cambiarEstadoUsuario({
-          id: req.params.id,
+          id:
+            req.params.id,
+
           estado:
             req.body?.estado,
+
           usuarioActualId:
             req.user.id
         });

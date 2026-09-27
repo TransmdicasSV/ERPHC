@@ -1,25 +1,53 @@
 import { pool } from '../../config/database.js';
 
-export const existeVehiculo = async placa => {
+export const existeVehiculo = async ({
+  placa,
+  accesoTotal,
+  clienteOperacionIds
+}) => {
   const result = await pool.query(
     `SELECT placa
      FROM public.vehiculos
-     WHERE placa = $1`,
-    [placa]
+     WHERE placa = $1
+       AND (
+         $2::boolean = TRUE
+         OR cliente_operacion_id =
+            ANY($3::integer[])
+       )`,
+    [
+      placa,
+      Boolean(accesoTotal),
+      clienteOperacionIds || []
+    ]
   );
 
   return result.rows.length > 0;
 };
 
-export const obtenerHistorial = async placa => {
+export const obtenerHistorial = async ({
+  placa,
+  accesoTotal,
+  clienteOperacionIds
+}) => {
   const result = await pool.query(
-    `SELECT *,
-       fecha_hora::date::text AS fecha,
-       to_char(fecha_hora, 'HH24:MI') AS hora
-     FROM inspecciones_flota
-     WHERE placa = $1
-     ORDER BY id DESC`,
-    [placa]
+    `SELECT i.*,
+       i.fecha_hora::date::text AS fecha,
+       to_char(i.fecha_hora, 'HH24:MI') AS hora
+     FROM inspecciones_flota i
+     INNER JOIN vehiculos v
+       ON v.placa = i.placa
+     WHERE i.placa = $1
+       AND (
+         $2::boolean = TRUE
+         OR v.cliente_operacion_id =
+            ANY($3::integer[])
+       )
+     ORDER BY i.id DESC`,
+    [
+      placa,
+      Boolean(accesoTotal),
+      clienteOperacionIds || []
+    ]
   );
 
   return result.rows;
@@ -34,7 +62,9 @@ export const crearInspeccion = async ({
   imgTablet,
   imgRadio,
   imgCamaras,
-  observaciones
+  observaciones,
+  accesoTotal,
+  clienteOperacionIds
 }) => {
   let client;
   let descartar = false;
@@ -55,10 +85,16 @@ export const crearInspeccion = async ({
      img_camaras,
      observaciones
    )
-   VALUES (
+   SELECT
      $1, $2, $3, $4, $5,
      $6, $7, $8, $9
-   )
+   FROM vehiculos v
+   WHERE v.placa = $1
+     AND (
+       $10::boolean = TRUE
+       OR v.cliente_operacion_id =
+          ANY($11::integer[])
+     )
    RETURNING *,
              fecha_hora::date::text AS fecha,
              to_char(fecha_hora, 'HH24:MI') AS hora`,
@@ -71,7 +107,9 @@ export const crearInspeccion = async ({
         imgTablet,
         imgRadio,
         imgCamaras,
-        observaciones || ''
+        observaciones || '',
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
       ]
     );
     await client.query('COMMIT');
@@ -95,14 +133,29 @@ export const crearInspeccion = async ({
 };
 
 export const obtenerInspeccionPorId =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
-      `SELECT *,
-              fecha_hora::date::text AS fecha,
-              to_char(fecha_hora, 'HH24:MI') AS hora
-       FROM inspecciones_flota
-       WHERE id = $1`,
-      [id]
+      `SELECT i.*,
+              i.fecha_hora::date::text AS fecha,
+              to_char(i.fecha_hora, 'HH24:MI') AS hora
+       FROM inspecciones_flota i
+       INNER JOIN vehiculos v
+         ON v.placa = i.placa
+       WHERE i.id = $1
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;
@@ -118,7 +171,9 @@ export const actualizarInspeccion =
     imgTablet,
     imgRadio,
     imgCamaras,
-    observaciones
+    observaciones,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     const result = await pool.query(
       `UPDATE inspecciones_flota
@@ -130,10 +185,17 @@ export const actualizarInspeccion =
        img_radio = $6,
        img_camaras = $7,
        observaciones = $8
-   WHERE id = $9
-   RETURNING *,
-             fecha_hora::date::text AS fecha,
-             to_char(fecha_hora, 'HH24:MI') AS hora`,
+   FROM vehiculos v
+   WHERE inspecciones_flota.id = $9
+     AND v.placa = inspecciones_flota.placa
+     AND (
+       $10::boolean = TRUE
+       OR v.cliente_operacion_id =
+          ANY($11::integer[])
+     )
+   RETURNING inspecciones_flota.*,
+             inspecciones_flota.fecha_hora::date::text AS fecha,
+             to_char(inspecciones_flota.fecha_hora, 'HH24:MI') AS hora`,
       [
         fechaHora,
         tablet,
@@ -143,7 +205,9 @@ export const actualizarInspeccion =
         imgRadio,
         imgCamaras,
         observaciones || '',
-        id
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
       ]
     );
 
@@ -152,14 +216,29 @@ export const actualizarInspeccion =
   };
 
 export const eliminarInspeccion =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
-      `DELETE FROM inspecciones_flota
-       WHERE id = $1
-       RETURNING *,
-          fecha_hora::date::text AS fecha,
-          to_char(fecha_hora, 'HH24:MI') AS hora`,
-      [id]
+      `DELETE FROM inspecciones_flota i
+       USING vehiculos v
+       WHERE i.id = $1
+         AND v.placa = i.placa
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )
+       RETURNING i.*,
+          i.fecha_hora::date::text AS fecha,
+          to_char(i.fecha_hora, 'HH24:MI') AS hora`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;

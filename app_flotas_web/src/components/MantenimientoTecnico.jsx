@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
 
-const QUINCENAS =[
-  {key: '2026-09-01', label:'1ra set', inicio:'2026-09-01', fin:'2026-09-15'},
-  {key: '2026-09-02', label:'2da set', inicio:'2026-09-16', fin: '2026-09-30'},
+const QUINCENAS = [
+  { key: '2026-09-01', label: '1ra set', inicio: '2026-09-01', fin: '2026-09-15' },
+  { key: '2026-09-02', label: '2da set', inicio: '2026-09-16', fin: '2026-09-30' },
   { key: '2026-10-1', label: '1ra oct', inicio: '2026-10-01', fin: '2026-10-15' },
   { key: '2026-10-2', label: '2da oct', inicio: '2026-10-16', fin: '2026-10-31' },
   { key: '2026-11-1', label: '1ra nov', inicio: '2026-11-01', fin: '2026-11-15' },
@@ -12,8 +12,8 @@ const QUINCENAS =[
   { key: '2026-12-1', label: '1ra dic', inicio: '2026-12-01', fin: '2026-12-15' },
   { key: '2026-12-2', label: '2da dic', inicio: '2026-12-16', fin: '2026-12-31' }
 ]
-const EQUIPOS=[
-  {key: 'dvr', nombre: 'DVR' },
+const EQUIPOS = [
+  { key: 'dvr', nombre: 'DVR' },
   { key: 'cop', nombre: 'Copiloto' },
   { key: 'rb', nombre: 'Radio base' },
   { key: 'cam', nombre: 'Cámaras' },
@@ -23,7 +23,7 @@ const EQUIPOS=[
 const PERIODICIDAD = {
   dvr: { 1: 15, 2: 90, 3: 180 },
   cop: { 1: 15, 2: 90, 3: 180 },
-  rb:  { 1: 15, 2: 90, 3: 180 },
+  rb: { 1: 15, 2: 90, 3: 180 },
   cam: { 1: 15, 2: 90, 3: 180 },
   gps: { 3: 180 }
 };
@@ -444,14 +444,14 @@ const ACTIVIDADES = {
 
 const EVIDENCIA_OBLIGATORIA = new Set(['cop', 'rb', 'cam']);
 
-const dateOnly= (value) => String(value ||'').slice(0,10);
+const dateOnly = (value) => String(value || '').slice(0, 10);
 
-const formatDMY = (value) =>{
+const formatDMY = (value) => {
   const raw = dateOnly(value);
-  if(!raw) return '-';
+  if (!raw) return '-';
 
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(!match) return '-';
+  if (!match) return '-';
 
   const [, year, month, day] = match;
   return `${day}/${month}/${year}`;
@@ -551,19 +551,19 @@ function FechaInput({
   );
 }
 
-const nivelProgramado=(indiceUnidad, indiceQuincena)=>{
-  const qBase=(indiceUnidad % 8)+1;
-  const k= indiceQuincena+1;
-  
-  if(k< qBase) return 1;
-  const diferencia= k-qBase;
-  if(diferencia % 12 ===0 ) return 3;
-  if(diferencia % 6=== 0) return 2;
+const nivelProgramado = (indiceUnidad, indiceQuincena) => {
+  const qBase = (indiceUnidad % 8) + 1;
+  const k = indiceQuincena + 1;
+
+  if (k < qBase) return 1;
+  const diferencia = k - qBase;
+  if (diferencia % 12 === 0) return 3;
+  if (diferencia % 6 === 0) return 2;
   return 1;
 };
 
-const getPeriodoIndex =(fecha)=>{
-  const raw= dateOnly(fecha);
+const getPeriodoIndex = (fecha) => {
+  const raw = dateOnly(fecha);
   if (!raw) return -1;
 
   return QUINCENAS.findIndex(
@@ -572,21 +572,21 @@ const getPeriodoIndex =(fecha)=>{
   );
 };
 
-const estadoClase=(estado)=>{
-  if(estado==='VENCIDO' || estado ==='NO CONFORME'){
+const estadoClase = (estado) => {
+  if (estado === 'VENCIDO' || estado === 'NO CONFORME') {
     return 'm2-chip m2-chip-red'
   }
-  if(estado==='POR VENCER' || estado=== 'OBSERVADO'){
+  if (estado === 'POR VENCER' || estado === 'OBSERVADO') {
     return 'm2-chip m2-chip-amber';
   }
-  if(
-    estado ==='AL DÍA'||
-    estado ==='CONFORME'||
+  if (
+    estado === 'AL DÍA' ||
+    estado === 'CONFORME' ||
     estado == 'CERRADA'
-  ){
+  ) {
     return 'm2-chip m2-chip-green';
   }
-  if(estado==='ABIERTA'){
+  if (estado === 'ABIERTA') {
     return 'm2-chip m2-chip-blue';
   }
   return 'm2-chip m2-chip-grey';
@@ -598,21 +598,21 @@ export function MantenimientoTecnico({
   vistaInicial = 'programa',
   navegacionId = 0,
   onVistaChange
-}){
-  const [vehiculos, setVehiculos]= useState([]);
-  const [loading, setLoading]= useState(true);
+}) {
+  const [vehiculos, setVehiculos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [vista, setVista]= useState(vistaInicial);
-  const [busqueda, setBusqueda]= useState('');
-  const [operacion, setOperacion]= useState('');
+  const [vista, setVista] = useState(vistaInicial);
+  const [busqueda, setBusqueda] = useState('');
+  const [operacion, setOperacion] = useState('');
 
   const [ordenes, setOrdenes] = useState([]);
-  const [showNuevaOT,setShowNuevaOT]= useState(false);
-  const [nuevaOT, setNuevaOT]= useState({
-    placa:'',
-    fecha:'2026-09-16',
-    nivel:1,
-    tecnico:''
+  const [showNuevaOT, setShowNuevaOT] = useState(false);
+  const [nuevaOT, setNuevaOT] = useState({
+    placa: '',
+    fecha: '2026-09-16',
+    nivel: 1,
+    tecnico: ''
   });
 
   const [ordenActualId, setOrdenActualId] = useState(null);
@@ -622,7 +622,7 @@ export function MantenimientoTecnico({
   const [fichaAbiertos, setFichaAbiertos] = useState({});
   const [ejecucion, setEjecucion] = useState(null);
 
-  const canEdit = !permisos || permisos.editar !==false;
+  const canEdit = !permisos || permisos.editar !== false;
 
   const tecnicoActual = String(
     usuario?.nombre_completo ||
@@ -690,19 +690,19 @@ export function MantenimientoTecnico({
     }
   }, [vista, onVistaChange]);
 
-  useEffect(() =>{
-    const cargarVehiculos = async ()=>{
-      try{
+  useEffect(() => {
+    const cargarVehiculos = async () => {
+      try {
         setLoading(true);
 
-        const response = await api.getVehiculos(1,10000);
+        const response = await api.getVehiculos(1, 10000);
         const lista = response?.data || [];
 
         setVehiculos(lista);
-        
-        const demo=[];
 
-        if(lista[0]?.placa){
+        const demo = [];
+
+        if (lista[0]?.placa) {
           demo.push({
             id: 'OT-DEMO-001',
             placa: lista[0].placa,
@@ -735,60 +735,60 @@ export function MantenimientoTecnico({
       }
     };
     cargarVehiculos();
-    }, []);
-  
-    const operaciones = useMemo(()=>{
-      return [...new Set(vehiculos.map(v => v.operacion).filter(Boolean))].sort(
-        (a,b)=> a.localeCompare(b)
-      );
-    },[vehiculos]);
-    
-    const filtrados = useMemo(()=>{
-      const query = busqueda.trim().toLocaleLowerCase();
+  }, []);
 
-      return vehiculos.filter(v =>{
-        const coincideBusqueda =
+  const operaciones = useMemo(() => {
+    return [...new Set(vehiculos.map(v => v.operacion).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b)
+    );
+  }, [vehiculos]);
+
+  const filtrados = useMemo(() => {
+    const query = busqueda.trim().toLocaleLowerCase();
+
+    return vehiculos.filter(v => {
+      const coincideBusqueda =
         !query ||
         String(v.placa || '').toLowerCase().includes(query) ||
         String(v.cliente || '').toLowerCase().includes(query) ||
         String(v.operacion || '').toLowerCase().includes(query);
-      
-      const coincideOperacion =
-        !operacion || String(v.operacion || '')===operacion;
-      
-        return coincideBusqueda && coincideOperacion;
-      });
-    }, [vehiculos, busqueda, operacion]);
 
-    const obtenerOrdenPeriodo = (placa,periodoIndex)=>{
-      return ordenes.find(
-        orden =>
-          orden.placa === placa &&
+      const coincideOperacion =
+        !operacion || String(v.operacion || '') === operacion;
+
+      return coincideBusqueda && coincideOperacion;
+    });
+  }, [vehiculos, busqueda, operacion]);
+
+  const obtenerOrdenPeriodo = (placa, periodoIndex) => {
+    return ordenes.find(
+      orden =>
+        orden.placa === placa &&
         orden.estado === 'CERRADA' &&
         getPeriodoIndex(orden.fecha) === periodoIndex
-      );
-    };
-  const estadoUnidad = (vehiculo,index)=>{
-    const cerradas = ordenes
-    .filter(
-      orden =>
-        orden.placa === vehiculo.placa &&
-      orden.estado === 'CERRADA'
-    )
-    .sort(
-      (a,b) =>
-        new Date(`${b.fecha}T12:00:00`) -
-        new Date(`${a.fecha}T12:00:00`)
     );
+  };
+  const estadoUnidad = (vehiculo, index) => {
+    const cerradas = ordenes
+      .filter(
+        orden =>
+          orden.placa === vehiculo.placa &&
+          orden.estado === 'CERRADA'
+      )
+      .sort(
+        (a, b) =>
+          new Date(`${b.fecha}T12:00:00`) -
+          new Date(`${a.fecha}T12:00:00`)
+      );
 
-    if(!cerradas.length){
+    if (!cerradas.length) {
       return index % 4 === 0 ? 'VENCIDO' : 'SIN FECHA BASE';
     }
-    
+
     const ultima = new Date(`${cerradas[0].fecha}T12:00:00`);
     const proxima = new Date(ultima);
     proxima.setDate(proxima.getDate() + 15);
-     const hoy = new Date();
+    const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     if (proxima < hoy) return 'VENCIDO';
@@ -799,10 +799,10 @@ export function MantenimientoTecnico({
     return proxima <= sieteDias ? 'POR VENCER' : 'AL DÍA';
   };
 
-  const crearOrdenLocal = (e) =>{
+  const crearOrdenLocal = (e) => {
     e.preventDefault();
 
-    if(!nuevaOT.placa){
+    if (!nuevaOT.placa) {
       toast.error('Seleccione una placa');
       return;
     }
@@ -817,7 +817,7 @@ export function MantenimientoTecnico({
       return;
     }
 
-    const id= `OT-DEMO-${String(ordenes.length + 1).padStart(3, '0')}`;
+    const id = `OT-DEMO-${String(ordenes.length + 1).padStart(3, '0')}`;
     setOrdenes(prev => [
       ...prev,
       {
@@ -946,7 +946,7 @@ export function MantenimientoTecnico({
       if (
         !ultimo ||
         new Date(`${orden.fecha}T12:00:00`) >
-          new Date(`${ultimo.fecha}T12:00:00`)
+        new Date(`${ultimo.fecha}T12:00:00`)
       ) {
         ultimo = orden;
       }
@@ -970,7 +970,7 @@ export function MantenimientoTecnico({
 
     const diferencia = Math.ceil(
       (proxima.getTime() - hoy.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24)
     );
 
     let estado = 'AL DÍA';
@@ -1253,14 +1253,14 @@ export function MantenimientoTecnico({
       prev.map(item =>
         item.id === orden.id
           ? {
-              ...item,
-              fecha: ejecucion.fecha,
-              tecnico: ejecucion.tecnico,
-              minutos,
-              estado: 'CERRADA',
-              resultado: resultadoGeneral,
-              detalle
-            }
+            ...item,
+            fecha: ejecucion.fecha,
+            tecnico: ejecucion.tecnico,
+            minutos,
+            estado: 'CERRADA',
+            resultado: resultadoGeneral,
+            detalle
+          }
           : item
       )
     );
@@ -1270,10 +1270,9 @@ export function MantenimientoTecnico({
     ).length;
 
     toast.success(
-      `Orden ${orden.id} cerrada${
-        noRevisados
-          ? ` · ${noRevisados} aparato(s) quedan por reprogramar`
-          : ''
+      `Orden ${orden.id} cerrada${noRevisados
+        ? ` · ${noRevisados} aparato(s) quedan por reprogramar`
+        : ''
       }`
     );
 
@@ -1282,7 +1281,7 @@ export function MantenimientoTecnico({
     setVista('ots');
   };
 
-  const headers ={
+  const headers = {
     programa: [
       'Programa de mantenimiento',
       'Setiembre a diciembre 2026 · ocho quincenas'
@@ -1315,26 +1314,26 @@ export function MantenimientoTecnico({
 
   const header = headers[vista];
 
-  const renderFiltros = ()=>(
-    <div className= "m2-bar">
-        <input type="text" placeholder="Bucar placa, cliente u operacion" value={busqueda} onChange={e => setBusqueda(e.target.value)}/>
-        <select value={operacion} onChange={e=> setOperacion(e.target.value)}>
-          <option value="">Todas las operaciones</option>
-          {operaciones.map(op =>(
-            <option key={op}value={op}>
-              {op}
-            </option>
-          ))}
-        </select>
-        <span className="m2-muted">
-          {filtrados.length} de {vehiculos.length} unidades
-        </span>
+  const renderFiltros = () => (
+    <div className="m2-bar">
+      <input type="text" placeholder="Bucar placa, cliente u operacion" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+      <select value={operacion} onChange={e => setOperacion(e.target.value)}>
+        <option value="">Todas las operaciones</option>
+        {operaciones.map(op => (
+          <option key={op} value={op}>
+            {op}
+          </option>
+        ))}
+      </select>
+      <span className="m2-muted">
+        {filtrados.length} de {vehiculos.length} unidades
+      </span>
     </div>
   );
-  const renderPrograma = () =>(
+  const renderPrograma = () => (
     <>
       {renderFiltros()}
-      <div className= "m2-card">
+      <div className="m2-card">
         <div className="m2-card-title">
           Nivel Programado por quincena
         </div>
@@ -1347,11 +1346,11 @@ export function MantenimientoTecnico({
                 </th>
                 {QUINCENAS.map(periodo => (
                   <th
-                  key={periodo.key}
-                  style={{
-                    textAlign: 'center',
-                    minWidth: '76px'
-                  }}
+                    key={periodo.key}
+                    style={{
+                      textAlign: 'center',
+                      minWidth: '76px'
+                    }}
                   >
                     {periodo.label}
                   </th>
@@ -1359,75 +1358,74 @@ export function MantenimientoTecnico({
               </tr>
             </thead>
             <tbody>
-              {filtrados.slice(0,100).map((vehiculo, index)=>(
+              {filtrados.slice(0, 100).map((vehiculo, index) => (
                 <tr key={vehiculo.placa}>
                   <td className="m2-sticky-col">
-                    <button className="m2-link" 
-                    onClick={() => {
+                    <button className="m2-link"
+                      onClick={() => {
                         setBusqueda(vehiculo.placa);
                         setVista('unidades');
-                    }}>
+                      }}>
                       {vehiculo.placa}
                     </button>
                   </td>
-                  {QUINCENAS.map((periodo, periodoIndex)=>{
-                    const nivel = nivelProgramado (index,periodoIndex);
+                  {QUINCENAS.map((periodo, periodoIndex) => {
+                    const nivel = nivelProgramado(index, periodoIndex);
                     const orden = obtenerOrdenPeriodo(
                       vehiculo.placa,
                       periodoIndex
                     );
                     const hoy = new Date();
-                    hoy.setHours(0,0,0,0);
+                    hoy.setHours(0, 0, 0, 0);
 
-                    const vencida = 
+                    const vencida =
                       new Date(`${periodo.fin}T23:59:59`) < hoy &&
                       !orden;
                     const className = orden
                       ? 'm2-cell m2-cell-done'
-                      : vencida 
+                      : vencida
                         ? 'm2-cell m2-cell-overdue'
-                        : `m2-cell m2-cell-pending ${
-                            nivel === 3 ? 'm2-cell-m3' : ''
-                          }`;
-                      
-                      return (
-                        <td key ={periodo.key}>
-                          <button
+                        : `m2-cell m2-cell-pending ${nivel === 3 ? 'm2-cell-m3' : ''
+                        }`;
+
+                    return (
+                      <td key={periodo.key}>
+                        <button
                           className={className}
                           disabled={!canEdit || Boolean(orden)}
                           title={
-                            orden 
+                            orden
                               ? orden.id
-                              :`Crear OT M${nivel}`
+                              : `Crear OT M${nivel}`
                           }
-                          onClick={()=>{
+                          onClick={() => {
                             const today = new Date()
-                            .toISOString()
-                            .slice(0,10);
+                              .toISOString()
+                              .slice(0, 10);
                             setNuevaOT({
                               placa: vehiculo.placa,
                               fecha:
                                 periodo.inicio < today
-                                ? today
-                                : periodo.inicio,
+                                  ? today
+                                  : periodo.inicio,
                               nivel,
                               tecnico: tecnicoActual
                             });
                             setShowNuevaOT(true);
                           }}
-                          >
-                            M{nivel}
-                          </button>
-                        </td>
-                      );
+                        >
+                          M{nivel}
+                        </button>
+                      </td>
+                    );
                   })}
-                </tr>  
+                </tr>
               ))}
               {filtrados.length === 0 && (
                 <tr>
                   <td
-                  colSpan={QUINCENAS.length + 1}
-                  className="m2-empty">
+                    colSpan={QUINCENAS.length + 1}
+                    className="m2-empty">
                     No hay unidades que coincidan con los filtros.
                   </td>
                 </tr>
@@ -1568,12 +1566,11 @@ export function MantenimientoTecnico({
                         {EQUIPOS.map((equipo, equipoIndex) => (
                           <i
                             key={equipo.key}
-                            className={`m2-dot ${
-                              equipoIndex === 4 &&
+                            className={`m2-dot ${equipoIndex === 4 &&
                               index % 3 !== 0
-                                ? 'off'
-                                : 'ok'
-                            }`}
+                              ? 'off'
+                              : 'ok'
+                              }`}
                             title={equipo.nombre}
                           />
                         ))}
@@ -2023,8 +2020,8 @@ export function MantenimientoTecnico({
                 siguiente =
                   ciclo.diasRestantes < 0
                     ? `Vencido hace ${Math.abs(
-                        ciclo.diasRestantes
-                      )} días`
+                      ciclo.diasRestantes
+                    )} días`
                     : ciclo.diasRestantes === 0
                       ? 'Vence hoy'
                       : `Vence en ${ciclo.diasRestantes} días`;
@@ -2033,11 +2030,10 @@ export function MantenimientoTecnico({
               return (
                 <button
                   type="button"
-                  className={`m2-ficha-tile ${
-                    fichaFiltro === equipo.key
-                      ? 'selected'
-                      : ''
-                  }`}
+                  className={`m2-ficha-tile ${fichaFiltro === equipo.key
+                    ? 'selected'
+                    : ''
+                    }`}
                   key={equipo.key}
                   onClick={() =>
                     setFichaFiltro(prev =>
@@ -2074,9 +2070,8 @@ export function MantenimientoTecnico({
 
                   <small>
                     {registros
-                      ? `${registros} registro${
-                          registros > 1 ? 's' : ''
-                        }`
+                      ? `${registros} registro${registros > 1 ? 's' : ''
+                      }`
                       : 'Sin registros'}
                   </small>
                 </button>
@@ -2092,11 +2087,10 @@ export function MantenimientoTecnico({
 
               <button
                 type="button"
-                className={`m2-filter-chip ${
-                  fichaFiltro === 'todo'
-                    ? 'selected'
-                    : ''
-                }`}
+                className={`m2-filter-chip ${fichaFiltro === 'todo'
+                  ? 'selected'
+                  : ''
+                  }`}
                 onClick={() =>
                   setFichaFiltro('todo')
                 }
@@ -2106,11 +2100,10 @@ export function MantenimientoTecnico({
 
               <button
                 type="button"
-                className={`m2-filter-chip ${
-                  fichaFiltro === 'hall'
-                    ? 'selected'
-                    : ''
-                }`}
+                className={`m2-filter-chip ${fichaFiltro === 'hall'
+                  ? 'selected'
+                  : ''
+                  }`}
                 onClick={() =>
                   setFichaFiltro('hall')
                 }
@@ -2121,22 +2114,22 @@ export function MantenimientoTecnico({
               {!['todo', 'hall'].includes(
                 fichaFiltro
               ) && (
-                <button
-                  type="button"
-                  className="m2-filter-chip selected"
-                  onClick={() =>
-                    setFichaFiltro('todo')
-                  }
-                >
-                  {
-                    EQUIPOS.find(
-                      item =>
-                        item.key === fichaFiltro
-                    )?.nombre
-                  }{' '}
-                  ×
-                </button>
-              )}
+                  <button
+                    type="button"
+                    className="m2-filter-chip selected"
+                    onClick={() =>
+                      setFichaFiltro('todo')
+                    }
+                  >
+                    {
+                      EQUIPOS.find(
+                        item =>
+                          item.key === fichaFiltro
+                      )?.nombre
+                    }{' '}
+                    ×
+                  </button>
+                )}
             </div>
 
             <div className="m2-card">
@@ -2182,11 +2175,10 @@ export function MantenimientoTecnico({
                           key={orden.id}
                         >
                           <i
-                            className={`m2-timeline-dot ${
-                              hallazgos.length
-                                ? 'warn'
-                                : 'ok'
-                            }`}
+                            className={`m2-timeline-dot ${hallazgos.length
+                              ? 'warn'
+                              : 'ok'
+                              }`}
                           />
 
                           <div className="m2-timeline-head">
@@ -2236,17 +2228,16 @@ export function MantenimientoTecnico({
 
                                 return (
                                   <div
-                                    className={`m2-finding ${
-                                      detalle.resultado ===
+                                    className={`m2-finding ${detalle.resultado ===
                                       'NO CONFORME'
-                                        ? 'bad'
-                                        : 'warn'
-                                    }`}
+                                      ? 'bad'
+                                      : 'warn'
+                                      }`}
                                     key={key}
                                   >
                                     <span>
                                       {detalle.resultado ===
-                                      'NO CONFORME'
+                                        'NO CONFORME'
                                         ? '!'
                                         : '~'}
                                     </span>
@@ -2308,7 +2299,7 @@ export function MantenimientoTecnico({
                               {EQUIPOS.map(equipo => {
                                 const detalle =
                                   orden.detalle?.[
-                                    equipo.key
+                                  equipo.key
                                   ];
 
                                 if (!detalle) {
@@ -2354,17 +2345,17 @@ export function MantenimientoTecnico({
 
                                         {detalle.evidencias >
                                           0 && (
-                                          <span className="m2-evidence">
-                                            {
-                                              detalle.evidencias
-                                            }{' '}
-                                            foto
-                                            {detalle.evidencias >
-                                            1
-                                              ? 's'
-                                              : ''}
-                                          </span>
-                                        )}
+                                            <span className="m2-evidence">
+                                              {
+                                                detalle.evidencias
+                                              }{' '}
+                                              foto
+                                              {detalle.evidencias >
+                                                1
+                                                ? 's'
+                                                : ''}
+                                            </span>
+                                          )}
                                       </span>
                                     </div>
 
@@ -2434,8 +2425,8 @@ export function MantenimientoTecnico({
                             <small>
                               {item.ciclo.proxima
                                 ? `Venció el ${formatDMY(
-                                    item.ciclo.proxima
-                                  )}`
+                                  item.ciclo.proxima
+                                )}`
                                 : 'Sin fecha calculada'}
                             </small>
                           </div>
@@ -3183,11 +3174,10 @@ export function MantenimientoTecnico({
             Esta orden es M{orden.nivel}.{' '}
             {orden.nivel === 1
               ? 'Solo lleva las actividades del M1.'
-              : `Por la regla acumulativa arrastra también ${
-                  orden.nivel === 2
-                    ? 'las del M1'
-                    : 'las del M1 y del M2'
-                }, por eso el checklist muestra todas las actividades con su nivel de origen.`}
+              : `Por la regla acumulativa arrastra también ${orden.nivel === 2
+                ? 'las del M1'
+                : 'las del M1 y del M2'
+              }, por eso el checklist muestra todas las actividades con su nivel de origen.`}
           </p>
 
           <div className="m2-scope-stats">
@@ -3324,7 +3314,7 @@ export function MantenimientoTecnico({
             actividad =>
               Boolean(
                 estado.checks[
-                  actividad.actividadId
+                actividad.actividadId
                 ]
               )
           ).length;
@@ -3334,9 +3324,8 @@ export function MantenimientoTecnico({
 
           return (
             <div
-              className={`m2-apparatus ${
-                error ? 'error' : ''
-              }`}
+              className={`m2-apparatus ${error ? 'error' : ''
+                }`}
               key={equipo.key}
             >
               <div className="m2-apparatus-head">
@@ -3444,7 +3433,7 @@ export function MantenimientoTecnico({
                               type="checkbox"
                               checked={Boolean(
                                 estado.checks[
-                                  actividadId
+                                actividadId
                                 ]
                               )}
                               onChange={() =>
@@ -3490,13 +3479,13 @@ export function MantenimientoTecnico({
 
                 {estado.resultado ===
                   'NO REVISADO' && (
-                  <div className="m2-warning">
-                    El ciclo de{' '}
-                    {equipo.nombre.toLowerCase()} no
-                    avanza. Se reprogramará en el flujo
-                    definitivo cuando exista el backend.
-                  </div>
-                )}
+                    <div className="m2-warning">
+                      El ciclo de{' '}
+                      {equipo.nombre.toLowerCase()} no
+                      avanza. Se reprogramará en el flujo
+                      definitivo cuando exista el backend.
+                    </div>
+                  )}
 
                 <div className="m2-evidence-zone">
                   {estado.evidencias.map(
@@ -4969,7 +4958,126 @@ export function MantenimientoTecnico({
           color:var(--m2-text2);
           font-size:12px;
         }
+        .dark .m2-page{
+  --m2-ink:#2563EB;
+  --m2-ink2:#1D4ED8;
+  --m2-ink3:#60A5FA;
+  --m2-paper:#0B1220;
+  --m2-surface:#111C2F;
+  --m2-line:#2B3A52;
+  --m2-line2:#1E2C42;
+  --m2-text:#E7EEF8;
+  --m2-text2:#A9B7CA;
+  --m2-text3:#7F91AA;
+  --m2-amber:#FBBF24;
+  --m2-amberbg:#3A2C12;
+  --m2-green:#34D399;
+  --m2-greenbg:#12372E;
+  --m2-red:#F87171;
+  --m2-redbg:#3C2027;
+  --m2-blue:#93C5FD;
+  --m2-bluebg:#183451;
+  color-scheme:dark;
+}
 
+.dark .m2-page .m2-card,
+.dark .m2-page .m2-tabs,
+.dark .m2-page .m2-bar input,
+.dark .m2-page .m2-bar select,
+.dark .m2-page .m2-modal input,
+.dark .m2-page .m2-modal select,
+.dark .m2-page .m2-kpi,
+.dark .m2-page .m2-btn,
+.dark .m2-page .m2-modal,
+.dark .m2-page .m2-ficha-tile,
+.dark .m2-page .m2-filter-chip,
+.dark .m2-page .m2-scope,
+.dark .m2-page .m2-apparatus,
+.dark .m2-page .m2-apparatus-actions select{
+  background:var(--m2-surface);
+  color:var(--m2-text);
+  border-color:var(--m2-line);
+}
+
+.dark .m2-page .m2-card-title,
+.dark .m2-page .m2-card th,
+.dark .m2-page .m2-modal-foot,
+.dark .m2-page .m2-apparatus-head,
+.dark .m2-page .m2-activity-group,
+.dark .m2-page .m2-ficha-detail-row,
+.dark .m2-page .m2-ficha-observation,
+.dark .m2-page .m2-scope-stat,
+.dark .m2-page .m2-dashboard-note{
+  background:#162237;
+  color:var(--m2-text2);
+}
+
+.dark .m2-page .m2-sticky-col{
+  background:var(--m2-surface)!important;
+}
+
+.dark .m2-page thead .m2-sticky-col{
+  background:#162237!important;
+}
+
+.dark .m2-page .m2-btn:hover,
+.dark .m2-page .m2-unit-row:hover td,
+.dark .m2-page .m2-history-row:hover td,
+.dark .m2-page .m2-ficha-tile:hover{
+  background:#1B2A42;
+}
+
+.dark .m2-page .m2-cell-pending,
+.dark .m2-page .m2-swatch.pending,
+.dark .m2-page .m2-ficha-tile.selected{
+  background:var(--m2-bluebg);
+  color:var(--m2-blue);
+  border-color:var(--m2-line);
+}
+
+.dark .m2-page .m2-chip-grey{
+  background:#26364B;
+  color:var(--m2-text2);
+}
+
+.dark .m2-page .m2-level.l1{
+  background:#19314A;
+  color:#93C5FD;
+}
+
+.dark .m2-page .m2-level.l2{
+  background:#254C68;
+  color:#DBEAFE;
+}
+
+.dark .m2-page .m2-progress{
+  background:var(--m2-line2);
+}
+
+.dark .m2-page .m2-attention{
+  background:var(--m2-redbg);
+}
+
+.dark .m2-page .m2-attention.overdue{
+  background:var(--m2-amberbg);
+}
+
+.dark .m2-page .m2-timeline-dot{
+  border-color:var(--m2-surface);
+}
+
+.dark .m2-page .m2-btn-primary,
+.dark .m2-page .m2-filter-chip.selected,
+.dark .m2-page .m2-tab.active,
+.dark .m2-page .m2-scope-stat.total{
+  background:var(--m2-ink);
+  border-color:var(--m2-ink);
+  color:#FFFFFF;
+}
+
+.dark .m2-page input::placeholder{
+  color:var(--m2-text3);
+}
         @media(max-width:1100px){
           .m2-dashboard-grid{
             grid-template-columns:1fr;

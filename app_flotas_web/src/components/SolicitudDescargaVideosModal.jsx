@@ -1,9 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState
-} from 'react';
-
+import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../services/api';
@@ -41,54 +36,34 @@ export function SolicitudDescargaVideosModal({
   onClose,
   usuario
 }) {
-  const [form, setForm] =
-    useState(FORM_INICIAL);
-
-  const [opciones, setOpciones] =
-    useState({
-      clientesOperaciones: [],
-      vehiculos: [],
-      nombreSolicitante: ''
-    });
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [
-    busquedaPlaca,
-    setBusquedaPlaca
-  ] = useState('');
+  const [form, setForm] = useState(FORM_INICIAL);
+  const [opciones, setOpciones] = useState({
+    clientesOperaciones: [],
+    vehiculos: [],
+    nombreSolicitante: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [busquedaPlaca, setBusquedaPlaca] = useState('');
 
   useEffect(() => {
     if (!open) return;
 
     let vigente = true;
-
     setLoading(true);
 
-    api
-      .getOpcionesSolicitudDescargaVideos()
+    api.getOpcionesSolicitudDescargaVideos()
       .then(data => {
         if (!vigente) return;
 
         setOpciones({
           clientesOperaciones:
-            Array.isArray(
-              data?.clientesOperaciones
-            )
+            Array.isArray(data?.clientesOperaciones)
               ? data.clientesOperaciones
               : [],
-
-          vehiculos:
-            Array.isArray(
-              data?.vehiculos
-            )
-              ? data.vehiculos
-              : [],
-
+          vehiculos: Array.isArray(data?.vehiculos)
+            ? data.vehiculos
+            : [],
           nombreSolicitante:
             data?.nombreSolicitante || ''
         });
@@ -105,9 +80,7 @@ export function SolicitudDescargaVideosModal({
         }
       })
       .finally(() => {
-        if (vigente) {
-          setLoading(false);
-        }
+        if (vigente) setLoading(false);
       });
 
     return () => {
@@ -115,7 +88,8 @@ export function SolicitudDescargaVideosModal({
     };
   }, [open]);
 
-const placasCoincidentes =
+
+  const placasCoincidentes =
   useMemo(() => {
     const termino =
       busquedaPlaca
@@ -152,18 +126,10 @@ const placasCoincidentes =
     form.placas,
     busquedaPlaca
   ]);
+
   const agregarPlaca = placa => {
-    const placaFinal =
-      String(placa || '').trim();
-
-    if (!placaFinal) return;
-
     setForm(actual => {
-      if (
-        actual.placas.includes(
-          placaFinal
-        )
-      ) {
+      if (actual.placas.includes(placa)) {
         return actual;
       }
 
@@ -171,7 +137,7 @@ const placasCoincidentes =
         ...actual,
         placas: [
           ...actual.placas,
-          placaFinal
+          placa
         ]
       };
     });
@@ -182,12 +148,13 @@ const placasCoincidentes =
   const quitarPlaca = placa => {
     setForm(actual => ({
       ...actual,
-      placas:
-        actual.placas.filter(
-          item => item !== placa
-        )
+      placas: actual.placas.filter(
+        item => item !== placa
+      )
     }));
   };
+
+  if (!open) return null;
 
   const guardar = async event => {
     event.preventDefault();
@@ -200,40 +167,25 @@ const placasCoincidentes =
       !form.hora_fin ||
       !form.motivo.trim()
     ) {
-      toast.error(
-        'Complete todos los campos'
-      );
-
-      return;
+      return toast.error('Complete todos los campos');
     }
 
-    if (
-      form.hora_fin <=
-      form.hora_inicio
-    ) {
-      toast.error(
+    if (form.hora_fin <= form.hora_inicio) {
+      return toast.error(
         'La hora final debe ser posterior a la hora inicial'
       );
-
-      return;
     }
 
     try {
       setSaving(true);
 
-      await api
-        .createSolicitudDescargaVideos({
-          ...form,
-          motivo:
-            form.motivo.trim()
-        });
+      await api.createSolicitudDescargaVideos({
+        ...form,
+        motivo: form.motivo.trim()
+      });
 
-      toast.success(
-        'Solicitud de descarga registrada'
-      );
-
+      toast.success('Solicitud de descarga registrada');
       setForm(FORM_INICIAL);
-      setBusquedaPlaca('');
       onClose();
     } catch (error) {
       toast.error(
@@ -244,8 +196,6 @@ const placasCoincidentes =
       setSaving(false);
     }
   };
-
-  if (!open) return null;
 
   return (
     <div
@@ -258,15 +208,12 @@ const placasCoincidentes =
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1rem',
-        backgroundColor:
-          'rgba(16,27,51,0.45)',
+        backgroundColor: 'rgba(16,27,51,0.45)',
         backdropFilter: 'blur(5px)'
       }}
     >
       <div
-        onClick={event =>
-          event.stopPropagation()
-        }
+        onClick={event => event.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: '700px',
@@ -274,46 +221,31 @@ const placasCoincidentes =
           overflowY: 'auto',
           padding: '2rem',
           borderRadius: '1rem',
-          backgroundColor:
-            'var(--bg-color)',
-          border:
-            '1px solid var(--border-color)',
-          boxShadow:
-            '0 20px 50px -14px rgba(16,27,51,0.28)'
+          backgroundColor: 'var(--bg-color)',
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 20px 50px -14px rgba(16,27,51,0.28)'
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent:
-              'space-between',
-            alignItems:
-              'flex-start',
-            gap: '1rem',
-            marginBottom: '1.5rem'
-          }}
-        >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: '1rem',
+          marginBottom: '1.5rem'
+        }}>
           <div>
-            <h2
-              style={{
-                margin: 0,
-                color:
-                  'var(--text-primary)',
-                fontSize: '1.5rem'
-              }}
-            >
+            <h2 style={{
+              margin: 0,
+              color: 'var(--text-primary)',
+              fontSize: '1.5rem'
+            }}>
               Solicitud de descarga de videos
             </h2>
-
-            <p
-              style={{
-                margin:
-                  '0.35rem 0 0',
-                color:
-                  'var(--text-secondary)',
-                fontSize: '0.9rem'
-              }}
-            >
+            <p style={{
+              margin: '0.35rem 0 0',
+              color: 'var(--text-secondary)',
+              fontSize: '0.9rem'
+            }}>
               Seleccione las placas y el rango horario solicitado.
             </p>
           </div>
@@ -336,27 +268,20 @@ const placasCoincidentes =
             gap: '1.1rem'
           }}
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '1rem'
-            }}
-          >
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '1rem'
+          }}>
             <div>
-              <label style={labelStyle}>
-                Nombre del solicitante
-              </label>
-
+              <label style={labelStyle}>Nombre del solicitante</label>
               <input
                 type="text"
                 readOnly
                 value={
-                  opciones
-                    .nombreSolicitante ||
-                  usuario
-                    ?.nombre_completo ||
+                  opciones.nombreSolicitante ||
+                  usuario?.nombre_completo ||
                   usuario?.username ||
                   'Usuario actual'
                 }
@@ -365,16 +290,10 @@ const placasCoincidentes =
             </div>
 
             <div>
-              <label style={labelStyle}>
-                Cliente / Operación
-              </label>
-
+              <label style={labelStyle}>Cliente / Operación</label>
               <select
                 required
-                value={
-                  form
-                    .cliente_operacion_id
-                }
+                value={form.cliente_operacion_id}
                 disabled={loading}
                 onChange={event =>
                   setForm(actual => ({
@@ -390,389 +309,271 @@ const placasCoincidentes =
                     ? 'Cargando...'
                     : 'Seleccione un cliente y una operación'}
                 </option>
-
-                {opciones
-                  .clientesOperaciones
-                  .map(opcion => (
-                    <option
-                      key={opcion.id}
-                      value={opcion.id}
-                    >
-                      {opcion.etiqueta ||
-                        `${opcion.cliente} - ${opcion.operacion}`}
-                    </option>
-                  ))}
+                {opciones.clientesOperaciones.map(opcion => (
+                  <option key={opcion.id} value={opcion.id}>
+                    {opcion.etiqueta || `${opcion.cliente} - ${opcion.operacion}`}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
           <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent:
-                  'space-between',
-                alignItems: 'center',
-                gap: '1rem',
-                marginBottom: '0.5rem'
-              }}
-            >
-              <label
-                style={{
-                  ...labelStyle,
-                  marginBottom: 0
-                }}
-              >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '0.5rem'
+            }}>
+              <label style={{
+                ...labelStyle,
+                marginBottom: 0
+              }}>
                 Placas
               </label>
 
-              <span
-                style={{
-                  color:
-                    'var(--text-secondary)',
-                  fontSize: '0.8rem'
-                }}
-              >
-                {form.placas.length}{' '}
-                agregada(s)
+              <span style={{
+                color: 'var(--text-secondary)',
+                fontSize: '0.8rem'
+              }}>
+                {form.placas.length} agregada(s)
               </span>
             </div>
 
-            <input
-              type="search"
-              value={busquedaPlaca}
-              onChange={event =>
-                setBusquedaPlaca(
-                  event.target.value
-                )
-              }
-              placeholder="Escriba una placa para buscar..."
-              autoComplete="off"
-              style={inputStyle}
-            />
-            {busquedaPlaca.trim() && (
-            <div
-              style={{
-                maxHeight: '190px',
-                overflowY: 'auto',
-                marginTop: '0.5rem',
-                borderRadius: '0.65rem',
-                backgroundColor:
-                  'var(--bg-secondary)',
-                border:
-                  '1px solid var(--border-color)'
-              }}
-            >
-              {placasCoincidentes
-                .length === 0 ? (
-                <p
-                  style={{
-                    padding: '1rem',
-                    margin: 0,
-                    color:
-                      'var(--text-secondary)',
-                    textAlign: 'center'
-                  }}
-                >
-                  {opciones.vehiculos
-                    .length === 0
-                    ? 'No existen placas disponibles.'
-                    : form.placas
-                        .length ===
-                      opciones.vehiculos
-                        .length
-                      ? 'Todas las placas fueron agregadas.'
-                      : 'No se encontraron placas.'}
-                </p>
-              ) : (
-                placasCoincidentes.map(
-                  vehiculo => (
-                    <button
-                      key={vehiculo.placa}
-                      type="button"
-                      onClick={() =>
-                        agregarPlaca(
-                          vehiculo.placa
-                        )
-                      }
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        justifyContent:
-                          'space-between',
-                        alignItems:
-                          'center',
-                        gap: '1rem',
-                        padding:
-                          '0.75rem 1rem',
-                        background:
-                          'transparent',
-                        color:
-                          'var(--text-primary)',
-                        border: 'none',
-                        borderBottom:
-                          '1px solid var(--border-color)',
-                        cursor: 'pointer',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <strong>
-                        {vehiculo.placa}
-                      </strong>
-
-                      <span
+              <>
+                <input
+                  type="search"
+                  value={busquedaPlaca}
+                  onChange={event =>
+                    setBusquedaPlaca(event.target.value)
+                  }
+                  placeholder="Escriba una placa para buscar..."
+                  autoComplete="off"
+                  style={inputStyle}
+                />
+                {busquedaPlaca.trim() && (
+                <div style={{
+                  maxHeight: '190px',
+                  overflowY: 'auto',
+                  marginTop: '0.5rem',
+                  borderRadius: '0.65rem',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  {placasCoincidentes.length === 0 ? (
+                    <p style={{
+                      padding: '1rem',
+                      margin: 0,
+                      color: 'var(--text-secondary)',
+                      textAlign: 'center'
+                    }}>
+                      {opciones.vehiculos.length === 0
+                        ? 'No existen placas para esta operación.'
+                        : form.placas.length === opciones.vehiculos.length
+                          ? 'Todas las placas fueron agregadas.'
+                          : 'No se encontraron placas.'}
+                    </p>
+                  ) : (
+                    placasCoincidentes.map(vehiculo => (
+                      <button
+                        key={vehiculo.placa}
+                        type="button"
+                        onClick={() =>
+                          agregarPlaca(vehiculo.placa)
+                        }
                         style={{
-                          color:
-                            'var(--accent-color)',
-                          fontSize:
-                            '0.82rem',
+                          width: '100%',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '1rem',
+                          padding: '0.75rem 1rem',
+                          background: 'transparent',
+                          color: 'var(--text-primary)',
+                          border: 'none',
+                          borderBottom:
+                            '1px solid var(--border-color)',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <strong>{vehiculo.placa}</strong>
+
+                        <span style={{
+                          color: 'var(--accent-color)',
+                          fontSize: '0.82rem',
                           fontWeight: '700'
-                        }}
-                      >
-                        + Agregar
-                      </span>
-                    </button>
-                  )
-                )
-              )}
-            </div>
-            )}
-
-            <div
-              style={{
-                marginTop: '1rem'
-              }}
-            >
-              <div
-                style={{
-                  marginBottom:
-                    '0.55rem',
-                  color:
-                    'var(--text-secondary)',
-                  fontSize: '0.82rem',
-                  fontWeight: '600'
-                }}
-              >
-                Placas agregadas a la solicitud
-              </div>
-
-              {form.placas.length ===
-              0 ? (
-                <div
-                  style={{
-                    padding: '1rem',
-                    borderRadius:
-                      '0.65rem',
-                    border:
-                      '1px dashed var(--border-color)',
-                    color:
-                      'var(--text-secondary)',
-                    textAlign:
-                      'center',
-                    fontSize:
-                      '0.85rem'
-                  }}
-                >
-                  Todavía no ha agregado ninguna placa.
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '0.55rem',
-                    padding: '0.75rem',
-                    borderRadius:
-                      '0.65rem',
-                    backgroundColor:
-                      'var(--bg-secondary)',
-                    border:
-                      '1px solid var(--border-color)'
-                  }}
-                >
-                  {form.placas.map(
-                    placa => (
-                      <span
-                        key={placa}
-                        style={{
-                          display:
-                            'inline-flex',
-                          alignItems:
-                            'center',
-                          gap: '0.45rem',
-                          padding:
-                            '0.45rem 0.65rem',
-                          borderRadius:
-                            '2rem',
-                          backgroundColor:
-                            'var(--accent-color)',
-                          color: 'white',
-                          fontSize:
-                            '0.82rem',
-                          fontWeight:
-                            '700'
-                        }}
-                      >
-                        {placa}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            quitarPlaca(
-                              placa
-                            )
-                          }
-                          aria-label={
-                            `Quitar placa ${placa}`
-                          }
-                          title="Quitar placa"
-                          style={{
-                            display:
-                              'grid',
-                            placeItems:
-                              'center',
-                            width: '18px',
-                            height: '18px',
-                            padding: 0,
-                            border: 'none',
-                            borderRadius:
-                              '50%',
-                            backgroundColor:
-                              'rgba(255,255,255,0.25)',
-                            color: 'white',
-                            cursor:
-                              'pointer',
-                            fontSize:
-                              '14px',
-                            lineHeight: 1
-                          }}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    )
+                        }}>
+                          + Agregar
+                        </span>
+                      </button>
+                    ))
                   )}
                 </div>
-              )}
-            </div>
+                )}
+
+                <div style={{
+                  marginTop: '1rem'
+                }}>
+                  <div style={{
+                    marginBottom: '0.55rem',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.82rem',
+                    fontWeight: '600'
+                  }}>
+                    Placas agregadas a la solicitud
+                  </div>
+
+                  {form.placas.length === 0 ? (
+                    <div style={{
+                      padding: '1rem',
+                      borderRadius: '0.65rem',
+                      border:
+                        '1px dashed var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      textAlign: 'center',
+                      fontSize: '0.85rem'
+                    }}>
+                      Todavía no ha agregado ninguna placa.
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.55rem',
+                      padding: '0.75rem',
+                      borderRadius: '0.65rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      {form.placas.map(placa => (
+                        <span
+                          key={placa}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            padding: '0.45rem 0.65rem',
+                            borderRadius: '2rem',
+                            backgroundColor:
+                              'var(--accent-color)',
+                            color: 'white',
+                            fontSize: '0.82rem',
+                            fontWeight: '700'
+                          }}
+                        >
+                          {placa}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              quitarPlaca(placa)
+                            }
+                            aria-label={`Quitar placa ${placa}`}
+                            title="Quitar placa"
+                            style={{
+                              display: 'grid',
+                              placeItems: 'center',
+                              width: '18px',
+                              height: '18px',
+                              padding: 0,
+                              border: 'none',
+                              borderRadius: '50%',
+                              backgroundColor:
+                                'rgba(255,255,255,0.25)',
+                              color: 'white',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              lineHeight: 1
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'repeat(auto-fit, minmax(160px, 1fr))',
-              gap: '1rem'
-            }}
-          >
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: '1rem'
+          }}>
             <div>
-              <label style={labelStyle}>
-                Fecha de la descarga
-              </label>
-
+              <label style={labelStyle}>Fecha de la descarga</label>
               <input
                 type="date"
                 required
-                value={
-                  form.fecha_descarga
-                }
-                onChange={event =>
-                  setForm(actual => ({
-                    ...actual,
-                    fecha_descarga:
-                      event.target.value
-                  }))
-                }
+                value={form.fecha_descarga}
+                onChange={event => setForm({
+                  ...form,
+                  fecha_descarga: event.target.value
+                })}
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>
-                Hora de inicio
-              </label>
-
+              <label style={labelStyle}>Hora de inicio</label>
               <input
                 type="time"
                 required
-                value={
-                  form.hora_inicio
-                }
-                onChange={event =>
-                  setForm(actual => ({
-                    ...actual,
-                    hora_inicio:
-                      event.target.value
-                  }))
-                }
+                value={form.hora_inicio}
+                onChange={event => setForm({
+                  ...form,
+                  hora_inicio: event.target.value
+                })}
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>
-                Hora de fin
-              </label>
-
+              <label style={labelStyle}>Hora de fin</label>
               <input
                 type="time"
                 required
                 value={form.hora_fin}
-                onChange={event =>
-                  setForm(actual => ({
-                    ...actual,
-                    hora_fin:
-                      event.target.value
-                  }))
-                }
+                onChange={event => setForm({
+                  ...form,
+                  hora_fin: event.target.value
+                })}
                 style={inputStyle}
               />
             </div>
           </div>
 
           <div>
-            <label style={labelStyle}>
-              Motivo
-            </label>
-
+            <label style={labelStyle}>Motivo</label>
             <textarea
               required
               rows="4"
               maxLength={1000}
               value={form.motivo}
-              onChange={event =>
-                setForm(actual => ({
-                  ...actual,
-                  motivo:
-                    event.target.value
-                }))
-              }
+              onChange={event => setForm({
+                ...form,
+                motivo: event.target.value
+              })}
               placeholder="Explique el motivo de la descarga..."
-              style={{
-                ...inputStyle,
-                resize: 'vertical'
-              }}
+              style={{ ...inputStyle, resize: 'vertical' }}
             />
           </div>
 
-          <small
-            style={{
-              color:
-                'var(--text-secondary)'
-            }}
-          >
+          <small style={{ color: 'var(--text-secondary)' }}>
             La fecha y hora de ingreso se registrarán automáticamente.
           </small>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent:
-                'flex-end',
-              gap: '1rem',
-              flexWrap: 'wrap'
-            }}
-          >
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '1rem',
+            flexWrap: 'wrap'
+          }}>
             <button
               type="button"
               onClick={onClose}
@@ -780,15 +581,12 @@ const placasCoincidentes =
             >
               Cancelar
             </button>
-
             <button
               type="submit"
               disabled={saving}
               className="ui-button ui-button-primary"
             >
-              {saving
-                ? 'Guardando...'
-                : 'Guardar solicitud'}
+              {saving ? 'Guardando...' : 'Guardar solicitud'}
             </button>
           </div>
         </form>

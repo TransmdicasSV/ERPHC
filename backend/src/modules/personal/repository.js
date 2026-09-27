@@ -1,4 +1,5 @@
 import { pool } from '../../config/database.js';
+import {validarDatosPersonal} from './service.js';
 
 export const obtenerPersonal = async () => {
   const result = await pool.query(
@@ -49,47 +50,52 @@ export const crearPersonal = async ({
   return result.rows[0];
 };
    
+export const actualizarPersonal =
+  async (id, datos) => {
+    const cambios =
+      validarDatosPersonal(
+        datos,
+        true
+      );
 
-export const actualizarPersonal = async (
-  id,
-  {
-    nombre_completo,
-    dni,
-    modalidad,
-    area,
-    cargo,
-    estado
-  }
-) => {
-  const result = await pool.query(
-    `UPDATE personal
-     SET
-       nombre_completo = $1,
-       dni = $2,
-       modalidad = $3,
-       area = $4,
-       cargo = $5,
-       estado = $6
-     WHERE id = $7
-     RETURNING *`,
-    [
-      nombre_completo,
-      dni,
-      modalidad,
-      area,
-      cargo,
-      estado,
-      id
-    ]
-  );
+    const campos =
+      Object.keys(cambios);
 
-  return result.rows[0] || null;
-};
+    const asignaciones =
+      campos.map(
+        (campo, index) =>
+          `${campo} = $${index + 1}`
+      );
 
-export const eliminarPersonal = async id => {
+    const valores =
+      campos.map(
+        campo => cambios[campo]
+      );
+
+    const result =
+      await pool.query(
+        `UPDATE personal
+         SET ${asignaciones.join(', ')}
+         WHERE id = $${campos.length + 1}
+         RETURNING *`,
+        [
+          ...valores,
+          id
+        ]
+      );
+
+    return result.rows[0] || null;
+  };
+
+
+export const eliminarPersonal=
+async id=>{
+  const result = 
   await pool.query(
     `DELETE FROM personal
-     WHERE id = $1`,
+    WHERE id = $1
+    RETURNING *`,
     [id]
   );
+  return result.rows[0] || null;
 };

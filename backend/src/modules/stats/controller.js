@@ -18,6 +18,18 @@ import {
   construirSalud
 } from './service.js';
 
+import {
+  tieneAccesoTotalFlota,
+  obtenerClienteOperacionIds
+} from '../../middlewares/auth.js';
+
+const obtenerAlcance = req => ({
+  accesoTotal:
+    tieneAccesoTotalFlota(req),
+  clienteOperacionIds:
+    obtenerClienteOperacionIds(req) || []
+});
+
 // ==========================================
 // ESTADÍSTICAS RÁPIDAS
 // ==========================================
@@ -26,7 +38,9 @@ export const obtenerStats =
   async (req, res) => {
     try {
       const resultado =
-        await obtenerConteosRapidos();
+        await obtenerConteosRapidos(
+          obtenerAlcance(req)
+        );
 
       return res.json(
         resultado
@@ -53,6 +67,9 @@ export const obtenerStats =
 export const obtenerCharts =
   async (req, res) => {
     try {
+      const alcance =
+        obtenerAlcance(req);
+
       const [
         inspecciones,
         errores,
@@ -61,11 +78,11 @@ export const obtenerCharts =
         soporteRows
       ] =
         await Promise.all([
-          obtenerFechasInspecciones(),
-          obtenerFallosComponentes(),
-          obtenerProgramasStats(),
-          obtenerSaludInspecciones(),
-          obtenerSoporteStats()
+          obtenerFechasInspecciones(alcance),
+          obtenerFallosComponentes(alcance),
+          obtenerProgramasStats(alcance),
+          obtenerSaludInspecciones(alcance),
+          obtenerSoporteStats(alcance)
         ]);
 
       const tendencia =
@@ -87,7 +104,9 @@ export const obtenerCharts =
 
       try {
         const inventarioRows =
-          await obtenerInventarioAgrupado();
+          await obtenerInventarioAgrupado(
+            alcance
+          );
 
         inventario =
           mapearInventario(
@@ -100,7 +119,9 @@ export const obtenerCharts =
         );
 
         const total =
-          await obtenerTotalInventario();
+          await obtenerTotalInventario(
+            alcance
+          );
 
         inventario = [
           {

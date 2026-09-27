@@ -205,7 +205,10 @@ export const api = {  // ==========================================
       method: 'POST',
       body: formData,
     });
-    if (!response.ok) throw new Error('Error al crear inspeccion');
+    if (!response.ok) {
+      const detalle = await response.json().catch(() => ({}));
+      throw new Error(detalle.error || 'Error al crear inspeccion');
+    }
     return response.json();
   },
 
@@ -273,6 +276,53 @@ createPulsera: async (data, evidencia) => {
 
   return result;
 },
+getOpcionesSolicitudDescargaVideos:
+  async () => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/opciones`
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al cargar las opciones de descarga de videos'
+      );
+    }
+
+    return data;
+  },
+
+createSolicitudDescargaVideos:
+  async data => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data)
+        }
+      );
+
+    const result =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        'Error al registrar la solicitud de descarga de videos'
+      );
+    }
+
+    return result;
+  },
   // === INCIDENTES ===
   getIncidentes: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/incidentes`);
@@ -280,6 +330,55 @@ createPulsera: async (data, evidencia) => {
     return response.json();
   },
 
+  getSolicitudesDescargaVideos:
+  async () => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => []);
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al obtener las solicitudes'
+      );
+    }
+
+    return data;
+  },
+
+updateEstadoSolicitudDescargaVideos:
+  async (id, estado) => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/${id}/estado`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            estado
+          })
+        }
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al actualizar la solicitud'
+      );
+    }
+
+    return data;
+  },
 createIncidente: async (data, evidencias = []) => {
   const payload = new FormData();
 
@@ -421,6 +520,23 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     return data.persona;
   },
   // === ENTREGAS ===
+  getOpcionesEntregas: async () => {
+    const response = await fetchWithAuth(
+      `${BASE_URL}/api/entregas/opciones`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al cargar clientes y operaciones'
+      );
+    }
+
+    return data;
+  },
+
   getEntregas: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/entregas`);
     if (!response.ok) throw new Error('Error al cargar entregas');
