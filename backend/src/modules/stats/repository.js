@@ -28,17 +28,38 @@ export const actualizarUltimoAcceso =
 // ==========================================
 
 export const obtenerConteosRapidos =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const [
       vehiculosResult,
       inspeccionesResult
     ] = await Promise.all([
       pool.query(
-        'SELECT COUNT(*) FROM vehiculos'
+        `SELECT COUNT(*)
+         FROM vehiculos v
+         WHERE $1::boolean = TRUE
+            OR v.cliente_operacion_id =
+               ANY($2::integer[])`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       ),
 
       pool.query(
-        'SELECT COUNT(*) FROM inspecciones_flota'
+        `SELECT COUNT(*)
+         FROM inspecciones_flota i
+         INNER JOIN vehiculos v
+           ON v.placa = i.placa
+         WHERE $1::boolean = TRUE
+            OR v.cliente_operacion_id =
+               ANY($2::integer[])`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       )
     ]);
 
@@ -64,20 +85,37 @@ export const obtenerConteosRapidos =
 // ==========================================
 
 export const obtenerFechasInspecciones =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
            fecha_hora::date::text AS fecha
-         FROM inspecciones_flota
-         WHERE fecha_hora IS NOT NULL`
+         FROM inspecciones_flota i
+         INNER JOIN vehiculos v
+           ON v.placa = i.placa
+         WHERE i.fecha_hora IS NOT NULL
+           AND (
+             $1::boolean = TRUE
+             OR v.cliente_operacion_id =
+                ANY($2::integer[])
+           )`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows;
   };
 
 export const obtenerFallosComponentes =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
@@ -120,20 +158,36 @@ export const obtenerFallosComponentes =
              END
            ) AS camaras_errors
 
-         FROM inspecciones_flota`
+         FROM inspecciones_flota i
+         INNER JOIN vehiculos v
+           ON v.placa = i.placa
+         WHERE $1::boolean = TRUE
+            OR v.cliente_operacion_id =
+               ANY($2::integer[])`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows[0] || {};
   };
 
 export const obtenerProgramasStats =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
            COALESCE(
              NULLIF(
-               TRIM(operacion),
+               CONCAT_WS(
+                 ' - ',
+                 NULLIF(TRIM(cliente), ''),
+                 NULLIF(TRIM(operacion), '')
+               ),
                ''
              ),
              'Sin Categoría'
@@ -141,25 +195,40 @@ export const obtenerProgramasStats =
 
            COUNT(*) AS cantidad
 
-         FROM vehiculos
+         FROM vehiculos v
+
+         WHERE $1::boolean = TRUE
+            OR v.cliente_operacion_id =
+               ANY($2::integer[])
 
          GROUP BY
            COALESCE(
              NULLIF(
-               TRIM(operacion),
+               CONCAT_WS(
+                 ' - ',
+                 NULLIF(TRIM(cliente), ''),
+                 NULLIF(TRIM(operacion), '')
+               ),
                ''
              ),
              'Sin Categoría'
            )
 
-         ORDER BY programa`
+         ORDER BY programa`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows;
   };
 
 export const obtenerSaludInspecciones =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
@@ -213,14 +282,26 @@ export const obtenerSaludInspecciones =
              END
            ) AS observados
 
-         FROM inspecciones_flota`
+         FROM inspecciones_flota i
+         INNER JOIN vehiculos v
+           ON v.placa = i.placa
+         WHERE $1::boolean = TRUE
+            OR v.cliente_operacion_id =
+               ANY($2::integer[])`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows[0] || {};
   };
 
 export const obtenerSoporteStats =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
@@ -231,7 +312,13 @@ export const obtenerSoporteStats =
 
            COUNT(*) AS cantidad
 
-         FROM incidentes_soporte
+         FROM incidentes_soporte s
+         INNER JOIN vehiculos v
+           ON v.placa = s.placa
+
+         WHERE $1::boolean = TRUE
+            OR v.cliente_operacion_id =
+               ANY($2::integer[])
 
          GROUP BY
            COALESCE(
@@ -239,14 +326,21 @@ export const obtenerSoporteStats =
              'Sin Estado'
            )
 
-         ORDER BY estado`
+         ORDER BY estado`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows;
   };
 
 export const obtenerInventarioAgrupado =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT
@@ -257,7 +351,11 @@ export const obtenerInventarioAgrupado =
 
            COUNT(*) AS cantidad
 
-         FROM entregas_ti
+         FROM entregas_ti e
+
+         WHERE $1::boolean = TRUE
+            OR e.cliente_operacion_id =
+               ANY($2::integer[])
 
          GROUP BY
            COALESCE(
@@ -265,18 +363,32 @@ export const obtenerInventarioAgrupado =
              'Entrega'
            )
 
-         ORDER BY tipo_movimiento`
+         ORDER BY tipo_movimiento`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return result.rows;
   };
 
 export const obtenerTotalInventario =
-  async () => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result =
       await pool.query(
         `SELECT COUNT(*) AS cantidad
-         FROM entregas_ti`
+         FROM entregas_ti e
+         WHERE $1::boolean = TRUE
+            OR e.cliente_operacion_id =
+               ANY($2::integer[])`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
       );
 
     return Number(

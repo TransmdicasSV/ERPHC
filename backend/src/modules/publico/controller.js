@@ -182,8 +182,13 @@ export const consultarUnidadPublica =
             inspeccion
           ),
 
-        incidente_pendiente:
-          incidente,
+        incidente_pendiente:incidente
+          ?{
+            estado:incidente.estado,
+            tipo_solicitud:incidente.tipo_solicitud,
+            fecha: incidente.fecha
+          }
+          : null, 
 
         timeline,
 

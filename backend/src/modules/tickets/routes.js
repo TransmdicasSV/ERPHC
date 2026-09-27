@@ -19,7 +19,11 @@ import {
   createSupportTicket,
   listarTickets,
   actualizarTicket,
-  eliminarTicket
+  eliminarTicket,
+  opcionesSolicitudDescargaVideos,
+  crearSolicitudDescargaVideos,
+  listarSolicitudesDescargaVideos,
+cambiarEstadoSolicitudDescargaVideos,
 } from './controller.js';
 
 // ==========================================
@@ -45,6 +49,44 @@ router.post(
   requirePermiso('tickets', 'crear'),
   upload.single('evidencia'),
   crearReportePulsera
+);
+// Opciones para solicitudes de descarga de videos
+router.get(
+  '/solicitudes-descarga-videos/opciones',
+  requirePermiso(
+    'tickets',
+    'crear'
+  ),
+  opcionesSolicitudDescargaVideos
+);
+
+// Crear solicitud de descarga de videos
+router.post(
+  '/solicitudes-descarga-videos',
+  requirePermiso(
+    'tickets',
+    'crear'
+  ),
+  crearSolicitudDescargaVideos
+);
+// Listar solicitudes de descarga
+router.get(
+  '/solicitudes-descarga-videos',
+  requirePermiso(
+    'tickets',
+    'ver'
+  ),
+  listarSolicitudesDescargaVideos
+);
+
+// Atender o rechazar una solicitud
+router.patch(
+  '/solicitudes-descarga-videos/:id/estado',
+  requirePermiso(
+    'tickets',
+    'gestionar'
+  ),
+  cambiarEstadoSolicitudDescargaVideos
 );
 
 router.get(

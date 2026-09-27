@@ -81,62 +81,137 @@ export const registrarPersonal =
 
 export const editarPersonal =
   async (req, res) => {
-    const { id } = req.params;
-
+    const id =
+      Number.parseInt(
+        req.params.id,
+        10
+      );
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'ID de personal no válido'
+        });
+    }
     try {
       const personalActualizado =
-        await actualizarPersonal(
-          id,
-          req.body
-        );
-
+        await actualizarPersonal(id, req.body);
+      if (!personalActualizado) {
+        return res.status(404).json({
+          error: 'Personal no encontrado'
+        });
+      }
       await logAction(
         req.user
           ? req.user.id
           : null,
-        `Actualizó personal: ${req.body?.nombre_completo}`,
-        'personal'
+        `Actualizo personal: ${personalActualizado.nombre_completo}`,
+        'personal',
+        req,
+        null,
+        personalActualizado
       );
-
       return res.json(
         personalActualizado
       );
     } catch (error) {
-      console.error(error);
-
-      return res.status(500).json({
-        error:
-          'Error al actualizar personal'
-      });
+      if (
+        error instanceof
+        PersonalValidationError
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error: error.message
+          });
+      }
+      if (error.code === '23505') {
+        return res.status(409).
+          json({ error: 'El DNI ya esta registrado' });
+      }
+      console.error(
+        'Error actualizando personal: ',
+        error
+      );
+      return res.status(500).json({ error: 'Error al acutalizar personal' });
     }
   };
-
 export const borrarPersonal =
   async (req, res) => {
-    const { id } = req.params;
+    const id =
+      Number.parseInt(
+        req.params.id,
+        10
+      );
+
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'ID de personal no válido'
+        });
+    }
 
     try {
-      await eliminarPersonal(
-        id
-      );
+      const personalEliminado =
+        await eliminarPersonal(id);
+
+      if (!personalEliminado) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Personal no encontrado'
+          });
+      }
 
       await logAction(
         req.user
           ? req.user.id
           : null,
-        `Eliminó registro de personal ID: ${id}`,
-        'personal'
+        `Eliminó personal: ${personalEliminado.nombre_completo}`,
+        'personal',
+        req,
+        personalEliminado,
+        null
       );
 
       return res.json({
-        success: true
+        success: true,
+        message:
+          'Personal eliminado correctamente'
       });
     } catch (error) {
-      console.error(error);
+      if (
+        error.code === '23503' ||
+        error.code === '23001'
+      ) {
+        return res
+          .status(409)
+          .json({
+            error:
+              'No se puede eliminar este personal porque tiene usuarios, entregas, tickets o pulseras relacionados. Cambia su estado a Inactivo.'
+          });
+      }
 
-      return res.status(500).json({
-        error:
-          'Error al eliminar personal'
-      });
+      console.error(
+        'Error eliminando personal:',
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Error al eliminar personal'
+        });
     }
   };

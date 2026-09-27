@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import toast from 'react-hot-toast';
 import { UiIcon } from './UiIcon';
+import {
+  SolicitudDescargaVideosModal
+} from './SolicitudDescargaVideosModal';
+import {
+  SolicitudesDescargaVideosPanel
+} from './SolicitudesDescargaVideosPanel';
 
 export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [tickets, setTickets] = useState([]);
@@ -14,6 +20,10 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [draggedTicketId, setDraggedTicketId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
+  const [
+    showVideoDownloadModal,
+    setShowVideoDownloadModal
+  ] = useState(false);
 
   // Estados para Modal de Resolución con Evidencia
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -23,33 +33,36 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [showPulseraModal, setShowPulseraModal] = useState(false);
   const [savingPulsera, setSavingPulsera] = useState(false);
   const [pulseraEvidencia, setPulseraEvidencia] = useState(null);
-  const [pulseraOperaciones, setPulseraOperaciones] = useState([]);
+  const [
+    pulseraClientesOperaciones,
+    setPulseraClientesOperaciones
+  ] = useState([]);
   const [pulseraPersonal, setPulseraPersonal] = useState([]);
   const [loadingPulseraOptions, setLoadingPulseraOptions] = useState(false);
   const [showDniSuggestions, setShowDniSuggestions] = useState(false);
 
   const [pulseraForm, setPulseraForm] = useState({
-  solicitante_persona_id: '',
-  operacion: '',
-  receptor_persona_id: '',
-  persona_pulsera: '',
-  dni_persona_pulsera: '',
-  motivo_renovacion: ''
-});
-const [formData, setFormData] = useState({
-  placa: '',
-  persona_id: '',
-  tipo_solicitud: 'Soporte Técnico',
-  implemento: '',
-  descripcion: ''
-});
+    solicitante_persona_id: '',
+    cliente_operacion_id: '',
+    receptor_persona_id: '',
+    persona_pulsera: '',
+    dni_persona_pulsera: '',
+    motivo_renovacion: ''
+  });
+  const [formData, setFormData] = useState({
+    placa: '',
+    persona_id: '',
+    tipo_solicitud: 'Soporte Técnico',
+    implemento: '',
+    descripcion: ''
+  });
   const canCreate = permisos?.crear === true;
 
   const rolActual = String(usuario?.rol || '').toLowerCase();
 
   const canCreatePulsera =
-  canCreate &&
-  ['admin', 'administrador', 'supervisor'].includes(rolActual);
+    canCreate &&
+    ['admin', 'administrador', 'supervisor'].includes(rolActual);
 
   const [opcionesTicket, setOpcionesTicket] = useState(null);
 
@@ -82,8 +95,10 @@ const [formData, setFormData] = useState({
       .then(data => {
         if (!vigente) return;
 
-        setPulseraOperaciones(
-          Array.isArray(data?.operaciones) ? data.operaciones : []
+        setPulseraClientesOperaciones(
+          Array.isArray(data?.clientesOperaciones)
+            ? data.clientesOperaciones
+            : []
         );
 
         setPulseraPersonal(
@@ -442,7 +457,7 @@ const [formData, setFormData] = useState({
       );
     }
 
-    
+
 
     if (!formData.descripcion.trim()) {
       return toast.error(
@@ -462,24 +477,24 @@ const [formData, setFormData] = useState({
 
     try {
       await api.createIncidente(
-  {
-    placa,
+        {
+          placa,
 
-    persona_id:
-      formData.persona_id,
+          persona_id:
+            formData.persona_id,
 
-    tipo_solicitud:
-      formData.tipo_solicitud,
+          tipo_solicitud:
+            formData.tipo_solicitud,
 
-    implemento:
-      formData.implemento,
+          implemento:
+            formData.implemento,
 
-    descripcion:
-      formData.descripcion
-  },
+          descripcion:
+            formData.descripcion
+        },
 
-  ticketEvidencias
-);
+        ticketEvidencias
+      );
 
       toast.success(
         'Ticket creado exitosamente'
@@ -522,13 +537,15 @@ const [formData, setFormData] = useState({
       pulseraForm.receptor_persona_id
     );
 
-    const operacion = pulseraForm.operacion.trim();
+    const clienteOperacionId = Number(
+      pulseraForm.cliente_operacion_id
+    );
     const motivoRenovacion = pulseraForm.motivo_renovacion.trim();
 
     if (
       !Number.isInteger(solicitantePersonaId) ||
       !Number.isInteger(receptorPersonaId) ||
-      !operacion ||
+      !Number.isInteger(clienteOperacionId) ||
       !motivoRenovacion
     ) {
       return toast.error('Complete todos los campos del reporte');
@@ -549,7 +566,7 @@ const [formData, setFormData] = useState({
         {
           solicitante_persona_id: solicitantePersonaId,
           receptor_persona_id: receptorPersonaId,
-          operacion,
+          cliente_operacion_id: clienteOperacionId,
           motivo_renovacion: motivoRenovacion
         },
         pulseraEvidencia
@@ -563,7 +580,7 @@ const [formData, setFormData] = useState({
 
       setPulseraForm({
         solicitante_persona_id: '',
-        operacion: '',
+        cliente_operacion_id: '',
         receptor_persona_id: '',
         persona_pulsera: '',
         dni_persona_pulsera: '',
@@ -572,7 +589,7 @@ const [formData, setFormData] = useState({
     } catch (error) {
       toast.error(
         error.message ||
-          'Error al registrar el reporte de pulsera'
+        'Error al registrar el reporte de pulsera'
       );
     } finally {
       setSavingPulsera(false);
@@ -584,6 +601,19 @@ const [formData, setFormData] = useState({
       <UiIcon name="file" /> Reporte de Pulseras
     </button>
   );
+  const renderVideoDownloadButton = () =>
+    canCreatePulsera && (
+      <button
+        type="button"
+        onClick={() =>
+          setShowVideoDownloadModal(true)
+        }
+        className="ui-button ui-button-secondary"
+      >
+        <UiIcon name="download" />
+        Solicitud de descarga de videos
+      </button>
+    );
   const renderPulseraModal = () => canCreatePulsera && showPulseraModal && (
     <div onClick={() => setShowPulseraModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, backdropFilter: 'blur(5px)', padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
 
@@ -649,15 +679,15 @@ const [formData, setFormData] = useState({
                 fontWeight: '600'
               }}
             >
-              Operación
+              Cliente / Operación
             </label>
 
             <select
-              value={pulseraForm.operacion}
+              value={pulseraForm.cliente_operacion_id}
               onChange={event =>
                 setPulseraForm({
                   ...pulseraForm,
-                  operacion: event.target.value
+                  cliente_operacion_id: event.target.value
                 })
               }
               required
@@ -674,12 +704,12 @@ const [formData, setFormData] = useState({
               <option value="">
                 {loadingPulseraOptions
                   ? 'Cargando operaciones...'
-                  : 'Seleccione una operación'}
+                  : 'Seleccione un cliente y una operación'}
               </option>
 
-              {pulseraOperaciones.map(operacion => (
-                <option key={operacion} value={operacion}>
-                  {operacion}
+              {pulseraClientesOperaciones.map(opcion => (
+                <option key={opcion.id} value={opcion.id}>
+                  {opcion.etiqueta || `${opcion.cliente} - ${opcion.operacion}`}
                 </option>
               ))}
             </select>
@@ -1040,26 +1070,101 @@ const [formData, setFormData] = useState({
   if (isReadOnly) {
     return (
       <div className="erp-module-page erp-tickets-page" style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '2rem',
+            gap: '1rem',
+            flexWrap: 'wrap'
+          }}
+        >
           <div>
-            <h1 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <h1
+              style={{
+                margin: 0,
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}
+            >
               Tickets de Soporte de mi Operación
             </h1>
-            <p style={{ color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
+
+            <p
+              style={{
+                color: 'var(--text-secondary)',
+                margin: '0.5rem 0 0'
+              }}
+            >
               Consulta el estado de los requerimientos pertenecientes a tu operación.
             </p>
           </div>
-          {canCreate && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="ui-button ui-button-primary">
-              <UiIcon name="plus" /> Nueva Solicitud
-            </button>
-          )}
-          {renderPulseraButton()}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              flexWrap: 'wrap'
+            }}
+          >
+            {canCreate && (
+              <button
+                onClick={() => setShowModal(true)}
+                className="ui-button ui-button-primary"
+              >
+                <UiIcon name="plus" />
+                Nueva Solicitud
+              </button>
+            )}
+
+            {renderPulseraButton()}
+            {renderVideoDownloadButton()}
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gap: '1rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: '2px solid var(--border-color)',
+            marginBottom: '1.5rem',
+            gap: '1rem',
+            overflowX: 'auto'
+          }}
+        >
+          <button
+            onClick={() => setActiveTab('KANBAN')}
+            className={`ui-tab-button ${
+              activeTab === 'KANBAN' ? 'active' : ''
+            }`}
+          >
+            <UiIcon name="clipboard" />
+            Mis tickets
+          </button>
+
+          <button
+            onClick={() => setActiveTab('VIDEOS')}
+            className={`ui-tab-button ${
+              activeTab === 'VIDEOS' ? 'active' : ''
+            }`}
+          >
+            <UiIcon name="download" />
+            Descarga de videos
+          </button>
+        </div>
+
+        <div
+          style={{
+            display:
+              activeTab === 'VIDEOS'
+                ? 'none'
+                : 'grid',
+            gap: '1rem'
+          }}
+        >
           {tickets.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)', backgroundColor: 'var(--card-bg)', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
               No tienes solicitudes registradas.
@@ -1092,6 +1197,12 @@ const [formData, setFormData] = useState({
           )}
         </div>
 
+        {activeTab === 'VIDEOS' && (
+          <SolicitudesDescargaVideosPanel
+            canManage={false}
+          />
+        )}
+
         {/* Modal Nuevo Ticket */}
         {canCreate && showModal && (
           <div onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
@@ -1120,28 +1231,83 @@ const [formData, setFormData] = useState({
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Tipo de Solicitud</label>
-                  <select value={formData.tipo_solicitud} onChange={e => setFormData({ ...formData, tipo_solicitud: e.target.value })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)' }}>
-                    <option>Soporte Técnico</option>
-                    <option>Solicitud de Accesorio</option>
-                    <option>Revisión de Cámaras</option>
-                    <option>Capacitación</option>
+                  <label
+                    style={{
+                      display: 'block',
+                      marginBottom: '0.5rem',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Categoría del Problema
+                  </label>
+
+                  <select
+                    value={formData.tipo_solicitud}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        tipo_solicitud: e.target.value,
+                        implemento: ''
+                      })
+                    }
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '0.5rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)',
+                      outlineColor: 'var(--accent-color)'
+                    }}
+                  >
+                    <option value="Soporte Técnico">
+                      Soporte Técnico (General)
+                    </option>
+                    <option value="GPS No Reporta">
+                      GPS No Reporta
+                    </option>
+                    <option value="Cámaras Desconectadas">
+                      Cámaras Desconectadas
+                    </option>
+                    <option value="Mantenimiento de Equipo">
+                      Mantenimiento de Equipo
+                    </option>
+                    <option value="Instalación de Software">
+                      Instalación de Software
+                    </option>
+                    <option value="Otro">
+                      Otro
+                    </option>
                   </select>
                 </div>
 
+                {renderImplementoField()}
+
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Problema</label>
-                  <textarea value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} rows={4} required placeholder="Describa el problema detalladamente..." style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outlineColor: 'var(--accent-color)', resize: 'vertical' }}></textarea>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Descripción Detallada</label>
+                  <textarea value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} rows="4" placeholder="Describa el problema reportado de manera clara..." required style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', resize: 'vertical', outlineColor: 'var(--accent-color)' }}></textarea>
                 </div>
 
-                <button type="submit" style={{ backgroundColor: 'var(--accent-color)', color: 'white', padding: '1rem', borderRadius: '0.5rem', border: 'none', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginTop: '0.5rem', transition: 'background 0.2s' }}>
-                  Crear Ticket
-                </button>
+                {renderTicketEvidenceField()}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setShowModal(false)} style={{ padding: '0.75rem 1.5rem', backgroundColor: 'transparent', border: '1px solid #D1D5DB', color: '#374151', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Cancelar</button>
+                  <button type="submit" style={{ padding: '0.75rem 1.5rem', backgroundColor: '#2458e8', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(36,88,232,0.2)' }}>Guardar Ticket</button>
+                </div>
               </form>
             </div>
           </div>
         )}
         {renderPulseraModal()}
+        <SolicitudDescargaVideosModal
+          open={showVideoDownloadModal}
+          onClose={() =>
+            setShowVideoDownloadModal(false)
+          }
+          usuario={usuario}
+        />
 
       </div>
     );
@@ -1164,6 +1330,7 @@ const [formData, setFormData] = useState({
             </button>
           )}
           {renderPulseraButton()}
+          {renderVideoDownloadButton()}
         </div>
       </div>
 
@@ -1174,6 +1341,18 @@ const [formData, setFormData] = useState({
         </button>
         <button onClick={() => setActiveTab('HISTORIAL')} className={`ui-tab-button ${activeTab === 'HISTORIAL' ? 'active' : ''}`}>
           <UiIcon name="history" /> Historial de Trabajos Técnicos
+        </button>
+        <button
+          onClick={() =>
+            setActiveTab('VIDEOS')
+          }
+          className={`ui-tab-button ${activeTab === 'VIDEOS'
+            ? 'active'
+            : ''
+            }`}
+        >
+          <UiIcon name="download" />
+          Descarga de videos
         </button>
       </div>
 
@@ -1210,6 +1389,7 @@ const [formData, setFormData] = useState({
           </div>
         </>
       )}
+
 
       {activeTab === 'HISTORIAL' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.3s ease-out' }}>
@@ -1273,6 +1453,11 @@ const [formData, setFormData] = useState({
             </table>
           </div>
         </div>
+      )}
+      {activeTab === 'VIDEOS' && (
+        <SolicitudesDescargaVideosPanel
+          canManage={canManage}
+        />
       )}
 
       {/* Modal Nuevo Ticket */}
@@ -1378,6 +1563,13 @@ const [formData, setFormData] = useState({
       )}
 
       {renderPulseraModal()}
+      <SolicitudDescargaVideosModal
+        open={showVideoDownloadModal}
+        onClose={() =>
+          setShowVideoDownloadModal(false)
+        }
+        usuario={usuario}
+      />
 
       {/* Modal Historial de Técnicos Externos */}
       {showExternalTechModal && (

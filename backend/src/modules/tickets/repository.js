@@ -12,8 +12,14 @@ export const obtenerUsuarioTicket =
          u.rol,
          u.estado,
          u.operacion,
-         u.persona_id
+         u.persona_id,
+         COALESCE(
+           p.nombre_completo,
+           u.username
+         ) AS nombre_solicitante
        FROM usuarios u
+       LEFT JOIN personal p
+         ON p.id = u.persona_id
        WHERE u.id = $1
        LIMIT 1`,
       [userId]
@@ -21,39 +27,76 @@ export const obtenerUsuarioTicket =
 
     return result.rows[0] || null;
   };
-
 // ==========================================
 // OPCIONES DE TICKETS
 // ==========================================
 
 export const obtenerVehiculosTickets =
-  async (
-    operacion,
+  async ({
+    accesoTotal,
+    clienteOperacionIds,
     operacionesInvalidas
-  ) => {
+  }) => {
     const result = await pool.query(
       `SELECT
-         placa,
-         BTRIM(operacion) AS operacion
-       FROM vehiculos
+         v.placa,
+         BTRIM(v.cliente) AS cliente,
+         BTRIM(v.operacion) AS operacion,
+         v.cliente_operacion_id
+       FROM vehiculos v
        WHERE LOWER(
          BTRIM(
-           COALESCE(operacion, '')
+           COALESCE(v.operacion, '')
          )
-       ) <> ALL($2::text[])
+       ) <> ALL($3::text[])
          AND (
-           $1::text IS NULL
-           OR LOWER(BTRIM(operacion)) =
-              LOWER(BTRIM($1))
+           $1::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($2::integer[])
          )
-       ORDER BY placa ASC`,
+       ORDER BY
+         v.cliente,
+         v.operacion,
+         v.placa`,
       [
-        operacion,
+        Boolean(accesoTotal),
+        clienteOperacionIds || [],
         operacionesInvalidas
       ]
     );
 
     return result.rows;
+  };
+
+export const obtenerVehiculoTicketPorPlaca =
+  async ({
+    placa,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result = await pool.query(
+      `SELECT
+         v.placa,
+         v.cliente,
+         v.operacion,
+         v.cliente_operacion_id
+       FROM vehiculos v
+       WHERE UPPER(BTRIM(v.placa)) =
+             UPPER(BTRIM($1))
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )
+       LIMIT 1`,
+      [
+        placa,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
+    );
+
+    return result.rows[0] || null;
   };
 
 export const obtenerPersonalTickets =
@@ -149,6 +192,7 @@ export const insertarPulsera =
     solicitantePersonaId,
     receptorPersonaId,
     operacion,
+    clienteOperacionId,
     motivoRenovacion,
     evidenciaUrl,
     creadoPor
@@ -158,6 +202,7 @@ export const insertarPulsera =
          solicitante_persona_id,
          receptor_persona_id,
          operacion,
+         cliente_operacion_id,
          motivo_renovacion,
          evidencia_url,
          creado_por
@@ -168,13 +213,15 @@ export const insertarPulsera =
          $3,
          $4,
          $5,
-         $6
+         $6,
+         $7
        )
        RETURNING *`,
       [
         solicitantePersonaId,
         receptorPersonaId,
         operacion,
+        clienteOperacionId,
         motivoRenovacion,
         evidenciaUrl,
         creadoPor
@@ -183,26 +230,257 @@ export const insertarPulsera =
 
     return result.rows[0] || null;
   };
+
+  // ==========================================
+// SOLICITUDES DE DESCARGA DE VIDEOS
+// ==========================================
+
+export const insertarSolicitudDescargaVideos =
+  async ({
+    clienteOperacionId,
+    operacion,
+    placas,
+    fechaDescarga,
+    horaInicio,
+    horaFin,
+    motivo,
+    solicitadoPor
+  }) => {
+    const client =
+      await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const solicitudResult =
+        await client.query(
+          `INSERT INTO solicitudes_descarga_videos (
+             cliente_operacion_id,
+             operacion,
+             fecha_descarga,
+             hora_inicio,
+             hora_fin,
+             motivo,
+             solicitado_por
+           )
+           VALUES (
+             $1,
+             $2,
+             $3,
+             $4,
+             $5,
+             $6,
+             $7
+           )
+           RETURNING *`,
+          [
+            clienteOperacionId,
+            operacion,
+            fechaDescarga,
+            horaInicio,
+            horaFin,
+            motivo,
+            solicitadoPor
+          ]
+        );
+
+      const solicitud =
+        solicitudResult.rows[0];
+
+      await client.query(
+        `INSERT INTO solicitud_descarga_video_placas (
+           solicitud_id,
+           placa
+         )
+         SELECT
+           $1,
+           UNNEST($2::text[])`,
+        [
+          solicitud.id,
+          placas
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        ...solicitud,
+        placas
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  };
+  // ==========================================
+// LISTAR SOLICITUDES DE DESCARGA DE VIDEOS
+// ==========================================
+
+export const obtenerSolicitudesDescargaVideos =
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result =
+      await pool.query(
+        `SELECT
+           s.id,
+           s.operacion,
+           s.fecha_descarga,
+           s.hora_inicio,
+           s.hora_fin,
+           s.motivo,
+           s.estado,
+           s.fecha_ingreso,
+           s.solicitado_por,
+
+           COALESCE(
+             p.nombre_completo,
+             u.username
+           ) AS nombre_solicitante,
+
+           COALESCE(
+             JSON_AGG(
+               sp.placa
+               ORDER BY sp.placa
+             ) FILTER (
+               WHERE sp.placa IS NOT NULL
+             ),
+             '[]'::json
+           ) AS placas
+
+         FROM solicitudes_descarga_videos s
+
+         INNER JOIN usuarios u
+           ON u.id = s.solicitado_por
+
+         LEFT JOIN personal p
+           ON p.id = u.persona_id
+
+         LEFT JOIN solicitud_descarga_video_placas sp
+           ON sp.solicitud_id = s.id
+
+         WHERE
+           $1::boolean = TRUE
+           OR (
+             EXISTS (
+               SELECT 1
+               FROM solicitud_descarga_video_placas alcance_sp
+               INNER JOIN vehiculos alcance_v
+                 ON alcance_v.placa = alcance_sp.placa
+               WHERE alcance_sp.solicitud_id = s.id
+             )
+             AND NOT EXISTS (
+               SELECT 1
+               FROM solicitud_descarga_video_placas fuera_sp
+               INNER JOIN vehiculos fuera_v
+                 ON fuera_v.placa = fuera_sp.placa
+               WHERE fuera_sp.solicitud_id = s.id
+                 AND NOT (
+                   fuera_v.cliente_operacion_id =
+                   ANY($2::integer[])
+                 )
+             )
+           )
+
+         GROUP BY
+           s.id,
+           u.username,
+           p.nombre_completo
+
+         ORDER BY
+           s.fecha_ingreso DESC,
+           s.id DESC`,
+        [
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
+      );
+
+    return result.rows;
+  };
+
+
+// ==========================================
+// CAMBIAR ESTADO DE SOLICITUD
+// ==========================================
+
+export const actualizarEstadoSolicitudDescargaVideos =
+  async ({
+    id,
+    estado,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result =
+      await pool.query(
+        `UPDATE solicitudes_descarga_videos
+         SET estado = $1
+         WHERE id = $2
+           AND (
+             $3::boolean = TRUE
+             OR (
+               EXISTS (
+                 SELECT 1
+                 FROM solicitud_descarga_video_placas alcance_sp
+                 WHERE alcance_sp.solicitud_id = solicitudes_descarga_videos.id
+               )
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM solicitud_descarga_video_placas fuera_sp
+                 INNER JOIN vehiculos fuera_v
+                   ON fuera_v.placa = fuera_sp.placa
+                 WHERE fuera_sp.solicitud_id = solicitudes_descarga_videos.id
+                   AND NOT (
+                     fuera_v.cliente_operacion_id =
+                     ANY($4::integer[])
+                   )
+               )
+             )
+           )
+         RETURNING *`,
+        [
+          estado,
+          id,
+          Boolean(accesoTotal),
+          clienteOperacionIds || []
+        ]
+      );
+
+    return result.rows[0] || null;
+  };
 // ==========================================
 // LISTADO
 // ==========================================
 
 export const obtenerTickets =
-  async operacion => {
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
       `SELECT
          t.*,
          p.nombre_completo,
          p.dni,
-         p.operacion
+         v.cliente,
+         v.operacion,
+         v.cliente_operacion_id
        FROM tickets_unidades t
        INNER JOIN personal p
          ON p.id = t.persona_id
-       WHERE $1::text IS NULL
-          OR LOWER(BTRIM(p.operacion)) =
-             LOWER(BTRIM($1))
+       INNER JOIN vehiculos v
+         ON v.placa = t.placa
+       WHERE $1::boolean = TRUE
+          OR v.cliente_operacion_id =
+             ANY($2::integer[])
        ORDER BY t.id DESC`,
-      [operacion]
+      [
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows;
@@ -213,18 +491,35 @@ export const obtenerTickets =
 // ==========================================
 
 export const obtenerTicketPorId =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
       `SELECT
          t.*,
          p.nombre_completo,
          p.dni,
-         p.operacion
+         v.cliente,
+         v.operacion,
+         v.cliente_operacion_id
        FROM tickets_unidades t
        INNER JOIN personal p
          ON p.id = t.persona_id
-       WHERE t.id = $1`,
-      [id]
+       INNER JOIN vehiculos v
+         ON v.placa = t.placa
+       WHERE t.id = $1
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;
@@ -234,7 +529,9 @@ export const actualizarEstadoTicket =
   async ({
     id,
     estado,
-    evidencia
+    evidencia,
+    accesoTotal,
+    clienteOperacionIds
   }) => {
     const result = await pool.query(
       `UPDATE tickets_unidades
@@ -254,12 +551,21 @@ export const actualizarEstadoTicket =
                     )
                   )
            END
-       WHERE id = $3
-       RETURNING *`,
+       FROM vehiculos v
+       WHERE tickets_unidades.id = $3
+         AND v.placa = tickets_unidades.placa
+         AND (
+           $4::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($5::integer[])
+         )
+       RETURNING tickets_unidades.*`,
       [
         estado,
         evidencia,
-        id
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
       ]
     );
 
@@ -274,7 +580,8 @@ export const obtenerUltimaInspeccion =
   async placa => {
     const result = await pool.query(
       `SELECT *,
-              fecha::text AS fecha
+              fecha_hora::date::text AS fecha,
+to_char(fecha_hora, 'HH24:MI') AS hora
        FROM inspecciones_flota
        WHERE placa = $1
        ORDER BY id DESC
@@ -301,7 +608,8 @@ export const actualizarInspeccionTicket =
            observaciones = $4
        WHERE id = $5
        RETURNING *,
-                 fecha::text AS fecha`,
+                 fecha_hora::date::text AS fecha,
+to_char(fecha_hora, 'HH24:MI') AS hora`,
       [
         tablet,
         radio,
@@ -319,12 +627,27 @@ export const actualizarInspeccionTicket =
 // ==========================================
 
 export const eliminarTicketPorId =
-  async id => {
+  async ({
+    id,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
     const result = await pool.query(
-      `DELETE FROM tickets_unidades
-       WHERE id = $1
-       RETURNING *`,
-      [id]
+      `DELETE FROM tickets_unidades t
+       USING vehiculos v
+       WHERE t.id = $1
+         AND v.placa = t.placa
+         AND (
+           $2::boolean = TRUE
+           OR v.cliente_operacion_id =
+              ANY($3::integer[])
+         )
+       RETURNING t.*`,
+      [
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
     );
 
     return result.rows[0] || null;

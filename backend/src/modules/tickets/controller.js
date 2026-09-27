@@ -9,17 +9,21 @@ import {
 
 import {
   obtenerVehiculosTickets,
+  obtenerVehiculoTicketPorPlaca,
   obtenerPersonalTickets,
   obtenerPersonaActivaPorId,
   insertarTicket,
   insertarPulsera,
+  insertarSolicitudDescargaVideos,
   obtenerTickets,
   obtenerTicketPorId,
   actualizarEstadoTicket,
   obtenerUltimaInspeccion,
   actualizarInspeccionTicket,
   eliminarTicketPorId,
-  obtenerUsuarioTicket
+  obtenerUsuarioTicket,
+  obtenerSolicitudesDescargaVideos,
+  actualizarEstadoSolicitudDescargaVideos
 } from './repository.js';
 
 import {
@@ -27,7 +31,8 @@ import {
   OPERACIONES_INVALIDAS_TICKET,
   IMPLEMENTOS_PERMITIDOS,
   componenteConFalla,
-  obtenerOperacionesUnicas
+  obtenerOperacionesUnicas,
+  obtenerClientesOperacionesUnicas
 } from './service.js';
 
 
@@ -46,10 +51,14 @@ export const opcionesTickets =
         personal
       ] =
         await Promise.all([
-          obtenerVehiculosTickets(
-            contexto.operacion,
-            OPERACIONES_INVALIDAS_TICKET
-          ),
+          obtenerVehiculosTickets({
+            accesoTotal:
+              contexto.accesoTotal,
+            clienteOperacionIds:
+              contexto.clienteOperacionIds,
+            operacionesInvalidas:
+              OPERACIONES_INVALIDAS_TICKET
+          }),
 
           obtenerPersonalTickets()
         ]);
@@ -63,8 +72,10 @@ export const opcionesTickets =
         vehiculos,
         personal,
         operaciones,
-        operacionAsignada:
-          contexto.operacion
+        clientesOperaciones:
+          obtenerClientesOperacionesUnicas(
+            vehiculos
+          )
       });
 
     } catch (error) {
@@ -86,7 +97,526 @@ export const opcionesTickets =
         });
     }
   };
+//===========================================
+// OPCIONES PARA DESCARGA DE VIDEOS
+//===========================================
 
+// ==========================================
+// OPCIONES PARA DESCARGA DE VIDEOS
+// ==========================================
+
+export const opcionesSolicitudDescargaVideos =
+  async (req, res) => {
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'crear'
+        );
+
+      if (
+        ![
+          'admin',
+          'supervisor'
+        ].includes(contexto.rol)
+      ) {
+        return res.status(403).json({
+          error:
+            'No tienes permiso para solicitar descargas de videos'
+        });
+      }
+
+      const vehiculos =
+        await obtenerVehiculosTickets({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds,
+          operacionesInvalidas:
+            OPERACIONES_INVALIDAS_TICKET
+        });
+
+      return res.json({
+        vehiculos,
+
+        operaciones:
+          obtenerOperacionesUnicas(
+            vehiculos
+          ),
+
+        clientesOperaciones:
+          obtenerClientesOperacionesUnicas(
+            vehiculos
+          ),
+
+        nombreSolicitante:
+          contexto.nombreSolicitante
+      });
+    } catch (error) {
+      console.error(
+        'Error cargando opciones de descarga de videos:',
+        error
+      );
+
+      return res
+        .status(error.status || 500)
+        .json({
+          error:
+            error.status === 401 ||
+              error.status === 403
+              ? error.message
+              : 'Error al cargar las opciones de descarga de videos'
+        });
+    }
+  };
+
+const FECHA_DESCARGA_REGEX =
+  /^\d{4}-\d{2}-\d{2}$/;
+
+const HORA_DESCARGA_REGEX =
+  /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const esFechaDescargaValida =
+  valor => {
+    if (
+      !FECHA_DESCARGA_REGEX.test(
+        valor
+      )
+    ) {
+      return false;
+    }
+
+    const fecha =
+      new Date(
+        `${valor}T00:00:00Z`
+      );
+
+    return (
+      !Number.isNaN(
+        fecha.getTime()
+      ) &&
+      fecha
+        .toISOString()
+        .slice(0, 10) === valor
+    );
+  };
+
+
+// ==========================================
+// CREAR SOLICITUD DE DESCARGA DE VIDEOS
+// ==========================================
+
+export const crearSolicitudDescargaVideos =
+  async (req, res) => {
+    const placasRecibidas =
+      Array.isArray(
+        req.body?.placas
+      )
+        ? req.body.placas
+        : [];
+
+    const placas = [
+      ...new Set(
+        placasRecibidas
+          .map(placa =>
+            String(placa || '')
+              .trim()
+              .toUpperCase()
+          )
+          .filter(Boolean)
+      )
+    ];
+    const clienteOperacionId =
+      Number(
+        req.body?.cliente_operacion_id
+      );
+
+    const fechaDescarga =
+      String(
+        req.body?.fecha_descarga || ''
+      ).trim();
+
+    const horaInicio =
+      String(
+        req.body?.hora_inicio || ''
+      ).trim();
+
+    const horaFin =
+      String(
+        req.body?.hora_fin || ''
+      ).trim();
+
+    const motivo =
+      String(
+        req.body?.motivo || ''
+      ).trim();
+
+    if (placas.length === 0) {
+      return res.status(400).json({
+        error:
+          'Debe seleccionar al menos una placa'
+      });
+    }
+    if (
+      !Number.isInteger(
+        clienteOperacionId
+      ) ||
+      clienteOperacionId <= 0
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe seleccionar un cliente y una operación'
+      });
+    }
+
+    if (
+      !esFechaDescargaValida(
+        fechaDescarga
+      )
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe indicar una fecha de descarga válida'
+      });
+    }
+
+    if (
+      !HORA_DESCARGA_REGEX.test(
+        horaInicio
+      ) ||
+      !HORA_DESCARGA_REGEX.test(
+        horaFin
+      ) ||
+      horaFin <= horaInicio
+    ) {
+      return res.status(400).json({
+        error:
+          'La hora final debe ser posterior a la hora inicial'
+      });
+    }
+
+    if (
+      !motivo ||
+      motivo.length > 1000
+    ) {
+      return res.status(400).json({
+        error:
+          'El motivo es obligatorio y admite hasta 1000 caracteres'
+      });
+    }
+
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'crear'
+        );
+
+      if (
+        ![
+          'admin',
+          'supervisor'
+        ].includes(contexto.rol)
+      ) {
+        return res.status(403).json({
+          error:
+            'No tienes permiso para solicitar descargas de videos'
+        });
+      }
+
+      const vehiculos =
+        await obtenerVehiculosTickets({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds,
+          operacionesInvalidas:
+            OPERACIONES_INVALIDAS_TICKET
+        });
+      const clientesOperaciones =
+        obtenerClientesOperacionesUnicas(
+          vehiculos
+        );
+
+      const clienteOperacion =
+        clientesOperaciones.find(
+          item =>
+            Number(item.id) ===
+            clienteOperacionId
+        );
+
+      if (!clienteOperacion) {
+        return res.status(403).json({
+          error:
+            'El cliente y la operación no pertenecen a su alcance autorizado'
+        });
+      }
+
+      const vehiculosPorPlaca =
+        new Map(
+          vehiculos.map(
+            vehiculo => [
+              String(vehiculo.placa)
+                .trim()
+                .toUpperCase(),
+              vehiculo
+            ]
+          )
+        );
+
+      const vehiculosSeleccionados =
+        placas
+          .map(placa =>
+            vehiculosPorPlaca.get(placa)
+          )
+          .filter(Boolean);
+
+      if (
+        vehiculosSeleccionados.length !==
+        placas.length
+      ) {
+        return res.status(403).json({
+          error:
+            'Una o más placas no pertenecen a sus clientes y operaciones asignados'
+        });
+      }
+      const operacion =
+        clienteOperacion.operacion;
+
+      const solicitud =
+        await insertarSolicitudDescargaVideos({
+          clienteOperacionId,
+          operacion,
+          placas,
+          fechaDescarga,
+          horaInicio,
+          horaFin,
+          motivo,
+          solicitadoPor:
+            req.user.id
+        });
+
+      await logAction(
+        req.user.id,
+        `Registró solicitud de descarga de videos #${solicitud.id}`,
+        'solicitudes_descarga_videos',
+        req,
+        null,
+        solicitud
+      );
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+          solicitud
+        });
+    } catch (error) {
+      console.error(
+        'Error registrando solicitud de descarga de videos:',
+        error
+      );
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error:
+              error.message
+          });
+      }
+
+      if (
+        error.code === '23503'
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              'Una de las placas o el usuario solicitante ya no existe'
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Error al registrar la solicitud de descarga de videos'
+        });
+    }
+  };
+
+// ==========================================
+// LISTAR SOLICITUDES DE DESCARGA DE VIDEOS
+// ==========================================
+
+export const listarSolicitudesDescargaVideos =
+  async (req, res) => {
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'ver'
+        );
+
+      const solicitudes =
+        await obtenerSolicitudesDescargaVideos({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
+
+      return res.json(
+        solicitudes
+      );
+    } catch (error) {
+      console.error(
+        'Error listando solicitudes de descarga:',
+        error
+      );
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error: error.message
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Error al obtener las solicitudes de descarga de videos'
+        });
+    }
+  };
+
+
+const ESTADOS_SOLICITUD_VIDEO = [
+  'Pendiente',
+  'En proceso',
+  'Atendida',
+  'Rechazada'
+];
+
+
+// ==========================================
+// ACTUALIZAR ESTADO DE SOLICITUD
+// ==========================================
+
+export const cambiarEstadoSolicitudDescargaVideos =
+  async (req, res) => {
+    const id =
+      Number.parseInt(
+        req.params.id,
+        10
+      );
+
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'ID de solicitud no válido'
+        });
+    }
+
+    const estadoRecibido =
+      String(
+        req.body?.estado || ''
+      ).trim();
+
+    const estado =
+      ESTADOS_SOLICITUD_VIDEO.find(
+        estadoPermitido =>
+          estadoPermitido.toLowerCase() ===
+          estadoRecibido.toLowerCase()
+      );
+
+    if (!estado) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'Estado de solicitud no válido'
+        });
+    }
+
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
+        );
+
+      const solicitud =
+        await actualizarEstadoSolicitudDescargaVideos({
+          id,
+          estado,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
+
+      if (!solicitud) {
+        return res
+          .status(404)
+          .json({
+            error:
+              'Solicitud no encontrada'
+          });
+      }
+
+      await logAction(
+        req.user.id,
+        `Cambió solicitud de descarga #${id} a ${estado}`,
+        'solicitudes_descarga_videos',
+        req,
+        null,
+        solicitud
+      );
+
+      return res.json({
+        success: true,
+        solicitud
+      });
+    } catch (error) {
+      console.error(
+        'Error actualizando solicitud de descarga:',
+        error
+      );
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        return res
+          .status(error.status)
+          .json({
+            error: error.message
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          error:
+            'Error al actualizar el estado de la solicitud'
+        });
+    }
+  };
 
 // ==========================================
 // OPCIONES DE PULSERAS
@@ -120,10 +650,14 @@ export const opcionesReportePulseras =
         personal
       ] =
         await Promise.all([
-          obtenerVehiculosTickets(
-            contexto.operacion,
-            OPERACIONES_INVALIDAS_TICKET
-          ),
+          obtenerVehiculosTickets({
+            accesoTotal:
+              contexto.accesoTotal,
+            clienteOperacionIds:
+              contexto.clienteOperacionIds,
+            operacionesInvalidas:
+              OPERACIONES_INVALIDAS_TICKET
+          }),
 
           obtenerPersonalTickets()
         ]);
@@ -135,6 +669,10 @@ export const opcionesReportePulseras =
 
       return res.json({
         operaciones,
+        clientesOperaciones:
+          obtenerClientesOperacionesUnicas(
+            vehiculos
+          ),
         personal
       });
 
@@ -174,10 +712,10 @@ export const crearReportePulsera =
         req.body?.receptor_persona_id
       );
 
-    const operacion =
-      String(
-        req.body?.operacion || ''
-      ).trim();
+    const clienteOperacionId =
+      Number(
+        req.body?.cliente_operacion_id
+      );
 
     const motivoRenovacion =
       String(
@@ -208,10 +746,15 @@ export const crearReportePulsera =
       });
     }
 
-    if (!operacion) {
+    if (
+      !Number.isInteger(
+        clienteOperacionId
+      ) ||
+      clienteOperacionId <= 0
+    ) {
       return res.status(400).json({
         error:
-          'Debe seleccionar una operación'
+          'Debe seleccionar un cliente y una operación'
       });
     }
 
@@ -267,10 +810,14 @@ export const crearReportePulsera =
             receptorPersonaId
           ),
 
-          obtenerVehiculosTickets(
-            contexto.operacion,
-            OPERACIONES_INVALIDAS_TICKET
-          )
+          obtenerVehiculosTickets({
+            accesoTotal:
+              contexto.accesoTotal,
+            clienteOperacionIds:
+              contexto.clienteOperacionIds,
+            operacionesInvalidas:
+              OPERACIONES_INVALIDAS_TICKET
+          })
         ]);
 
       if (!solicitante) {
@@ -287,24 +834,22 @@ export const crearReportePulsera =
         });
       }
 
-      const operacionesValidas =
-        obtenerOperacionesUnicas(
+      const clientesOperaciones =
+        obtenerClientesOperacionesUnicas(
           vehiculos
         );
 
-      const operacionValida =
-        operacionesValidas.some(
+      const clienteOperacion =
+        clientesOperaciones.find(
           item =>
-            String(item)
-              .trim()
-              .toLowerCase() ===
-            operacion.toLowerCase()
+            Number(item.id) ===
+            clienteOperacionId
         );
 
-      if (!operacionValida) {
-        return res.status(400).json({
+      if (!clienteOperacion) {
+        return res.status(403).json({
           error:
-            'Seleccione una operación válida'
+            'El cliente y la operación no pertenecen a su alcance asignado'
         });
       }
 
@@ -319,7 +864,10 @@ export const crearReportePulsera =
         await insertarPulsera({
           solicitantePersonaId,
           receptorPersonaId,
-          operacion,
+          operacion:
+            clienteOperacion.operacion,
+          clienteOperacionId:
+            clienteOperacion.id,
           motivoRenovacion,
           evidenciaUrl,
           creadoPor:
@@ -496,28 +1044,48 @@ export const createSupportTicket =
           req,
           'crear'
         );
+
+      const vehiculoAutorizado =
+        await obtenerVehiculoTicketPorPlaca({
+          placa:
+            placaFinal,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
+
+      if (!vehiculoAutorizado) {
+        return res
+          .status(403)
+          .json({
+            error:
+              'La placa no pertenece a sus clientes y operaciones asignados'
+          });
+      }
+
       const usuarioTicket =
-  await obtenerUsuarioTicket(
-    req.user.id
-  );
+        await obtenerUsuarioTicket(
+          req.user.id
+        );
 
-const personaIdSeleccionada =
-  Number(persona_id);
+      const personaIdSeleccionada =
+        Number(persona_id);
 
-const personaIdFinal =
-  usuarioTicket?.persona_id
-    ? Number(usuarioTicket.persona_id)
-    : personaIdSeleccionada;
+      const personaIdFinal =
+        usuarioTicket?.persona_id
+          ? Number(usuarioTicket.persona_id)
+          : personaIdSeleccionada;
 
-if (
-  !Number.isInteger(personaIdFinal) ||
-  personaIdFinal <= 0
-) {
-  return res.status(400).json({
-    error:
-      'Esta cuenta no está vinculada a una persona. Seleccione un solicitante.'
-  });
-}
+      if (
+        !Number.isInteger(personaIdFinal) ||
+        personaIdFinal <= 0
+      ) {
+        return res.status(400).json({
+          error:
+            'Esta cuenta no está vinculada a una persona. Seleccione un solicitante.'
+        });
+      }
 
 
       // ========================================
@@ -537,34 +1105,6 @@ if (
               'La persona seleccionada no existe o está inactiva'
           });
       }
-
-
-      // ========================================
-      // VALIDAR OPERACIÓN DEL SUPERVISOR
-      // ========================================
-
-      if (
-        contexto.rol ===
-        'supervisor' &&
-        String(
-          persona.operacion || ''
-        )
-          .trim()
-          .toLowerCase() !==
-        String(
-          contexto.operacion || ''
-        )
-          .trim()
-          .toLowerCase()
-      ) {
-        return res
-          .status(403)
-          .json({
-            error:
-              'La persona seleccionada no pertenece a su operación'
-          });
-      }
-
 
       // ========================================
       // SUBIR EVIDENCIAS INICIALES
@@ -705,9 +1245,12 @@ export const listarTickets =
         await contextoTicket(req);
 
       const tickets =
-        await obtenerTickets(
-          contexto.operacion
-        );
+        await obtenerTickets({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
       return res.json(
         tickets
@@ -815,10 +1358,20 @@ export const actualizarTicket =
 
 
     try {
-      const valoresAnteriores =
-        await obtenerTicketPorId(
-          id
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
         );
+
+      const valoresAnteriores =
+        await obtenerTicketPorId({
+          id,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
 
       if (!valoresAnteriores) {
@@ -853,7 +1406,13 @@ export const actualizarTicket =
             estadoFinal,
 
           evidencia:
-            evidenciaUrl
+            evidenciaUrl,
+
+          accesoTotal:
+            contexto.accesoTotal,
+
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
         });
 
 
@@ -1119,10 +1678,20 @@ export const eliminarTicket =
 
 
     try {
-      const ticketEliminado =
-        await eliminarTicketPorId(
-          id
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
         );
+
+      const ticketEliminado =
+        await eliminarTicketPorId({
+          id,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
 
 
       if (!ticketEliminado) {

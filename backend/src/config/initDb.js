@@ -6,7 +6,10 @@ const ESQUEMA_ESPERADO = {
     'user_id',
     'accion',
     'tabla_afectada',
-    'fecha'
+    'fecha',
+    'ip_address',
+    'valores_anteriores',
+    'valores_actuales'
   ],
 
   entregas_ti: [
@@ -29,7 +32,8 @@ const ESQUEMA_ESPERADO = {
     'observaciones',
     'precio',
     'tipo_movimiento',
-    'documento_url'
+    'documento_url',
+    'cliente_operacion_id'
   ],
 
   incidentes_soporte: [
@@ -52,31 +56,48 @@ const ESQUEMA_ESPERADO = {
   ],
 
   tickets_unidades: [
-    'id',
-    'placa',
-    'persona_id',
-    'tipo_solicitud',
-    'descripcion',
-    'estado',
-    'implemento',
-    'evidencias',
-    'fecha_creacion',
-    'fecha_cierre'
-  ],
-
-  inspecciones_flota: [
   'id',
   'placa',
-  'fecha_hora',
-  'tablet',
-  'radio',
-  'camaras',
-  'img_tablet',
-  'img_radio',
-  'img_camaras',
-  'observaciones',
-  'estado'
+  'persona_id',
+  'tipo_solicitud',
+  'descripcion',
+  'estado',
+  'implemento',
+  'evidencias',
+  'fecha_creacion',
+  'fecha_cierre'
 ],
+solicitudes_descarga_videos: [
+  'id',
+  'operacion',
+  'fecha_descarga',
+  'hora_inicio',
+  'hora_fin',
+  'motivo',
+  'solicitado_por',
+  'estado',
+  'fecha_ingreso',
+  'cliente_operacion_id'
+],
+
+solicitud_descarga_video_placas: [
+  'solicitud_id',
+  'placa'
+],
+
+  inspecciones_flota: [
+    'id',
+    'placa',
+    'fecha_hora',
+    'tablet',
+    'radio',
+    'camaras',
+    'img_tablet',
+    'img_radio',
+    'img_camaras',
+    'observaciones',
+    'estado'
+  ],
 
   mantenimientos_tecnicos: [
     'id',
@@ -107,6 +128,19 @@ const ESQUEMA_ESPERADO = {
     'operacion',
     'fecha_cese'
   ],
+  pulseras: [
+  'id',
+  'solicitante_persona_id',
+  'receptor_persona_id',
+  'operacion',
+  'motivo_renovacion',
+  'evidencia_url',
+  'estado',
+  'creado_por',
+  'fecha_creacion',
+  'fecha_cierre',
+  'cliente_operacion_id'
+],
 
   usuarios: [
     'id',
@@ -128,7 +162,27 @@ const ESQUEMA_ESPERADO = {
     'modelo_tracto',
     'anio_fabricacion',
     'operacion',
-    'cliente'
+    'cliente',
+    'cliente_operacion_id'
+  ],
+
+  clientes: [
+    'id',
+    'nombre',
+    'activo',
+    'es_interno'
+  ],
+
+  cliente_operaciones: [
+    'id',
+    'cliente_id',
+    'nombre',
+    'activo'
+  ],
+
+  supervisor_asignaciones: [
+    'usuario_id',
+    'cliente_operacion_id'
   ]
 };
 
@@ -137,7 +191,8 @@ const CAMPOS_DATE = [
   'mantenimientos_tecnicos.fecha_ejecutada',
   'vehiculos.anio_fabricacion',
   'personal.fecha_ingreso',
-  'personal.fecha_cese'
+  'personal.fecha_cese',
+  'solicitudes_descarga_videos.fecha_descarga',
 ];
 
 export const initDb = async () => {
