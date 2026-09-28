@@ -148,7 +148,9 @@ export const insertarTicket =
     tipoSolicitud,
     descripcion,
     implemento,
-    evidencias
+    evidencias,
+    fechaLlegadaUnidad,
+    horaLlegadaUnidad
   }) => {
     const result = await pool.query(
       `INSERT INTO tickets_unidades (
@@ -157,7 +159,9 @@ export const insertarTicket =
          tipo_solicitud,
          descripcion,
          implemento,
-         evidencias
+         evidencias,
+         fecha_llegada_unidad,
+        hora_llegada_unidad
        )
        VALUES (
          $1,
@@ -165,7 +169,9 @@ export const insertarTicket =
          $3,
          $4,
          $5,
-         $6::jsonb
+         $6::jsonb,
+        $7,
+        $8
        )
        RETURNING *`,
       [
@@ -174,16 +180,16 @@ export const insertarTicket =
         tipoSolicitud,
         descripcion,
         implemento,
-        JSON.stringify(
-          evidencias || []
-        )
+        JSON.stringify(evidencias || []),
+        fechaLlegadaUnidad,
+        horaLlegadaUnidad
       ]
     );
 
     return result.rows[0] || null;
   };
 
-  // ==========================================
+// ==========================================
 // CREACIÓN DE PULSERAS
 // ==========================================
 
@@ -195,7 +201,9 @@ export const insertarPulsera =
     clienteOperacionId,
     motivoRenovacion,
     evidenciaUrl,
-    creadoPor
+    creadoPor,
+    fechaLlegadaPersonal,
+    horaLlegadaPersonal
   }) => {
     const result = await pool.query(
       `INSERT INTO pulseras (
@@ -205,7 +213,9 @@ export const insertarPulsera =
          cliente_operacion_id,
          motivo_renovacion,
          evidencia_url,
-         creado_por
+         creado_por,
+         fecha_llegada_personal,
+        hora_llegada_personal
        )
        VALUES (
          $1,
@@ -214,7 +224,9 @@ export const insertarPulsera =
          $4,
          $5,
          $6,
-         $7
+         $7,
+         $8,
+         $9
        )
        RETURNING *`,
       [
@@ -224,30 +236,134 @@ export const insertarPulsera =
         clienteOperacionId,
         motivoRenovacion,
         evidenciaUrl,
-        creadoPor
+        creadoPor,
+        fechaLlegadaPersonal,
+        horaLlegadaPersonal
       ]
     );
 
     return result.rows[0] || null;
   };
-
-  // ==========================================
-// SOLICITUDES DE DESCARGA DE VIDEOS
+// =========================================
+//  REPORTES DE PULSERAS
+// =========================================
+// ==========================================
+// REPORTES DE PULSERAS
 // ==========================================
 
+export const obtenerReportesPulseras =
+  async ({
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result = await pool.query(
+      `SELECT
+         pu.id,
+         pu.operacion,
+         pu.cliente_operacion_id,
+         pu.motivo_renovacion,
+         pu.evidencia_url,
+         pu.estado,
+         pu.fecha_creacion,
+         pu.fecha_cierre,
+         pu.fecha_llegada_personal,
+         pu.hora_llegada_personal,
+
+         solicitante.nombre_completo
+           AS nombre_solicitante,
+
+         receptor.nombre_completo
+           AS nombre_receptor,
+
+         COALESCE(
+           creador.nombre_completo,
+           u.username
+         ) AS nombre_creado_por
+
+       FROM pulseras pu
+
+       INNER JOIN personal solicitante
+         ON solicitante.id =
+            pu.solicitante_persona_id
+
+       INNER JOIN personal receptor
+         ON receptor.id =
+            pu.receptor_persona_id
+
+       LEFT JOIN usuarios u
+         ON u.id = pu.creado_por
+
+       LEFT JOIN personal creador
+         ON creador.id = u.persona_id
+
+       WHERE
+         $1::boolean = TRUE
+         OR pu.cliente_operacion_id =
+            ANY($2::integer[])
+
+       ORDER BY
+         pu.fecha_creacion DESC,
+         pu.id DESC`,
+      [
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
+    );
+
+    return result.rows;
+  };
+
+export const actualizarEstadoReportePulsera =
+  async ({
+    id,
+    estado,
+    accesoTotal,
+    clienteOperacionIds
+  }) => {
+    const result = await pool.query(
+      `UPDATE pulseras
+       SET
+  estado = $1::varchar,
+  fecha_cierre =
+    CASE
+      WHEN $1::text = 'Resuelto'
+             THEN CURRENT_TIMESTAMP
+             ELSE NULL
+           END
+       WHERE id = $2
+         AND (
+           $3::boolean = TRUE
+           OR cliente_operacion_id =
+              ANY($4::integer[])
+         )
+       RETURNING *`,
+      [
+        estado,
+        id,
+        Boolean(accesoTotal),
+        clienteOperacionIds || []
+      ]
+    );
+
+    return result.rows[0] || null;
+  };
+// ==========================================
+// SOLICITUDES DE DESCARGA DE VIDEOS
+// ==========================================
 export const insertarSolicitudDescargaVideos =
   async ({
     clienteOperacionId,
     operacion,
     placas,
+    fechaLlegadaUnidad,
+    horaLlegadaUnidad,
     fechaDescarga,
     horaInicio,
     horaFin,
     motivo,
     solicitadoPor
   }) => {
-    const client =
-      await pool.connect();
+    const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
@@ -257,6 +373,8 @@ export const insertarSolicitudDescargaVideos =
           `INSERT INTO solicitudes_descarga_videos (
              cliente_operacion_id,
              operacion,
+             fecha_llegada_unidad,
+             hora_llegada_unidad,
              fecha_descarga,
              hora_inicio,
              hora_fin,
@@ -270,12 +388,16 @@ export const insertarSolicitudDescargaVideos =
              $4,
              $5,
              $6,
-             $7
+             $7,
+             $8,
+             $9
            )
            RETURNING *`,
           [
             clienteOperacionId,
             operacion,
+            fechaLlegadaUnidad,
+            horaLlegadaUnidad,
             fechaDescarga,
             horaInicio,
             horaFin,
@@ -314,7 +436,8 @@ export const insertarSolicitudDescargaVideos =
       client.release();
     }
   };
-  // ==========================================
+
+// ==========================================
 // LISTAR SOLICITUDES DE DESCARGA DE VIDEOS
 // ==========================================
 

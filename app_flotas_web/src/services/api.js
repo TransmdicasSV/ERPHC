@@ -276,6 +276,55 @@ createPulsera: async (data, evidencia) => {
 
   return result;
 },
+getReportesPulseras:
+  async () => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/pulseras`
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => []);
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al obtener los reportes de pulseras'
+      );
+    }
+
+    return data;
+  },
+
+updateEstadoReportePulsera:
+  async (id, estado) => {
+    const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/incidentes/pulseras/${id}/estado`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            estado
+          })
+        }
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        'Error al actualizar el reporte de pulsera'
+      );
+    }
+
+    return data;
+  },
 getOpcionesSolicitudDescargaVideos:
   async () => {
     const response =

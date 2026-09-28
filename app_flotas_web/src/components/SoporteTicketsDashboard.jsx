@@ -8,6 +8,9 @@ import {
 import {
   SolicitudesDescargaVideosPanel
 } from './SolicitudesDescargaVideosPanel';
+import {
+  ReportesPulserasPanel
+} from './ReportesPulserasPanel';
 
 export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [tickets, setTickets] = useState([]);
@@ -16,7 +19,6 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [activeTab, setActiveTab] = useState('KANBAN'); // 'KANBAN' o 'HISTORIAL'
   const [showModal, setShowModal] = useState(false);
-  const [showExternalTechModal, setShowExternalTechModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [draggedTicketId, setDraggedTicketId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
@@ -47,14 +49,18 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     receptor_persona_id: '',
     persona_pulsera: '',
     dni_persona_pulsera: '',
-    motivo_renovacion: ''
+    motivo_renovacion: '',
+    fecha_llegada_personal: '',
+    hora_llegada_personal: ''
   });
   const [formData, setFormData] = useState({
     placa: '',
     persona_id: '',
     tipo_solicitud: 'Soporte Técnico',
     implemento: '',
-    descripcion: ''
+    descripcion: '',
+    fecha_llegada_unidad: '',
+    hora_llegada_unidad: ''
   });
   const canCreate = permisos?.crear === true;
 
@@ -474,7 +480,13 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         'Seleccione el implemento que presenta la falla'
       );
     }
-
+    if (!formData.fecha_llegada_unidad ||
+      !formData.hora_llegada_unidad
+    ) {
+      return toast.error(
+        'Indique la fecha y hora de llegada de la unidad'
+      );
+    }
     try {
       await api.createIncidente(
         {
@@ -490,7 +502,13 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
             formData.implemento,
 
           descripcion:
-            formData.descripcion
+            formData.descripcion,
+
+          fecha_llegada_unidad:
+            formData.fecha_llegada_unidad,
+
+          hora_llegada_unidad:
+            formData.hora_llegada_unidad,
         },
 
         ticketEvidencias
@@ -504,10 +522,13 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
       setFormData({
         placa: '',
+        persona_id: '',
         tipo_solicitud:
           'Soporte Técnico',
         implemento: '',
-        descripcion: ''
+        descripcion: '',
+        fecha_llegada_unidad: '',
+        hora_llegada_unidad: ''
       });
 
       setTicketEvidencias([]);
@@ -558,7 +579,14 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
     if (pulseraEvidencia.size > 5 * 1024 * 1024) {
       return toast.error('La evidencia debe pesar como máximo 5 MB');
     }
-
+    if (
+      !pulseraForm.fecha_llegada_personal ||
+      !pulseraForm.hora_llegada_personal
+    ) {
+      return toast.error(
+        'Indique la fecha y hora de llegada del personal'
+      );
+    }
     try {
       setSavingPulsera(true);
 
@@ -567,7 +595,11 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           solicitante_persona_id: solicitantePersonaId,
           receptor_persona_id: receptorPersonaId,
           cliente_operacion_id: clienteOperacionId,
-          motivo_renovacion: motivoRenovacion
+          motivo_renovacion: motivoRenovacion,
+          fecha_llegada_personal:
+            pulseraForm.fecha_llegada_personal,
+          hora_llegada_personal:
+            pulseraForm.hora_llegada_personal,
         },
         pulseraEvidencia
       );
@@ -584,7 +616,9 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         receptor_persona_id: '',
         persona_pulsera: '',
         dni_persona_pulsera: '',
-        motivo_renovacion: ''
+        motivo_renovacion: '',
+        fecha_llegada_personal: '',
+        hora_llegada_personal: ''
       });
     } catch (error) {
       toast.error(
@@ -853,6 +887,73 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
             />
           </div>
           <div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem'
+              }}
+            >
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600'
+                }}>
+                  Fecha de llegada del personal
+                </label>
+
+                <input
+                  type="date"
+                  required
+                  value={pulseraForm.fecha_llegada_personal}
+                  onChange={event => setPulseraForm({
+                    ...pulseraForm,
+                    fecha_llegada_personal: event.target.value
+                  })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600'
+                }}>
+                  Hora de llegada del personal
+                </label>
+
+                <input
+                  type="time"
+                  required
+                  value={pulseraForm.hora_llegada_personal}
+                  onChange={event => setPulseraForm({
+                    ...pulseraForm,
+                    hora_llegada_personal: event.target.value
+                  })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+            </div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Motivo de la renovación</label>
 
             <textarea value={pulseraForm.motivo_renovacion} onChange={event => setPulseraForm({ ...pulseraForm, motivo_renovacion: event.target.value })} rows="4" placeholder="Explique por qué se renovará la pulsera..." required maxLength={1000} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', resize: 'vertical', outlineColor: 'var(--accent-color)' }}></textarea>
@@ -1028,7 +1129,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
                 </div>
                 <div style={{ fontWeight: '700', color: '#101b33', fontSize: '0.9rem', marginBottom: '0.5rem', lineHeight: '1.2' }}>
-                  {ticket.tipo_solicitud === 'Técnico Externo' ? 'TÉCNICO EXTERNO' : ticket.tipo_solicitud}
+                  {ticket.tipo_solicitud}
                 </div>
 
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.4' }}>
@@ -1137,19 +1238,26 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         >
           <button
             onClick={() => setActiveTab('KANBAN')}
-            className={`ui-tab-button ${
-              activeTab === 'KANBAN' ? 'active' : ''
-            }`}
+            className={`ui-tab-button ${activeTab === 'KANBAN' ? 'active' : ''
+              }`}
           >
             <UiIcon name="clipboard" />
             Mis tickets
           </button>
-
+          <button
+            onClick={() => setActiveTab('PULSERAS')}
+            className={`ui-tab-button ${activeTab === 'PULSERAS'
+                ? 'active'
+                : ''
+              }`}
+          >
+            <UiIcon name="clipboard" />
+            Reportes de pulseras
+          </button>
           <button
             onClick={() => setActiveTab('VIDEOS')}
-            className={`ui-tab-button ${
-              activeTab === 'VIDEOS' ? 'active' : ''
-            }`}
+            className={`ui-tab-button ${activeTab === 'VIDEOS' ? 'active' : ''
+              }`}
           >
             <UiIcon name="download" />
             Descarga de videos
@@ -1159,7 +1267,8 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         <div
           style={{
             display:
-              activeTab === 'VIDEOS'
+              activeTab === 'VIDEOS' ||
+              activeTab === 'PULSERAS'
                 ? 'none'
                 : 'grid',
             gap: '1rem'
@@ -1199,6 +1308,12 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
 
         {activeTab === 'VIDEOS' && (
           <SolicitudesDescargaVideosPanel
+            canManage={false}
+          />
+        )}
+
+        {activeTab === 'PULSERAS' && (
+          <ReportesPulserasPanel
             canManage={false}
           />
         )}
@@ -1284,6 +1399,68 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
                 </div>
 
                 {renderImplementoField()}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '1rem'
+                  }}>
+                  <div>
+                    <label style={{
+                      display: 'block'
+                      ,
+                      marginBottom: '0.5rem',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      fontWeight: '600'
+                    }}>
+                      Fecha de llegada de la unidad
+                    </label>
+                    <input type="date"
+                      required
+                      value={formData.fecha_llegada_unidad}
+                      onChange={event => setFormData({
+                        ...formData,
+                        fecha_llegada_unidad: event.target.value
+                      })}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '0.5rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1ox solid var(--border-color)',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      marginBottom: '0.5rem',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      fontWeight: '600'
+                    }}>Hora de llegada de la unidad</label>
+
+                    <input type="time"
+                      required
+                      value={formData.hora_llegada_unidad}
+                      onChange={event => setFormData({
+                        ...formData,
+                        hora_llegada_unidad: event.target.value
+                      })}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '0.5rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                  </div>
+                </div>
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Descripción Detallada</label>
@@ -1321,9 +1498,7 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Gestión centralizada de incidentes y requerimientos tecnológicos.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setShowExternalTechModal(true)} className="ui-button ui-button-secondary">
-            <UiIcon name="users" /> Técnicos Externos
-          </button>
+
           {canCreate && (
             <button onClick={() => setShowModal(true)} className="ui-button ui-button-primary">
               <UiIcon name="plus" /> Crear Nuevo Ticket
@@ -1337,19 +1512,29 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
       {/* Pestañas (Tabs) KANBAN vs HISTORIAL */}
       <div style={{ display: 'flex', borderBottom: '2px solid #E5E7EB', marginBottom: '1.5rem', gap: '1rem' }}>
         <button onClick={() => setActiveTab('KANBAN')} className={`ui-tab-button ${activeTab === 'KANBAN' ? 'active' : ''}`}>
-          <UiIcon name="clipboard" /> Tablero Activo
+          <UiIcon name="clipboard" /> Tablero de Tickets
         </button>
         <button onClick={() => setActiveTab('HISTORIAL')} className={`ui-tab-button ${activeTab === 'HISTORIAL' ? 'active' : ''}`}>
           <UiIcon name="history" /> Historial de Trabajos Técnicos
         </button>
         <button
-          onClick={() =>
-            setActiveTab('VIDEOS')
-          }
-          className={`ui-tab-button ${activeTab === 'VIDEOS'
-            ? 'active'
-            : ''
-            }`}
+          onClick={() => setActiveTab('PULSERAS')}
+          className={`ui-tab-button ${
+            activeTab === 'PULSERAS'
+              ? 'active'
+              : ''
+          }`}
+        >
+          <UiIcon name="clipboard" />
+          Reportes de pulseras
+        </button>
+        <button
+          onClick={() => setActiveTab('VIDEOS')}
+          className={`ui-tab-button ${
+            activeTab === 'VIDEOS'
+              ? 'active'
+              : ''
+          }`}
         >
           <UiIcon name="download" />
           Descarga de videos
@@ -1460,6 +1645,12 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         />
       )}
 
+      {activeTab === 'PULSERAS' && (
+        <ReportesPulserasPanel
+          canManage={canManage}
+        />
+      )}
+
       {/* Modal Nuevo Ticket */}
       {canCreate && showModal && (
         <div onClick={() => setShowModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
@@ -1546,6 +1737,73 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
               </div>
 
               {renderImplementoField()}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '1rem'
+                }}
+              >
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    fontWeight: '600'
+                  }}>
+                    Fecha de llegada de la unidad
+                  </label>
+
+                  <input
+                    type="date"
+                    required
+                    value={formData.fecha_llegada_unidad}
+                    onChange={event => setFormData({
+                      ...formData,
+                      fecha_llegada_unidad: event.target.value
+                    })}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '0.5rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    fontWeight: '600'
+                  }}>
+                    Hora de llegada de la unidad
+                  </label>
+
+                  <input
+                    type="time"
+                    required
+                    value={formData.hora_llegada_unidad}
+                    onChange={event => setFormData({
+                      ...formData,
+                      hora_llegada_unidad: event.target.value
+                    })}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '0.5rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                </div>
+              </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>Descripción Detallada</label>
@@ -1571,52 +1829,8 @@ export function SoporteTicketsDashboard({ permisos, usuario }) {
         usuario={usuario}
       />
 
-      {/* Modal Historial de Técnicos Externos */}
-      {showExternalTechModal && (
-        <div onClick={() => setShowExternalTechModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(16,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(5px)', animation: 'fadeIn 0.2s ease-out' }}>
-          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: 'var(--card-bg)', width: '800px', maxWidth: '95%', maxHeight: '90vh', borderRadius: '1rem', padding: '2rem', boxShadow: '0 20px 50px -14px rgba(16,27,51,0.18)', display: 'flex', flexDirection: 'column', animation: 'scaleUp 0.2s ease-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><UiIcon name="users" /> Historial de Técnicos Externos</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>Tickets generados automáticamente en campo o creados manualmente para externos.</p>
-              </div>
-              <button onClick={() => setShowExternalTechModal(false)} className="ui-icon-button" aria-label="Cerrar"><UiIcon name="close" /></button>
-            </div>
 
-            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {tickets.filter(t => t.tipo_solicitud === 'Técnico Externo').length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
-                    <p>No hay solicitudes de técnicos externos.</p>
-                  </div>
-                ) : (
-                  tickets.filter(t => t.tipo_solicitud === 'Técnico Externo').map(ticket => (
-                    <div key={ticket.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #E5E7EB', borderRadius: '0.5rem', backgroundColor: ticket.estado === 'Resuelto' ? '#e7f9f1' : 'white' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: '800', color: '#101b33', fontSize: '0.9rem' }}>#TKT-{ticket.id}</span>
-                          <span style={{ backgroundColor: '#eef3ff', color: '#2458e8', padding: '0.1rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold', fontSize: '0.75rem' }}>{ticket.placa || ('Sin placa · ' + ticket.operacion)}</span>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{formatDate(ticket.fecha_creacion)}</span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#4B5563' }}>{ticket.descripcion}</p>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginLeft: '1rem' }}>
-                        <span style={{
-                          padding: '0.25rem 0.75rem', borderRadius: '1rem', fontWeight: '700', fontSize: '0.75rem',
-                          backgroundColor: ticket.estado === 'Pendiente' ? '#fdeae8' : ticket.estado === 'En Proceso' ? '#fff6e4' : '#e7f9f1',
-                          color: ticket.estado === 'Pendiente' ? '#dc3b2a' : ticket.estado === 'En Proceso' ? '#db8b0b' : '#0e9f6e'
-                        }}>
-                          {ticket.estado}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Modal Ver Detalle de Ticket */}
       {selectedTicket && (

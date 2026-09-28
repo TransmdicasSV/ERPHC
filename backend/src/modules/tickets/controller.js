@@ -23,7 +23,9 @@ import {
   eliminarTicketPorId,
   obtenerUsuarioTicket,
   obtenerSolicitudesDescargaVideos,
-  actualizarEstadoSolicitudDescargaVideos
+  actualizarEstadoSolicitudDescargaVideos,
+  obtenerReportesPulseras,
+  actualizarEstadoReportePulsera,
 } from './repository.js';
 
 import {
@@ -246,6 +248,16 @@ export const crearSolicitudDescargaVideos =
         req.body?.hora_fin || ''
       ).trim();
 
+    const fechaLlegadaUnidad =
+      String(
+        req.body?.fecha_llegada_unidad || ''
+      ).trim();
+
+    const horaLlegadaUnidad =
+      String(
+        req.body?.hora_llegada_unidad || ''
+      ).trim();
+
     const motivo =
       String(
         req.body?.motivo || ''
@@ -274,9 +286,22 @@ export const crearSolicitudDescargaVideos =
         fechaDescarga
       )
     ) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         error:
           'Debe indicar una fecha de descarga válida'
+      });
+    }
+    if (
+      !esFechaDescargaValida(
+        fechaLlegadaUnidad
+      ) ||
+      !HORA_DESCARGA_REGEX.test(
+        horaLlegadaUnidad
+      )
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe indicar una fecha y hora de llegada de la unidad valida'
       });
     }
 
@@ -388,6 +413,8 @@ export const crearSolicitudDescargaVideos =
           clienteOperacionId,
           operacion,
           placas,
+          fechaLlegadaUnidad,
+          horaLlegadaUnidad,
           fechaDescarga,
           horaInicio,
           horaFin,
@@ -722,6 +749,16 @@ export const crearReportePulsera =
         req.body?.motivo_renovacion || ''
       ).trim();
 
+    const fechaLlegadaPersonal =
+      String(
+        req.body?.fecha_llegada_personal || ''
+      ).trim();
+
+    const horaLlegadaPersonal =
+      String(
+        req.body?.hora_llegada_personal || ''
+      ).trim();
+
     if (
       !Number.isInteger(
         solicitantePersonaId
@@ -755,6 +792,19 @@ export const crearReportePulsera =
       return res.status(400).json({
         error:
           'Debe seleccionar un cliente y una operación'
+      });
+    }
+    if (
+      !esFechaDescargaValida(
+        fechaLlegadaPersonal
+      ) ||
+      !HORA_DESCARGA_REGEX.test(
+        horaLlegadaPersonal
+      )
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe indicar una fecha y hora de llegada del personal validas'
       });
     }
 
@@ -869,6 +919,8 @@ export const crearReportePulsera =
           clienteOperacionId:
             clienteOperacion.id,
           motivoRenovacion,
+          fechaLlegadaPersonal,
+          horaLlegadaPersonal,
           evidenciaUrl,
           creadoPor:
             req.user?.id || null
@@ -941,6 +993,144 @@ export const crearReportePulsera =
     }
   };
 
+// ==========================================
+// LISTAR REPORTES DE PULSERAS
+// ==========================================
+
+export const listarReportesPulseras =
+  async (req, res) => {
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'ver'
+        );
+
+      const reportes =
+        await obtenerReportesPulseras({
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
+
+      return res.json(reportes);
+    } catch (error) {
+      console.error(
+        'Error listando reportes de pulseras:',
+        error
+      );
+
+      return res
+        .status(error.status || 500)
+        .json({
+          error:
+            error.status
+              ? error.message
+              : 'Error al obtener los reportes de pulseras'
+        });
+    }
+  };
+
+const ESTADOS_REPORTE_PULSERA = [
+  'Pendiente',
+  'En Proceso',
+  'Resuelto'
+];
+
+// ==========================================
+// CAMBIAR ESTADO DE REPORTE DE PULSERA
+// ==========================================
+
+export const cambiarEstadoReportePulsera =
+  async (req, res) => {
+    const id =
+      Number.parseInt(
+        req.params.id,
+        10
+      );
+
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      return res.status(400).json({
+        error: 'ID de reporte no válido'
+      });
+    }
+
+    const estadoRecibido =
+      String(
+        req.body?.estado || ''
+      ).trim();
+
+    const estado =
+      ESTADOS_REPORTE_PULSERA.find(
+        item =>
+          item.toLowerCase() ===
+          estadoRecibido.toLowerCase()
+      );
+
+    if (!estado) {
+      return res.status(400).json({
+        error: 'Estado de reporte no válido'
+      });
+    }
+
+    try {
+      const contexto =
+        await contextoTicket(
+          req,
+          'gestionar'
+        );
+
+      const reporte =
+        await actualizarEstadoReportePulsera({
+          id,
+          estado,
+          accesoTotal:
+            contexto.accesoTotal,
+          clienteOperacionIds:
+            contexto.clienteOperacionIds
+        });
+
+      if (!reporte) {
+        return res.status(404).json({
+          error:
+            'Reporte no encontrado o fuera de su alcance'
+        });
+      }
+
+      await logAction(
+        req.user.id,
+        `Cambió reporte de pulsera #${id} a ${estado}`,
+        'pulseras',
+        req,
+        null,
+        reporte
+      );
+
+      return res.json({
+        success: true,
+        reporte
+      });
+    } catch (error) {
+      console.error(
+        'Error actualizando reporte de pulsera:',
+        error
+      );
+
+      return res
+        .status(error.status || 500)
+        .json({
+          error:
+            error.status 
+              ? error.message
+              : 'Error al actualizar el reporte de pulsera'
+        });
+    }
+  };
+
 
 // ==========================================
 // CREAR TICKET DE UNIDAD
@@ -952,7 +1142,9 @@ export const createSupportTicket =
       persona_id,
       tipo_solicitud,
       descripcion,
-      implemento
+      implemento,
+      fecha_llegada_unidad,
+      hora_llegada_unidad
     } = req.body || {};
 
     const placaFinal =
@@ -971,7 +1163,15 @@ export const createSupportTicket =
       String(
         descripcion || ''
       ).trim();
+    const fechaLlegadaUnidad =
+      String(
+        fecha_llegada_unidad || ''
+      ).trim();
 
+    const horaLlegadaUnidad =
+      String(
+        hora_llegada_unidad || ''
+      ).trim();
 
 
     const implementoFinal =
@@ -1016,7 +1216,19 @@ export const createSupportTicket =
             'La descripción es obligatoria'
         });
     }
-
+    if (
+      !esFechaDescargaValida(
+        fechaLlegadaUnidad
+      ) ||
+      !HORA_DESCARGA_REGEX.test(
+        horaLlegadaUnidad
+      )
+    ) {
+      return res.status(400).json({
+        error:
+          'Debe indicar una fecha y hora de llegada de la unidad válidas'
+      });
+    }
     if (
       tipoSolicitudFinal ===
       'Soporte Técnico' &&
@@ -1139,6 +1351,8 @@ export const createSupportTicket =
           tipoSolicitud: tipoSolicitudFinal,
           descripcion: descripcionFinal,
           implemento: implementoFinal,
+          fechaLlegadaUnidad,
+          horaLlegadaUnidad,
           evidencias: evidenciasSubidas
         });
 

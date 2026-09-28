@@ -23,7 +23,9 @@ import {
   opcionesSolicitudDescargaVideos,
   crearSolicitudDescargaVideos,
   listarSolicitudesDescargaVideos,
-cambiarEstadoSolicitudDescargaVideos,
+  cambiarEstadoSolicitudDescargaVideos,
+  listarReportesPulseras,
+  cambiarEstadoReportePulsera,
 } from './controller.js';
 
 // ==========================================
@@ -49,6 +51,23 @@ router.post(
   requirePermiso('tickets', 'crear'),
   upload.single('evidencia'),
   crearReportePulsera
+);
+router.get(
+  '/pulseras',
+  requirePermiso(
+    'tickets',
+    'ver'
+  ),
+  listarReportesPulseras
+);
+
+router.patch(
+  '/pulseras/:id/estado',
+  requirePermiso(
+    'tickets',
+    'gestionar'
+  ),
+  cambiarEstadoReportePulsera
 );
 // Opciones para solicitudes de descarga de videos
 router.get(
