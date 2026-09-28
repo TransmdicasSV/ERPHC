@@ -7,6 +7,8 @@ import { UiIcon } from './UiIcon';
 const FORM_INICIAL = {
   cliente_operacion_id: '',
   placas: [],
+  fecha_llegada_unidad: '',
+  hora_llegada_unidad: '',
   fecha_descarga: '',
   hora_inicio: '',
   hora_fin: '',
@@ -90,42 +92,42 @@ export function SolicitudDescargaVideosModal({
 
 
   const placasCoincidentes =
-  useMemo(() => {
-    const termino =
-      busquedaPlaca
-        .trim()
-        .toLowerCase();
+    useMemo(() => {
+      const termino =
+        busquedaPlaca
+          .trim()
+          .toLowerCase();
 
-    if (!termino) {
-      return [];
-    }
-
-    return opciones.vehiculos.filter(
-      vehiculo => {
-        const placa = String(
-          vehiculo?.placa || ''
-        ).trim();
-
-        const yaSeleccionada =
-          form.placas.includes(placa);
-
-        const coincide =
-          placa
-            .toLowerCase()
-            .includes(termino);
-
-        return (
-          placa &&
-          !yaSeleccionada &&
-          coincide
-        );
+      if (!termino) {
+        return [];
       }
-    );
-  }, [
-    opciones.vehiculos,
-    form.placas,
-    busquedaPlaca
-  ]);
+
+      return opciones.vehiculos.filter(
+        vehiculo => {
+          const placa = String(
+            vehiculo?.placa || ''
+          ).trim();
+
+          const yaSeleccionada =
+            form.placas.includes(placa);
+
+          const coincide =
+            placa
+              .toLowerCase()
+              .includes(termino);
+
+          return (
+            placa &&
+            !yaSeleccionada &&
+            coincide
+          );
+        }
+      );
+    }, [
+      opciones.vehiculos,
+      form.placas,
+      busquedaPlaca
+    ]);
 
   const agregarPlaca = placa => {
     setForm(actual => {
@@ -162,6 +164,8 @@ export function SolicitudDescargaVideosModal({
     if (
       !form.cliente_operacion_id ||
       form.placas.length === 0 ||
+      !form.fecha_llegada_unidad ||
+      !form.hora_llegada_unidad ||
       !form.fecha_descarga ||
       !form.hora_inicio ||
       !form.hora_fin ||
@@ -341,18 +345,18 @@ export function SolicitudDescargaVideosModal({
               </span>
             </div>
 
-              <>
-                <input
-                  type="search"
-                  value={busquedaPlaca}
-                  onChange={event =>
-                    setBusquedaPlaca(event.target.value)
-                  }
-                  placeholder="Escriba una placa para buscar..."
-                  autoComplete="off"
-                  style={inputStyle}
-                />
-                {busquedaPlaca.trim() && (
+            <>
+              <input
+                type="search"
+                value={busquedaPlaca}
+                onChange={event =>
+                  setBusquedaPlaca(event.target.value)
+                }
+                placeholder="Escriba una placa para buscar..."
+                autoComplete="off"
+                style={inputStyle}
+              />
+              {busquedaPlaca.trim() && (
                 <div style={{
                   maxHeight: '190px',
                   overflowY: 'auto',
@@ -411,92 +415,92 @@ export function SolicitudDescargaVideosModal({
                     ))
                   )}
                 </div>
-                )}
+              )}
 
+              <div style={{
+                marginTop: '1rem'
+              }}>
                 <div style={{
-                  marginTop: '1rem'
+                  marginBottom: '0.55rem',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.82rem',
+                  fontWeight: '600'
                 }}>
-                  <div style={{
-                    marginBottom: '0.55rem',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.82rem',
-                    fontWeight: '600'
-                  }}>
-                    Placas agregadas a la solicitud
-                  </div>
+                  Placas agregadas a la solicitud
+                </div>
 
-                  {form.placas.length === 0 ? (
-                    <div style={{
-                      padding: '1rem',
-                      borderRadius: '0.65rem',
-                      border:
-                        '1px dashed var(--border-color)',
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center',
-                      fontSize: '0.85rem'
-                    }}>
-                      Todavía no ha agregado ninguna placa.
-                    </div>
-                  ) : (
-                    <div style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '0.55rem',
-                      padding: '0.75rem',
-                      borderRadius: '0.65rem',
-                      backgroundColor: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-color)'
-                    }}>
-                      {form.placas.map(placa => (
-                        <span
-                          key={placa}
+                {form.placas.length === 0 ? (
+                  <div style={{
+                    padding: '1rem',
+                    borderRadius: '0.65rem',
+                    border:
+                      '1px dashed var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    fontSize: '0.85rem'
+                  }}>
+                    Todavía no ha agregado ninguna placa.
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '0.55rem',
+                    padding: '0.75rem',
+                    borderRadius: '0.65rem',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    {form.placas.map(placa => (
+                      <span
+                        key={placa}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '2rem',
+                          backgroundColor:
+                            'var(--accent-color)',
+                          color: 'white',
+                          fontSize: '0.82rem',
+                          fontWeight: '700'
+                        }}
+                      >
+                        {placa}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            quitarPlaca(placa)
+                          }
+                          aria-label={`Quitar placa ${placa}`}
+                          title="Quitar placa"
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.45rem',
-                            padding: '0.45rem 0.65rem',
-                            borderRadius: '2rem',
+                            display: 'grid',
+                            placeItems: 'center',
+                            width: '18px',
+                            height: '18px',
+                            padding: 0,
+                            border: 'none',
+                            borderRadius: '50%',
                             backgroundColor:
-                              'var(--accent-color)',
+                              'rgba(255,255,255,0.25)',
                             color: 'white',
-                            fontSize: '0.82rem',
-                            fontWeight: '700'
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            lineHeight: 1
                           }}
                         >
-                          {placa}
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              quitarPlaca(placa)
-                            }
-                            aria-label={`Quitar placa ${placa}`}
-                            title="Quitar placa"
-                            style={{
-                              display: 'grid',
-                              placeItems: 'center',
-                              width: '18px',
-                              height: '18px',
-                              padding: 0,
-                              border: 'none',
-                              borderRadius: '50%',
-                              backgroundColor:
-                                'rgba(255,255,255,0.25)',
-                              color: 'white',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              lineHeight: 1
-                            }}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            
           </div>
 
           <div style={{
@@ -505,49 +509,110 @@ export function SolicitudDescargaVideosModal({
               'repeat(auto-fit, minmax(160px, 1fr))',
             gap: '1rem'
           }}>
-            <div>
-              <label style={labelStyle}>Fecha de la descarga</label>
-              <input
-                type="date"
-                required
-                value={form.fecha_descarga}
-                onChange={event => setForm({
-                  ...form,
-                  fecha_descarga: event.target.value
-                })}
-                style={inputStyle}
-              />
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1rem'
+              }}
+            >
+              <div>
+                <label style={labelStyle}>
+                  Fecha de llegada de la unidad
+                </label>
+
+                <input
+                  type="date"
+                  required
+                  value={form.fecha_llegada_unidad}
+                  onChange={event => setForm({
+                    ...form,
+                    fecha_llegada_unidad: event.target.value
+                  })}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  Hora de llegada de la unidad
+                </label>
+
+                <input
+                  type="time"
+                  required
+                  value={form.hora_llegada_unidad}
+                  onChange={event => setForm({
+                    ...form,
+                    hora_llegada_unidad: event.target.value
+                  })}
+                  style={inputStyle}
+                />
+              </div>
             </div>
 
-            <div>
-              <label style={labelStyle}>Hora de inicio</label>
-              <input
-                type="time"
-                required
-                value={form.hora_inicio}
-                onChange={event => setForm({
-                  ...form,
-                  hora_inicio: event.target.value
-                })}
-                style={inputStyle}
-              />
-            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fit, minmax(160px, 1fr))',
+                gap: '1rem'
+              }}
+            >
+              <div>
+                <label style={labelStyle}>
+                  Fecha de la descarga
+                </label>
 
-            <div>
-              <label style={labelStyle}>Hora de fin</label>
-              <input
-                type="time"
-                required
-                value={form.hora_fin}
-                onChange={event => setForm({
-                  ...form,
-                  hora_fin: event.target.value
-                })}
-                style={inputStyle}
-              />
+                <input
+                  type="date"
+                  required
+                  value={form.fecha_descarga}
+                  onChange={event => setForm({
+                    ...form,
+                    fecha_descarga: event.target.value
+                  })}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  Hora de inicio de descarga
+                </label>
+
+                <input
+                  type="time"
+                  required
+                  value={form.hora_inicio}
+                  onChange={event => setForm({
+                    ...form,
+                    hora_inicio: event.target.value
+                  })}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>
+                  Hora de fin de descarga
+                </label>
+
+                <input
+                  type="time"
+                  required
+                  value={form.hora_fin}
+                  onChange={event => setForm({
+                    ...form,
+                    hora_fin: event.target.value
+                  })}
+                  style={inputStyle}
+                />
+              </div>
             </div>
           </div>
-
           <div>
             <label style={labelStyle}>Motivo</label>
             <textarea
