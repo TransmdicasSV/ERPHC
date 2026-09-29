@@ -150,7 +150,8 @@ export const insertarTicket =
     implemento,
     evidencias,
     fechaLlegadaUnidad,
-    horaLlegadaUnidad
+    horaLlegadaUnidad,
+    creadoPor
   }) => {
     const result = await pool.query(
       `INSERT INTO tickets_unidades (
@@ -161,7 +162,8 @@ export const insertarTicket =
          implemento,
          evidencias,
          fecha_llegada_unidad,
-        hora_llegada_unidad
+         hora_llegada_unidad,
+         creado_por
        )
        VALUES (
          $1,
@@ -170,8 +172,9 @@ export const insertarTicket =
          $4,
          $5,
          $6::jsonb,
-        $7,
-        $8
+         $7,
+         $8,
+         $9
        )
        RETURNING *`,
       [
@@ -180,15 +183,17 @@ export const insertarTicket =
         tipoSolicitud,
         descripcion,
         implemento,
-        JSON.stringify(evidencias || []),
+        JSON.stringify(
+          evidencias || []
+        ),
         fechaLlegadaUnidad,
-        horaLlegadaUnidad
+        horaLlegadaUnidad,
+        creadoPor
       ]
     );
 
     return result.rows[0] || null;
   };
-
 // ==========================================
 // CREACIÓN DE PULSERAS
 // ==========================================

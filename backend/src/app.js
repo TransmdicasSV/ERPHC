@@ -39,6 +39,7 @@ import ticketsRoutes, {
 
 import usuariosRoutes from './modules/usuarios/routes.js';
 import authRoutes from './modules/auth/routes.js';
+import notificacionesRoutes  from './modules/notificaciones/routes.js';
 
 const app = express();
 
@@ -137,6 +138,10 @@ app.use(
 app.use(
   '/api/usuarios',
   usuariosRoutes
+);
+app.use(
+  '/api/notificaciones',
+  notificacionesRoutes
 );
 
 app.use(

@@ -680,7 +680,7 @@ export function ResumenDashboard() {
                 textTransform: "uppercase",
               }}
             >
-              En Taller / Obs.
+              Observados
             </p>
             <h3
               style={{
@@ -928,49 +928,7 @@ export function ResumenDashboard() {
         </section>
       </div>
 
-      <section className="power-card dashboard-inspections-table">
-        <div className="dashboard-panel-heading">
-          <div>
-            <h3>Últimas inspecciones</h3>
-            <p>Registros más recientes recibidos por el sistema</p>
-          </div>
-          <span>{publicStats.ticker?.length || 0} registros recientes</span>
-        </div>
-        <div className="dashboard-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Placa</th>
-                <th>Registro</th>
-                <th>Hora</th>
-                <th>Resultado</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {publicStats.ticker?.length ? (
-                publicStats.ticker.slice(0, 6).map((item, index) => (
-                  <tr key={`row-${item.placa}-${index}`}>
-                    <td><strong className="dashboard-table-plate">{item.placa}</strong></td>
-                    <td>Inspección de flota</td>
-                    <td>{item.hora || "Sin hora"}</td>
-                    <td>{item.estado === "APROBADO" ? "Condiciones conformes" : "Requiere revisión"}</td>
-                    <td>
-                      <span className={`dashboard-status-badge ${item.estado === "APROBADO" ? "is-approved" : "is-observed"}`}>
-                        {item.estado === "APROBADO" ? "Aprobado" : "Observado"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="dashboard-empty-message">No hay inspecciones registradas.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      
 
       <div className="dashboard-section-heading">
         <div>
@@ -1326,62 +1284,7 @@ export function ResumenDashboard() {
           </div>
         </div>
 
-        <div
-          className="power-card"
-          style={{ padding: "1rem", display: "flex", flexDirection: "column" }}
-        >
-          <h3
-            style={{
-              fontSize: "0.9rem",
-              fontWeight: "bold",
-              margin: "0 0 0.5rem 0",
-              color: "var(--text-primary)",
-            }}
-          >
-            Inventario TI (Movi.)
-          </h3>
-          <div style={{ width: "100%", height: 160, minWidth: 0 }}>
-            <ResponsiveContainer width="99%" minWidth={1}>
-              <BarChart
-                data={data.inventario}
-                margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="var(--chart-grid)"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{
-                    fill: "var(--text-primary)",
-                    fontSize: 10,
-                    fontWeight: "bold",
-                  }}
-                  dy={5}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
-                  dx={-5}
-                />
-                <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={{ fill: "var(--chart-grid)", opacity: 0.3 }}
-                />
-                <Bar
-                  dataKey="value"
-                  name="Equipos"
-                  fill="var(--viz-purple)"
-                  barSize={30}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        
       </div>
 
       {/* PANELES INTERACTIVOS (Trasladados del Portal Público) */}
@@ -1573,145 +1476,6 @@ export function ResumenDashboard() {
               No hay tickets recientes.
             </p>
           )}
-        </div>
-
-        {/* Panel C: Estado del Sistema */}
-        <div
-          className="power-card"
-          style={{
-            padding: "1.5rem",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "1.1rem",
-              margin: "0 0 1rem 0",
-              color: "var(--green-text)",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            <span>📡</span> Estado del Sistema
-          </h3>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.25rem",
-              flex: 1,
-              justifyContent: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "0.5rem",
-                  fontSize: "0.85rem",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <span>Conexión Base de Datos</span>
-                <span
-                  style={{ color: "var(--green-text)", fontWeight: "bold" }}
-                >
-                  Estable (12ms)
-                </span>
-              </div>
-              <div
-                style={{
-                  width: "100%",
-                  height: "6px",
-                  backgroundColor: "var(--border-color)",
-                  borderRadius: "3px",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    backgroundColor: "var(--green-text)",
-                    boxShadow: "0 0 10px var(--green-text)",
-                  }}
-                ></div>
-              </div>
-            </div>
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "0.5rem",
-                  fontSize: "0.85rem",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <span>Sincronización OMNI Cloud</span>
-                <span
-                  style={{ color: "var(--accent-color)", fontWeight: "bold" }}
-                >
-                  En Línea
-                </span>
-              </div>
-              <div
-                style={{
-                  width: "100%",
-                  height: "6px",
-                  backgroundColor: "var(--border-color)",
-                  borderRadius: "3px",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    backgroundColor: "var(--accent-color)",
-                    boxShadow: "0 0 10px var(--accent-color)",
-                  }}
-                ></div>
-              </div>
-            </div>
-            <div
-              style={{
-                backgroundColor: "var(--green-bg)",
-                border: "1px solid var(--green-text)",
-                padding: "0.75rem",
-                borderRadius: "0.5rem",
-                textAlign: "center",
-                marginTop: "0.5rem",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.85rem",
-                  color: "var(--green-text)",
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    backgroundColor: "var(--green-text)",
-                    borderRadius: "50%",
-                    boxShadow: "0 0 8px var(--green-text)",
-                  }}
-                ></span>
-                SISTEMA OPERATIVO AL 100%
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 

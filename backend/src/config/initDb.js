@@ -65,7 +65,8 @@ const ESQUEMA_ESPERADO = {
   'implemento',
   'evidencias',
   'fecha_creacion',
-  'fecha_cierre'
+  'fecha_cierre',
+  'creado_por'
 ],
 solicitudes_descarga_videos: [
   'id',
@@ -183,7 +184,19 @@ solicitud_descarga_video_placas: [
   supervisor_asignaciones: [
     'usuario_id',
     'cliente_operacion_id'
-  ]
+  ],
+    notificaciones: [
+    'id',
+    'usuario_id',
+    'tipo',
+    'titulo',
+    'mensaje',
+    'url',
+    'leida',
+    'fecha_creacion',
+    'fecha_lectura'
+  ],
+  
 };
 
 const CAMPOS_DATE = [
