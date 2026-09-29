@@ -14,6 +14,9 @@ import { Toaster } from "react-hot-toast";
 import "./index.css";
 import transmdicasLogo from "./assets/transmdicas-logo.png";
 import { AsistenteERPHSE } from "./components/AsistenteERPHSE";
+import {
+  NotificacionesBell
+} from './components/NotificacionesBell';
 
 const APP_ICONS = {
   dashboard: (
@@ -156,12 +159,12 @@ function AppIcon({ name, size = 18 }) {
 
 function App() {
   const [viewMode, setViewMode] = useState(() => {
-  const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
 
-  return params.get("placa")
-    ? "public"
-    : "login";
-});// 'public', 'login', 'admin'
+    return params.get("placa")
+      ? "public"
+      : "login";
+  });// 'public', 'login', 'admin'
   const [activeTab, setActiveTabState] = useState("resumen");
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -350,11 +353,10 @@ function App() {
   const MantenimientoSubItem = ({ vista, icon, label }) => (
     <button
       type="button"
-      className={`erp-nav-item erp-nav-subitem ${
-        activeTab === "mantenimiento" && mantenimientoVista === vista
+      className={`erp-nav-item erp-nav-subitem ${activeTab === "mantenimiento" && mantenimientoVista === vista
           ? "active"
           : ""
-      }`}
+        }`}
       onClick={() => abrirMantenimiento(vista)}
     >
       <AppIcon name={icon} />
@@ -539,7 +541,7 @@ function App() {
                             icon="download"
                             label="Historial"
                           />
-                          
+
                         </div>
                       )}
                     </div>
@@ -601,6 +603,9 @@ function App() {
             >
               <AppIcon name={isDarkMode ? "sun" : "moon"} size={18} />
             </button>
+            <NotificacionesBell
+              onNavigate={setActiveTab}
+            />
             <div className="erp-user-info">
               <div>
                 <strong>{user.username}</strong>
@@ -696,12 +701,12 @@ function App() {
         </main>
       </div>
       <AsistenteERPHSE
-  user={user}
-  isAdmin={isAdmin}
-  hasAccess={hasAccess}
-  onNavigate={(tab) => setActiveTab(tab)}
-/>
-      
+        user={user}
+        isAdmin={isAdmin}
+        hasAccess={hasAccess}
+        onNavigate={(tab) => setActiveTab(tab)}
+      />
+
     </div>
   );
 }

@@ -6,6 +6,10 @@ import {
 } from './auth.js';
 
 const PERMISSION_ROUTES = [
+    {
+    pattern: /^\/api\/notificaciones(?:\/|$)/,
+    allowAuthenticated: true
+  },
   {
     pattern: /^\/api\/usuarios(?:\/|$)/,
     adminOnly: true
@@ -96,6 +100,9 @@ export const authorizeRequest = (
 
   if (rule.adminOnly) {
     return requireAdmin(req, res, next);
+  }
+  if(rule.allowAuthenticated){
+    return next();
   }
 
   const esCreacionTicket =

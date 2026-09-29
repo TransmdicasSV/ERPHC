@@ -1,8 +1,8 @@
 import { toast } from 'react-hot-toast';
 
 // Si estamos en desarrollo usa localhost, si es producción usa Render
-export const BASE_API_URL = import.meta.env.DEV 
-  ? `http://${window.location.hostname}:8000` 
+export const BASE_API_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:8000`
   : 'https://jdcali-backend.onrender.com';
 const BASE_URL = BASE_API_URL;
 
@@ -10,7 +10,7 @@ const BASE_URL = BASE_API_URL;
 const fetchWithAuth = async (url, options = {}) => {
   const token = localStorage.getItem('nexus_token');
   const headers = new Headers(options.headers || {});
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
@@ -21,10 +21,10 @@ const fetchWithAuth = async (url, options = {}) => {
   }
 
   const newOptions = { ...options, headers };
-  
+
   try {
     const response = await fetch(url, newOptions);
-    
+
     // Solo forzar logout en 401 (Token inválido/expirado). 
     // 403 significa acceso denegado (ej. no es admin), no debe cerrar sesión.
     if (response.status === 401) {
@@ -33,7 +33,7 @@ const fetchWithAuth = async (url, options = {}) => {
       window.location.reload();
       return response;
     }
-    
+
     // Interceptar cualquier error HTTP y mostrarlo como Toast automáticamente
     if (!response.ok) {
       try {
@@ -44,7 +44,7 @@ const fetchWithAuth = async (url, options = {}) => {
         toast.error(`Error del Servidor (${response.status}): Ocurrió un problema.`);
       }
     }
-    
+
     return response;
   } catch (error) {
     // Errores de red (ej. servidor caído, sin internet)
@@ -62,32 +62,32 @@ export const api = {  // ==========================================
     return response.json();
   },
   updateVehiculo: async (placa, data) => {
-  const response = await fetchWithAuth(
-    `${BASE_API_URL}/vehiculos/${encodeURIComponent(placa)}`,
-    {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    }
-  );
-
-  const result =
-    await response
-      .json()
-      .catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      result.error ||
-      'Error al actualizar vehículo'
+    const response = await fetchWithAuth(
+      `${BASE_API_URL}/vehiculos/${encodeURIComponent(placa)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      }
     );
-  }
 
-  return result;
-},
-  
+    const result =
+      await response
+        .json()
+        .catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        'Error al actualizar vehículo'
+      );
+    }
+
+    return result;
+  },
+
   deleteVehiculo: async (placa) => {
     const response = await fetchWithAuth(`${BASE_API_URL}/vehiculos/${placa}`, { method: 'DELETE' });
     if (!response.ok) {
@@ -173,8 +173,8 @@ export const api = {  // ==========================================
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Error al crear vehiculo');
+      const err = await response.json();
+      throw new Error(err.error || 'Error al crear vehiculo');
     }
     return response.json();
   },
@@ -199,7 +199,7 @@ export const api = {  // ==========================================
     if (!response.ok) throw new Error('Error al cargar inspecciones');
     return response.json();
   },
-  
+
   createInspeccion: async (formData) => {
     const response = await fetchWithAuth(`${BASE_URL}/inspecciones/`, {
       method: 'POST',
@@ -221,157 +221,157 @@ export const api = {  // ==========================================
     return response.json();
   },
   getOpcionesTickets: async () => {
-  const response = await fetchWithAuth(
-    BASE_API_URL + '/api/incidentes/opciones'
-  );
-  if (!response.ok) {
-    throw new Error('Error al cargar las opciones de tickets');
-  }
-  return response.json();
-},
-getOpcionesPulseras: async () => {
-  const response = await fetchWithAuth(
-    `${BASE_API_URL}/api/incidentes/pulseras/opciones`
-  );
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      data.error || 'Error al cargar las opciones de pulseras'
+    const response = await fetchWithAuth(
+      BASE_API_URL + '/api/incidentes/opciones'
     );
-  }
-
-  return data;
-},
-createPulsera: async (data, evidencia) => {
-  const payload = new FormData();
-
-  Object.entries(data).forEach(([campo, valor]) => {
-    if (valor !== null && valor !== undefined) {
-      payload.append(campo, String(valor));
+    if (!response.ok) {
+      throw new Error('Error al cargar las opciones de tickets');
     }
-  });
-
-  if (evidencia) {
-    payload.append('evidencia', evidencia);
-  }
-
-  const response = await fetchWithAuth(
-    `${BASE_API_URL}/api/incidentes/pulseras`,
-    {
-      method: 'POST',
-      body: payload
-    }
-  );
-
-  const result = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      result.error ||
-      'Error al registrar el reporte de pulsera'
+    return response.json();
+  },
+  getOpcionesPulseras: async () => {
+    const response = await fetchWithAuth(
+      `${BASE_API_URL}/api/incidentes/pulseras/opciones`
     );
-  }
 
-  return result;
-},
-getReportesPulseras:
-  async () => {
-    const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/incidentes/pulseras`
-      );
-
-    const data =
-      await response
-        .json()
-        .catch(() => []);
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       throw new Error(
-        data.error ||
-        'Error al obtener los reportes de pulseras'
+        data.error || 'Error al cargar las opciones de pulseras'
       );
     }
 
     return data;
   },
+  createPulsera: async (data, evidencia) => {
+    const payload = new FormData();
 
-updateEstadoReportePulsera:
-  async (id, estado) => {
-    const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/incidentes/pulseras/${id}/estado`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            estado
-          })
-        }
-      );
+    Object.entries(data).forEach(([campo, valor]) => {
+      if (valor !== null && valor !== undefined) {
+        payload.append(campo, String(valor));
+      }
+    });
 
-    const data =
-      await response
-        .json()
-        .catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-        'Error al actualizar el reporte de pulsera'
-      );
+    if (evidencia) {
+      payload.append('evidencia', evidencia);
     }
 
-    return data;
-  },
-getOpcionesSolicitudDescargaVideos:
-  async () => {
-    const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/opciones`
-      );
+    const response = await fetchWithAuth(
+      `${BASE_API_URL}/api/incidentes/pulseras`,
+      {
+        method: 'POST',
+        body: payload
+      }
+    );
 
-    const data =
-      await response
-        .json()
-        .catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-        'Error al cargar las opciones de descarga de videos'
-      );
-    }
-
-    return data;
-  },
-
-createSolicitudDescargaVideos:
-  async data => {
-    const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`,
-        {
-          method: 'POST',
-          body: JSON.stringify(data)
-        }
-      );
-
-    const result =
-      await response
-        .json()
-        .catch(() => ({}));
+    const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       throw new Error(
         result.error ||
-        'Error al registrar la solicitud de descarga de videos'
+        'Error al registrar el reporte de pulsera'
       );
     }
 
     return result;
   },
+  getReportesPulseras:
+    async () => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/incidentes/pulseras`
+        );
+
+      const data =
+        await response
+          .json()
+          .catch(() => []);
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al obtener los reportes de pulseras'
+        );
+      }
+
+      return data;
+    },
+
+  updateEstadoReportePulsera:
+    async (id, estado) => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/incidentes/pulseras/${id}/estado`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              estado
+            })
+          }
+        );
+
+      const data =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al actualizar el reporte de pulsera'
+        );
+      }
+
+      return data;
+    },
+  getOpcionesSolicitudDescargaVideos:
+    async () => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/opciones`
+        );
+
+      const data =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al cargar las opciones de descarga de videos'
+        );
+      }
+
+      return data;
+    },
+
+  createSolicitudDescargaVideos:
+    async data => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`,
+          {
+            method: 'POST',
+            body: JSON.stringify(data)
+          }
+        );
+
+      const result =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+          'Error al registrar la solicitud de descarga de videos'
+        );
+      }
+
+      return result;
+    },
   // === INCIDENTES ===
   getIncidentes: async () => {
     const response = await fetchWithAuth(`${BASE_URL}/api/incidentes`);
@@ -380,82 +380,82 @@ createSolicitudDescargaVideos:
   },
 
   getSolicitudesDescargaVideos:
-  async () => {
-    const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`
-      );
+    async () => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos`
+        );
 
-    const data =
-      await response
-        .json()
-        .catch(() => []);
+      const data =
+        await response
+          .json()
+          .catch(() => []);
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al obtener las solicitudes'
+        );
+      }
+
+      return data;
+    },
+
+  updateEstadoSolicitudDescargaVideos:
+    async (id, estado) => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/${id}/estado`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              estado
+            })
+          }
+        );
+
+      const data =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al actualizar la solicitud'
+        );
+      }
+
+      return data;
+    },
+  createIncidente: async (data, evidencias = []) => {
+    const payload = new FormData();
+
+    Object.entries(data).forEach(([campo, valor]) => {
+      if (valor !== null && valor !== undefined) {
+        payload.append(campo, String(valor));
+      }
+    });
+
+    evidencias.forEach(archivo => {
+      payload.append('evidencias', archivo);
+    });
+
+    const response = await fetchWithAuth(
+      `${BASE_URL}/api/incidentes_soporte`,
+      {
+        method: 'POST',
+        body: payload
+      }
+    );
 
     if (!response.ok) {
-      throw new Error(
-        data.error ||
-        'Error al obtener las solicitudes'
-      );
+      const detalle = await response.json().catch(() => ({}));
+      throw new Error(detalle.error || 'Error al crear el ticket');
     }
 
-    return data;
+    return response.json();
   },
-
-updateEstadoSolicitudDescargaVideos:
-  async (id, estado) => {
-    const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/incidentes/solicitudes-descarga-videos/${id}/estado`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            estado
-          })
-        }
-      );
-
-    const data =
-      await response
-        .json()
-        .catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-        'Error al actualizar la solicitud'
-      );
-    }
-
-    return data;
-  },
-createIncidente: async (data, evidencias = []) => {
-  const payload = new FormData();
-
-  Object.entries(data).forEach(([campo, valor]) => {
-    if (valor !== null && valor !== undefined) {
-      payload.append(campo, String(valor));
-    }
-  });
-
-  evidencias.forEach(archivo => {
-    payload.append('evidencias', archivo);
-  });
-
-  const response = await fetchWithAuth(
-    `${BASE_URL}/api/incidentes_soporte`,
-    {
-      method: 'POST',
-      body: payload
-    }
-  );
-
-  if (!response.ok) {
-    const detalle = await response.json().catch(() => ({}));
-    throw new Error(detalle.error || 'Error al crear el ticket');
-  }
-
-  return response.json();
-},
 
   updateIncidente: async (id, data) => {
     const res = await fetchWithAuth(`${BASE_URL}/api/incidentes/${id}`, {
@@ -466,26 +466,26 @@ createIncidente: async (data, evidencias = []) => {
     return res.json();
   },
   updateIncidenteConEvidencia: async (id, formData) => {
-  const res = await fetchWithAuth(
-    `${BASE_URL}/api/incidentes/${id}`,
-    {
-      method: 'PUT',
-      body: formData
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-
-    throw new Error(
-      error.error ||
-      error.message ||
-      'Error al actualizar el ticket con evidencia'
+    const res = await fetchWithAuth(
+      `${BASE_URL}/api/incidentes/${id}`,
+      {
+        method: 'PUT',
+        body: formData
+      }
     );
-  }
 
-  return res.json();
-},
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+
+      throw new Error(
+        error.error ||
+        error.message ||
+        'Error al actualizar el ticket con evidencia'
+      );
+    }
+
+    return res.json();
+  },
 
   deleteIncidente: async (id) => {
     const res = await fetchWithAuth(`${BASE_URL}/api/incidentes/${id}`, {
@@ -514,46 +514,46 @@ createIncidente: async (data, evidencias = []) => {
     return response.json();
   },
 
-downloadExcel: async () => {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/api/reportes/mantenimiento-excel`
-  );
-  if (!response.ok) {
-    throw new Error('Error al descargar el reporte de mantenimiento');
-  }
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'reporte_mantenimiento.xlsx';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-},
-getOperacionesReportes: async () =>{
-  const response = await fetchWithAuth(`${BASE_URL}/api/reportes/operaciones`);
-  if(!response.ok) throw new Error('No se pudieron cargar operaciones');
-  return response.json();
-},
-downloadMasterReport : async (startDate, endDate, operacion) =>{
-  const params = new URLSearchParams({
-    startDate,
-    endDate,
-    operacion
-  });
+  downloadExcel: async () => {
     const response = await fetchWithAuth(
-    `${BASE_URL}/api/reportes/master?${params.toString()}`
-  );
-  if(!response.ok){
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'Error al generar el reporte maestro');
+      `${BASE_URL}/api/reportes/mantenimiento-excel`
+    );
+    if (!response.ok) {
+      throw new Error('Error al descargar el reporte de mantenimiento');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'reporte_mantenimiento.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  getOperacionesReportes: async () => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/reportes/operaciones`);
+    if (!response.ok) throw new Error('No se pudieron cargar operaciones');
+    return response.json();
+  },
+  downloadMasterReport: async (startDate, endDate, operacion) => {
+    const params = new URLSearchParams({
+      startDate,
+      endDate,
+      operacion
+    });
+    const response = await fetchWithAuth(
+      `${BASE_URL}/api/reportes/master?${params.toString()}`
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Error al generar el reporte maestro');
 
-  }
-  return response.blob();
-},
+    }
+    return response.blob();
+  },
 
-    getPersonalParaEntrega: async (dni, tipo = 'Entrega') => {
+  getPersonalParaEntrega: async (dni, tipo = 'Entrega') => {
     const params = new URLSearchParams({ tipo });
 
     const response = await fetchWithAuth(
@@ -600,7 +600,7 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     if (!response.ok) {
       const text = await response.text();
       let err = `Status ${response.status}: `;
-      try { const j = JSON.parse(text); err += j.error || text; } catch(e) { err += text; }
+      try { const j = JSON.parse(text); err += j.error || text; } catch (e) { err += text; }
       throw new Error('Error backend: ' + err);
     }
     return response.json();
@@ -614,7 +614,7 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     if (!response.ok) {
       const text = await response.text();
       let err = `Status ${response.status}: `;
-      try { const j = JSON.parse(text); err += j.error || text; } catch(e) { err += text; }
+      try { const j = JSON.parse(text); err += j.error || text; } catch (e) { err += text; }
       throw new Error('Error backend: ' + err);
     }
     return response.json();
@@ -624,13 +624,13 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     const response = await fetchWithAuth(`${BASE_URL}/api/entregas/${id}`, { method: 'DELETE' });
     if (!response.ok) {
       let errText = 'Error al eliminar entrega';
-      try { const resData = await response.json(); if (resData.error) errText += ': ' + resData.error; } catch(e){}
+      try { const resData = await response.json(); if (resData.error) errText += ': ' + resData.error; } catch (e) { }
       throw new Error(errText);
     }
     return response.json();
   },
 
-    uploadEntregasExcel: async (file, vista, confirmar = false, firma = '') => {
+  uploadEntregasExcel: async (file, vista, confirmar = false, firma = '') => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('tipo', vista || '');
@@ -645,7 +645,7 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
     return response.json();
   },
 
-    exportExcelEntregas: async (vista, categoria, fechaInicio, fechaFin) => {
+  exportExcelEntregas: async (vista, categoria, fechaInicio, fechaFin) => {
     const params = new URLSearchParams();
     if (vista) params.set('tipo', vista);
     if (categoria) params.set('categoria', categoria);
@@ -678,43 +678,106 @@ downloadMasterReport : async (startDate, endDate, operacion) =>{
       setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     }
   },
-downloadFlotasReport: async ({
-  formato = 'pdf',
-  filtro = 'todos',
-  valor = '',
-  fecha = 'siempre',
-  fechaInicio = '',
-  fechaFin = '',
-  operacion = 'todas',
-  signal
-}) => {
-  const params = new URLSearchParams({
-    filtro,
-    valor,
-    fecha,
-    operacion
-  });
-  if (fechaInicio) params.set('fechaInicio', fechaInicio);
-  if (fechaFin) params.set('fechaFin', fechaFin);
+  downloadFlotasReport: async ({
+    formato = 'pdf',
+    filtro = 'todos',
+    valor = '',
+    fecha = 'siempre',
+    fechaInicio = '',
+    fechaFin = '',
+    operacion = 'todas',
+    signal
+  }) => {
+    const params = new URLSearchParams({
+      filtro,
+      valor,
+      fecha,
+      operacion
+    });
+    if (fechaInicio) params.set('fechaInicio', fechaInicio);
+    if (fechaFin) params.set('fechaFin', fechaFin);
 
-  const response = await fetchWithAuth(
-  `${BASE_URL}/reportes/${formato}?${params.toString()}`,
-  { signal }
-);
+    const response = await fetchWithAuth(
+      `${BASE_URL}/reportes/${formato}?${params.toString()}`,
+      { signal }
+    );
 
-  if (!response.ok) {
-    let mensaje = 'Error al generar el reporte';
+    if (!response.ok) {
+      let mensaje = 'Error al generar el reporte';
 
-    try {
-      const data = await response.json();
-      if (data.error) mensaje = data.error;
-    } catch {
-      // La respuesta puede ser un archivo o texto.
+      try {
+        const data = await response.json();
+        if (data.error) mensaje = data.error;
+      } catch {
+        // La respuesta puede ser un archivo o texto.
+      }
+
+      throw new Error(mensaje);
     }
 
-    throw new Error(mensaje);
-  }
+    return response.blob();
+  },
+  getNotificaciones:
+    async () => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/notificaciones`
+        );
 
-  return response.blob();
-},
+      const data =
+        await response
+          .json()
+          .catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al obtener las notificaciones'
+        );
+      }
+      return data;
+    },
+  leerNotificacion:
+    async id => {
+      const response =
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/notificaciones/${id}/leida`,
+          {
+            method: 'PATCH'
+          }
+        );
+
+      const data =
+        await response
+          .json()
+          .catch(() => ({}));
+      if(!response.ok){
+        throw new Error(
+          data.error ||
+          'Error al actualizar la notificacion'
+        );
+      }
+      return data;
+    },
+    leerTodasNotificaciones:
+    async() =>{
+      const response =
+      await fetchWithAuth(
+        `${BASE_API_URL}/api/notificaciones/leer-todas`,
+        {
+          method: 'PATCH'
+        }
+      );
+
+      const data =
+        await response
+        .json()
+        .catch(()=>({}));
+      if(!response.ok){
+          throw new Error(
+            data.error ||
+            'Error al actualizar las notificaciones'
+          );
+      }
+      return data;
+    },
 };

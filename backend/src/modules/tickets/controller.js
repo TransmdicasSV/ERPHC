@@ -37,6 +37,11 @@ import {
   obtenerClientesOperacionesUnicas
 } from './service.js';
 
+import {
+  crearNotificacionUsuario,
+  crearNotificacionesPorRoles
+} from '../notificaciones/repository.js'
+
 
 // ==========================================
 // OPCIONES DE TICKETS DE UNIDADES
@@ -286,7 +291,7 @@ export const crearSolicitudDescargaVideos =
         fechaDescarga
       )
     ) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error:
           'Debe indicar una fecha de descarga válida'
       });
@@ -431,6 +436,25 @@ export const crearSolicitudDescargaVideos =
         null,
         solicitud
       );
+      await crearNotificacionesPorRoles({
+        roles: [
+          'admin',
+          'administrador',
+          'ti'
+        ],
+        tipo: 'SOLICITUD_VIDEO_NUEVA',
+        titulo: 'Nueva solicitud de descarga de videos',
+        mensaje:
+          `Solicitud ${solicitud.id}: ` +
+          `${placas.length} placa(s) para ${operacion}. `,
+        url: 'tickets',
+        excluirUsuarioId: req.user.id
+      }).catch(error => {
+        console.error(
+          'Error creando notificaciones de video:',
+          error
+        );
+      });
 
       return res
         .status(201)
@@ -614,6 +638,23 @@ export const cambiarEstadoSolicitudDescargaVideos =
         null,
         solicitud
       );
+      if (
+        Numer(solicitud.solicitado_por) !== Number(req.user.id)
+      ) {
+        await crearNotificacionUsuario({
+          usuarioId: solicitud.solicitado_por,
+          tipo: 'SOLICITUD_VIDEO_ESTADO',
+          titulo: 'Solicitud de video actualizada',
+          mensaje: ` La solicitud #${solicitud.id} cambio a ` +
+            `"${estado}". `,
+          url: 'tickets'
+        }).catch(error => {
+          console.error(
+            'Error notificando estado de video',
+            error
+          );
+        });
+      }
 
       return res.json({
         success: true,
@@ -940,6 +981,22 @@ export const crearReportePulsera =
         null,
         pulsera
       );
+      await crearNotificacionesPorRoles({
+        roles: ['admin', 'administrador', 'ti'],
+        tipo: 'REPORTE_PULSERA_NUEVO',
+        titulo: 'Nuevo reporte de pulsera',
+        mensaje: `Reporte # ${pulsera.id} registrado para ` +
+          `${receptor.nombre_completo}.`,
+        url: 'tickets',
+        excluirUsuarioId: req.user.id
+      }).catch(error => {
+        console.error(
+          'Error creando notificaciones de pulsera: ',
+          error
+        );
+      });
+
+
 
       return res
         .status(201)
@@ -1109,6 +1166,25 @@ export const cambiarEstadoReportePulsera =
         null,
         reporte
       );
+      if (
+        Number(reporte.creado_por) !==
+        Number(req.user.id)
+      ) {
+        await crearNotificacionUsuario({
+          usuarioId: reporte.creado_por,
+          tipo: 'REPORTE_PULSERA_ESTADO',
+          titulo: 'Reporte de pulsera actualizado',
+          mensaje:
+            `El reporte #${reporte.id} cambió a ` +
+            `"${estado}".`,
+          url: 'tickets'
+        }).catch(error => {
+          console.error(
+            'Error notificando estado de pulsera:',
+            error
+          );
+        });
+      }
 
       return res.json({
         success: true,
@@ -1124,7 +1200,7 @@ export const cambiarEstadoReportePulsera =
         .status(error.status || 500)
         .json({
           error:
-            error.status 
+            error.status
               ? error.message
               : 'Error al actualizar el reporte de pulsera'
         });
@@ -1353,7 +1429,8 @@ export const createSupportTicket =
           implemento: implementoFinal,
           fechaLlegadaUnidad,
           horaLlegadaUnidad,
-          evidencias: evidenciasSubidas
+          evidencias: evidenciasSubidas,
+          creadoPor: req.user.id
         });
 
 
@@ -1380,6 +1457,21 @@ export const createSupportTicket =
 
         ticket
       );
+
+      await crearNotificacionesPorRoles({
+        roles: [
+          'admin', 'administrador', 'ti'
+        ],
+        tipo: 'TICKET_NUEVO',
+        titulo: 'Nuevo ticket de soporte',
+        mensaje: `Ticket #${ticket.id} registrado para ` + `la unidad ${placaFinal}. `,
+        url: 'tickets',
+        excluirUsuarioId: req.user.id,
+      }).catch(error => {
+        console.error(
+          'Error creando notificaciones de ticket',
+        );
+      });
 
 
       return res
@@ -1665,6 +1757,28 @@ export const actualizarTicket =
 
         valoresActuales
       );
+      if (
+        valoresActuales.creado_por &&
+        Number(valoresActuales.creado_por) !==
+        Number(req.user.id)
+      ) {
+        await crearNotificacionUsuario({
+          usuarioId:
+            valoresActuales.creado_por,
+          tipo: 'TICKET_ESTADO',
+          titulo: 'Ticket actualizado',
+          mensaje:
+            `Tu ticket #${valoresActuales.id} de la unidad ` +
+            `${valoresActuales.placa} cambió a ` +
+            `"${estadoFinal}".`,
+          url: 'tickets'
+        }).catch(error => {
+          console.error(
+            'Error notificando estado del ticket:',
+            error
+          );
+        });
+      }
 
 
       // ========================================
