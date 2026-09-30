@@ -2,8 +2,11 @@
 
 Cómo se forma una visita programada. Regla de negocio aprobada el 2026-09-24.
 
-> **El generador todavía no está implementado.** Este documento es la especificación
-> congelada, y `auditar-generador.mjs` la verifica en solo lectura contra los datos reales.
+> **El generador esta implementado.** El algoritmo vive en `generador-nucleo.mjs`, el
+> runner en `generar-programacion.mjs` y el banco de casos en `probar-generador.mjs`.
+> Este documento sigue siendo la especificacion congelada: `auditar-generador.mjs` la
+> verifica en solo lectura contra los datos reales, y el banco la verifica sobre
+> fixtures en `BEGIN ... ROLLBACK`.
 
 ## Vocabulario
 
@@ -173,6 +176,62 @@ uq_programacion_equipo
 El generador debe usar `INSERT … ON CONFLICT DO NOTHING` y escribir **siempre**
 `quincena_programada`, para no apoyarse en la semántica de múltiples `NULL` de un índice
 único.
+
+### Paso 1-bis · Obligaciones ya materializadas
+
+Entre el paso 1 y el paso 2 se aparta lo que **ya tiene una fila que lo representa**, con
+grano fino:
+
+```
+materializadas = (programa_unidad_id, tipo_equipo, nivel_mantenimiento, quincena_programada)
+                 desde programacion_mantenimiento JOIN programacion_mantenimiento_equipos
+                 WHERE estado <> 'CANCELADO'
+```
+
+La cobertura se expande con la misma acumulacion del cierre: un detalle regular `M2` cubre
+`M2` y `M1`; uno `M3` cubre `M3`, `M2` y `M1`; `GPS`/`ADAS` cubren **solo** su `M3`.
+
+La identidad es **`quincena_programada`**, donde *nacio* la obligacion, nunca
+`quincena_efectiva`. Una reprogramacion mueve la visita, no la obligacion: si se mirara la
+quincena efectiva, reprogramar octubre a noviembre haria reaparecer la obligacion de octubre.
+
+Solo lo **pendiente** sigue a los pasos 2-6, asi que `nivel_regular` se calcula unicamente
+con lo que realmente falta y una obligacion ya cubierta no puede elevar una visita nueva.
+
+Una programacion `CANCELADO` queda fuera: su obligacion vuelve a ser elegible y puede nacer
+una **sustituta**, que es una fila nueva. La cancelada permanece como historial.
+
+`materializada` no significa `cumplida`: una visita `NO_EJECUTADO` o `NO_APLICA` sigue
+representando su obligacion -no se duplica- pero **no avanzo ningun ciclo**, asi que la fase
+no se movio y el termino siguiente sigue naciendo de la misma referencia.
+
+### Paso 6-bis · Colision de destino
+
+Antes de escribir cada visita formada se consulta el mapa de **slots**:
+
+```
+slots = (programa_unidad_id, quincena_efectiva)  ->  programacion_id, estado,
+         quincena_programada, quincena_reprogramada, OT abiertas/cerradas/anuladas,
+         familias y niveles ya previstos
+         WHERE estado <> 'CANCELADO'
+```
+
+Slot libre, la visita es **materializable**. Slot ocupado, es **`COLISION_DE_DESTINO`**: no
+se fusiona, no se le cuelgan detalles a una programacion que el generador no creo en esa
+corrida, no se crea una segunda programacion, no se eleva su nivel, y esa visita **no se
+escribe**. Se reporta con placa, unidad, quincena de la obligacion, quincena efectiva de
+destino, la programacion que ocupa el slot, su estado, el de sus OT, lo que intentaba entrar,
+lo que ya contiene y el motivo: `REPROGRAMADA_OCUPA_DESTINO`, `ESCALADA_DE_NIVEL`,
+`ANUAL_NO_REPRESENTADA`, `REGULAR_NO_REPRESENTADA`, o `OTRO` con la evidencia cruda cuando el
+caso no encaja en ninguno.
+
+Las colisiones **no abortan la corrida**: las visitas seguras se materializan y se
+reportan las colisiones. Codigos de salida del runner: `0` corrida completa, `3` seguras
+materializadas con colisiones pendientes, `2` error tecnico con rollback.
+
+La idempotencia la resuelve el paso 1-bis. `uq_programacion_unidad_quincena_efectiva` queda
+como **red de seguridad**: si llega a disparar es que el estado cambio entre la lectura de
+insumos y la escritura, y se informa en vez de silenciarse.
 
 ## PROHIBIDO: `nivel_visita = MAX(todos los detalles)`
 

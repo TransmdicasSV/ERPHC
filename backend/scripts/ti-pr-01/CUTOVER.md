@@ -87,4 +87,4 @@ arranque explícito. Igual criterio para las familias con inventario `POR_VALIDA
 `programa_mantenimiento_unidad_anclas` | 1062 · M2 531, M3 531 · `origen='DERIVADA_M1_INICIAL'` · 145 unidades |
 `programacion_mantenimiento` | 0 |
 `programacion_mantenimiento_equipos` | 0 |
-órdenes de trabajo | la tabla no existe todavía |
+órdenes de trabajo | `ordenes_trabajo` 0 y `ordenes_trabajo_detalle` 0 - las crea `20260925_013`, endurecidas por `20260925_014`, `20260925_015` y `20260928_016`
