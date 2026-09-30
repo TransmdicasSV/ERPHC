@@ -61,6 +61,12 @@ const PERMISSION_ROUTES = [
   {
     pattern: /^\/stats(?:\/|$)/,
     modules: ['resumen']
+  },
+  {
+    // TI-PR-01. Mismo modulo de permiso que /mantenimientos: es el mismo
+    // dominio de negocio y ya existe en los permisos de usuario.
+    pattern: /^\/api\/programas-mantenimiento(?:\/|$)/,
+    modules: ['mantenimiento']
   }
 ];
 

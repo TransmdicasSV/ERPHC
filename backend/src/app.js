@@ -40,6 +40,7 @@ import ticketsRoutes, {
 import usuariosRoutes from './modules/usuarios/routes.js';
 import authRoutes from './modules/auth/routes.js';
 import notificacionesRoutes  from './modules/notificaciones/routes.js';
+import programasMantenimientoRoutes from './modules/programas/routes.js';
 
 const app = express();
 
@@ -202,6 +203,14 @@ app.use(
 app.use(
   '/api/entregas',
   entregasRoutes
+);
+
+// TI-PR-01. Va DESPUES de authenticateRequest/authorizeRequest y ANTES de
+// notFound: authorizeRequest responde 404 a toda ruta sin regla en
+// security.js, asi que la regla de esta familia va alli.
+app.use(
+  '/api/programas-mantenimiento',
+  programasMantenimientoRoutes
 );
 
 app.use(notFound);
