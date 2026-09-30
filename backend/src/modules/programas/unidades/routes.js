@@ -9,6 +9,8 @@ import {
   editarUnidad
 } from './controller.js';
 
+import insumosRoutes from './insumos/routes.js';
+
 // mergeParams para recibir :programaId del router padre.
 const router = Router({
   mergeParams: true
@@ -40,6 +42,17 @@ router.post(
 router.put(
   '/:id',
   editarUnidad
+);
+
+// ==========================================
+// INSUMOS DE LA UNIDAD · inventario TI, ciclos y anclas
+// Va al final: router.get('/:id') solo casa con la ruta exacta, asi que /:id/equipos y
+// /:id/ciclos caen aqui. Un solo parametro de unidad, sin duplicar rutas.
+// ==========================================
+
+router.use(
+  '/:id',
+  insumosRoutes
 );
 
 export default router;

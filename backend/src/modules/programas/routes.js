@@ -11,6 +11,7 @@ import {
 } from './controller.js';
 
 import unidadesRoutes from './unidades/routes.js';
+import frecuenciasRoutes from './frecuencias/routes.js';
 
 const router = Router();
 
@@ -57,6 +58,15 @@ router.patch(
 router.use(
   '/:programaId/unidades',
   unidadesRoutes
+);
+
+// ==========================================
+// FRECUENCIAS DEL PROGRAMA · solo lectura
+// ==========================================
+
+router.use(
+  '/:programaId/frecuencias',
+  frecuenciasRoutes
 );
 
 export default router;
