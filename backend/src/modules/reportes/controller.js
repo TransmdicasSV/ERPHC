@@ -65,7 +65,7 @@ export const generarMaster =
       const {
         startDate,
         endDate,
-        operacion
+        clienteOperacionId
       } =
         validarParametrosMaster(
           req.query
@@ -76,7 +76,7 @@ export const generarMaster =
           pool,
           startDate,
           endDate,
-          operacion
+          clienteOperacionId
         );
 
       res.setHeader(
@@ -116,14 +116,14 @@ export const generarMaster =
             404
             ? 404
             : error.status ===
-                400
+              400
               ? 400
               : 500
         )
         .json({
           error:
             error.status === 404 ||
-            error.status === 400
+              error.status === 400
               ? error.message
               : 'Error interno generando reporte'
         });

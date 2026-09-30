@@ -30,47 +30,45 @@ export const validarParametrosMaster =
   ({
     startDate,
     endDate,
-    operacion
+    clienteOperacionId
   }) => {
     if (
-      !fechaISOValida(
-        startDate
-      ) ||
-      !fechaISOValida(
-        endDate
-      ) ||
+      !fechaISOValida(startDate) ||
+      !fechaISOValida(endDate) ||
       startDate > endDate
     ) {
-      const error =
-        new Error(
-          'El rango de fechas no es válido'
-        );
+      const error = new Error(
+        'El rango de fechas no es válido'
+      );
 
       error.status = 400;
-
       throw error;
     }
 
+    const clienteOperacionIdFinal =
+      Number.parseInt(
+        clienteOperacionId,
+        10
+      );
+
     if (
-      typeof operacion !==
-        'string' ||
-      !operacion.trim() ||
-      operacion.length > 100
+      !Number.isInteger(
+        clienteOperacionIdFinal
+      ) ||
+      clienteOperacionIdFinal <= 0
     ) {
-      const error =
-        new Error(
-          'Seleccione una operación válida'
-        );
+      const error = new Error(
+        'Seleccione un cliente y operación válidos'
+      );
 
       error.status = 400;
-
       throw error;
     }
 
     return {
       startDate,
       endDate,
-      operacion:
-        operacion.trim()
+      clienteOperacionId:
+        clienteOperacionIdFinal
     };
   };
