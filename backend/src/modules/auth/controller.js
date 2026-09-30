@@ -7,6 +7,8 @@ import {
   AuthError
 } from './service.js';
 
+import { pool } from '../../config/database.js';
+
 export const login =
   async (req, res) => {
     try {
@@ -69,5 +71,45 @@ export const login =
           error:
             'Error del servidor'
         });
+    }
+  };
+
+export const listarUsuariosActivosLogin = 
+  async (req, res)=>{
+    const busqueda = String (
+      req.query?.q || ''
+    ).trim();
+
+    if(busqueda.length < 1){
+      return res.json([]);
+    }
+    try{
+      const result = await pool.query(
+        `SELECT 
+          username
+        FROM usuarios
+        WHERE LOWER(
+          BTRIM(COALESCE(estado, ''))
+        ) = 'activo'
+          AND LOWER(BTRIM(username))
+            LIKE LOWER($1)
+        ORDER BY username ASC
+        LIMIT 10`,
+        [`${busqueda}%`]    
+      );
+      return res.json(
+        result.rows.map(
+          row => row.username
+        )
+      );
+    }catch(error){
+      console.error(
+        'Error buscando usuarios para login',
+        error
+      );
+      return res.status(500).json({
+        error:
+        'No se pudieron buscar los usuarios'
+      });
     }
   };

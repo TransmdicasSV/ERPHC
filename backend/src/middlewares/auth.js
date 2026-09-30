@@ -18,6 +18,10 @@ export const PUBLIC_ROUTES = [
     pattern: /^\/api\/auth\/login\/?$/
   },
   {
+    method:'GET',
+    pattern: /^\/api\/auth\/usuarios-activos\/?$/
+  },
+  {
     method: 'POST',
     pattern: /^\/api\/public\/incidentes-soporte\/?$/
   },

@@ -536,20 +536,31 @@ export const api = {  // ==========================================
     if (!response.ok) throw new Error('No se pudieron cargar operaciones');
     return response.json();
   },
-  downloadMasterReport: async (startDate, endDate, operacion) => {
+  downloadMasterReport: async (
+    startDate,
+    endDate,
+    clienteOperacionId
+  ) => {
     const params = new URLSearchParams({
       startDate,
       endDate,
-      operacion
+      clienteOperacionId
     });
+
     const response = await fetchWithAuth(
       `${BASE_URL}/api/reportes/master?${params.toString()}`
     );
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Error al generar el reporte maestro');
 
+    if (!response.ok) {
+      const error =
+        await response.json().catch(() => ({}));
+
+      throw new Error(
+        error.error ||
+        'Error al generar el reporte maestro'
+      );
     }
+
     return response.blob();
   },
 
@@ -750,7 +761,7 @@ export const api = {  // ==========================================
         await response
           .json()
           .catch(() => ({}));
-      if(!response.ok){
+      if (!response.ok) {
         throw new Error(
           data.error ||
           'Error al actualizar la notificacion'
@@ -758,25 +769,25 @@ export const api = {  // ==========================================
       }
       return data;
     },
-    leerTodasNotificaciones:
-    async() =>{
+  leerTodasNotificaciones:
+    async () => {
       const response =
-      await fetchWithAuth(
-        `${BASE_API_URL}/api/notificaciones/leer-todas`,
-        {
-          method: 'PATCH'
-        }
-      );
+        await fetchWithAuth(
+          `${BASE_API_URL}/api/notificaciones/leer-todas`,
+          {
+            method: 'PATCH'
+          }
+        );
 
       const data =
         await response
-        .json()
-        .catch(()=>({}));
-      if(!response.ok){
-          throw new Error(
-            data.error ||
-            'Error al actualizar las notificaciones'
-          );
+          .json()
+          .catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          'Error al actualizar las notificaciones'
+        );
       }
       return data;
     },

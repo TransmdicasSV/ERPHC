@@ -4,9 +4,9 @@ import transmdicasLogo from "../assets/transmdicas-logo.png";
 
 const LoginIcon = ({ name, size = 18 }) => {
   const paths = {
-    user: <><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></>,
-    lock: <><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
-    arrow: <><path d="M5 12h14M14 7l5 5-5 5"/></>,
+    user: <><circle cx="12" cy="8" r="3.5" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" /></>,
+    lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
+    arrow: <><path d="M5 12h14M14 7l5 5-5 5" /></>,
   };
 
   return (
@@ -23,9 +23,17 @@ const CompanyBrand = ({ mobile = false }) => (
   </div>
 );
 
-export function Login({ onLoginSuccess}) {
+export function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [usuariosSugeridos, setUsuariosSugeridos] =
+    useState([]);
+
+  const [mostrarUsuarios, setMostrarUsuarios] =
+    useState(false);
+
+  const [buscandoUsuarios, setBuscandoUsuarios] =
+    useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -55,7 +63,74 @@ export function Login({ onLoginSuccess}) {
 
     return () => controller.abort();
   }, []);
+  useEffect(() => {
+    const termino = username.trim();
 
+    if (
+      !mostrarUsuarios ||
+      termino.length < 1
+    ) {
+      setUsuariosSugeridos([]);
+      setBuscandoUsuarios(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    const temporizador = window.setTimeout(
+      async () => {
+        setBuscandoUsuarios(true);
+
+        try {
+          const response = await fetch(
+            `${BASE_API_URL}/api/auth/usuarios-activos?q=${encodeURIComponent(
+              termino
+            )}`,
+            {
+              signal: controller.signal
+            }
+          );
+
+          const data =
+            await response.json()
+              .catch(() => []);
+
+          if (!response.ok) {
+            throw new Error(
+              data.error ||
+              'No se pudieron buscar usuarios'
+            );
+          }
+
+          setUsuariosSugeridos(
+            Array.isArray(data)
+              ? data
+              : []
+          );
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error(
+              'Error buscando usuarios:',
+              error
+            );
+
+            setUsuariosSugeridos([]);
+          }
+        } finally {
+          setBuscandoUsuarios(false);
+        }
+      },
+      250
+    );
+
+    return () => {
+      window.clearTimeout(temporizador);
+      controller.abort();
+    };
+  }, [
+    username,
+    mostrarUsuarios
+  ]);
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -113,10 +188,112 @@ export function Login({ onLoginSuccess}) {
             {error && <div className="erphc-login-error" role="alert">{error}</div>}
             <label className="erphc-login-field">
               <span>Usuario</span>
-              <span className="erphc-login-input-wrap">
-                <LoginIcon name="user" />
-                <input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="DNI o usuario" autoComplete="username" required />
-              </span>
+
+              <div
+                style={{
+                  position: 'relative'
+                }}
+              >
+                <span className="erphc-login-input-wrap">
+                  <LoginIcon name="user" />
+
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={event => {
+                      setUsername(event.target.value);
+                      setMostrarUsuarios(true);
+                    }}
+                    onFocus={() =>
+                      setMostrarUsuarios(true)
+                    }
+                    onBlur={() => {
+                      window.setTimeout(
+                        () =>
+                          setMostrarUsuarios(false),
+                        150
+                      );
+                    }}
+                    placeholder="Escriba su usuario"
+                    autoComplete="username"
+                    required
+                  />
+                </span>
+
+                {mostrarUsuarios &&
+                  username.trim().length >= 1 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 0.4rem)',
+                        left: 0,
+                        right: 0,
+                        zIndex: 20,
+                        maxHeight: '190px',
+                        overflowY: 'auto',
+                        background: '#ffffff',
+                        border: '1px solid #d9dfec',
+                        borderRadius: '0.5rem',
+                        boxShadow:
+                          '0 10px 22px rgba(16,27,51,0.16)'
+                      }}
+                    >
+                      {buscandoUsuarios ? (
+                        <div
+                          style={{
+                            padding: '0.75rem',
+                            color: '#64748b',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          Buscando usuarios...
+                        </div>
+                      ) : usuariosSugeridos.length ? (
+                        usuariosSugeridos.map(
+                          usuario => (
+                            <button
+                              key={usuario}
+                              type="button"
+                              onMouseDown={event =>
+                                event.preventDefault()
+                              }
+                              onClick={() => {
+                                setUsername(usuario);
+                                setMostrarUsuarios(false);
+                                setError('');
+                              }}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '0.7rem 0.85rem',
+                                border: 'none',
+                                borderBottom:
+                                  '1px solid #eef1f6',
+                                background: 'transparent',
+                                color: '#172033',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                fontWeight: '600'
+                              }}
+                            >
+                              {usuario}
+                            </button>
+                          )
+                        )
+                      ) : (
+                        <div
+                          style={{
+                            padding: '0.75rem',
+                            color: '#64748b',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          No se encontraron usuarios activos.
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </div>
             </label>
             <label className="erphc-login-field">
               <span>Contraseña</span>

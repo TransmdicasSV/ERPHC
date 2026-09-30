@@ -9,7 +9,10 @@ export function ReportesDashboard() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [operaciones, setOperaciones] = useState([]);
-  const [operacion, setOperacion] = useState('');
+  const [
+    clienteOperacionId,
+    setClienteOperacionId
+  ] = useState('');
   const [loadingOps, setLoadingOps] = useState(false);
   const [fechaInicio, setFechaInicio] = useState(defaultStart);
   const [fechaFin, setFechaFin] = useState(defaultEnd);
@@ -19,7 +22,7 @@ export function ReportesDashboard() {
     if (fechaInicio > fechaFin) return toast.error('La fecha de inicio no puede ser mayor a la fecha de fin.');
     setModalOpen(true);
     setLoadingOps(true);
-    setOperacion('');
+    setClienteOperacionId('');
     setOperaciones([]);
     try {
       const data = await api.getOperacionesReportes();
@@ -34,15 +37,32 @@ export function ReportesDashboard() {
 
   const handleDownloadMaster = async () => {
     if (loading) return;
-    if (!operacion || !operaciones.includes(operacion)) return toast.error('Seleccione una operación válida.');
+
+    const relacionSeleccionada =
+      operaciones.find(
+        item =>
+          String(item.id) ===
+          String(clienteOperacionId)
+      );
+
+    if (!relacionSeleccionada) {
+      return toast.error(
+        'Seleccione un cliente y operación válidos.'
+      );
+    }
+
     setLoading(true);
     const loadingToast = toast.loading('Generando las tres pestañas de la operación seleccionada...');
     try {
-      const blob = await api.downloadMasterReport(fechaInicio, fechaFin, operacion);
+      const blob = await api.downloadMasterReport(
+        fechaInicio,
+        fechaFin,
+        clienteOperacionId
+      );
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `Reporte_${operacion.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')}_${fechaInicio}_al_${fechaFin}.xlsx`;
+      link.download = `Reporte_${clienteOperacionId.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')}_${fechaInicio}_al_${fechaFin}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -98,15 +118,41 @@ export function ReportesDashboard() {
             <div className="report-period-summary"><span>Período seleccionado</span><strong>{fechaInicio} al {fechaFin}</strong></div>
             <label className="ui-field" htmlFor="export-operacion">
               <span>Operación</span>
-              <select id="export-operacion" autoFocus value={operacion} onChange={(event) => setOperacion(event.target.value)} disabled={loading || loadingOps}>
-                <option value="">{loadingOps ? 'Cargando operaciones...' : 'Seleccione una operación'}</option>
-                {operaciones.map((item) => <option key={item} value={item}>{item}</option>)}
+              <select
+                id="export-operacion"
+                autoFocus
+                value={clienteOperacionId}
+                onChange={event =>
+                  setClienteOperacionId(
+                    event.target.value
+                  )
+                }
+                disabled={loading || loadingOps}
+              >
+                <option value="">
+                  {loadingOps
+                    ? 'Cargando clientes y operaciones...'
+                    : 'Seleccione cliente y operación'}
+                </option>
+
+                {operaciones.map(item => (
+                  <option
+                    key={item.id}
+                    value={item.id}
+                  >
+                    {item.etiqueta}
+                  </option>
+                ))}
               </select>
             </label>
             {!loadingOps && !operaciones.length && <p className="ui-empty-note">No hay operaciones disponibles.</p>}
             <div className="ui-modal-actions">
               <button className="ui-button ui-button-secondary" type="button" disabled={loading} onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button className="ui-button ui-button-success" type="button" disabled={loading || loadingOps || !operacion} onClick={handleDownloadMaster}>
+              <button className="ui-button ui-button-success" type="button" disabled={
+                loading ||
+                loadingOps ||
+                !clienteOperacionId
+              } onClick={handleDownloadMaster}>
                 {loading ? <span className="ui-spinner" /> : <UiIcon name="download" />}{loading ? 'Generando...' : 'Descargar Excel'}
               </button>
             </div>

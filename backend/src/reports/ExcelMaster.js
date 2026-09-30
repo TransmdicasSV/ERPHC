@@ -42,13 +42,13 @@ const downloadImage = async (source) => {
     return null;
   }
 };
-export const generateMasterReport = async (pool, startDate, endDate,operacion) => {
+export const generateMasterReport = async (pool, startDate, endDate, clienteOperacionId) => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'ERPHC';
   workbook.created = new Date();
-  
-    
-    const result = await pool.query(`
+
+
+  const result = await pool.query(`
   SELECT
     i.*,
 
@@ -63,17 +63,10 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
 
     i.estado AS estado_operativo,
 
-    CASE
-      WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN (
-        '',
-        'null',
-        'sin operacion',
-        'sin operación',
-        'falta identificar'
-      )
-      THEN 'Sin Operación'
-      ELSE BTRIM(v.operacion)
-    END AS operacion,
+    COALESCE(
+  NULLIF(BTRIM(v.operacion), ''),
+  'Sin Operación'
+) AS operacion,
 
     i.fecha_hora::date::text AS fecha_ejecutada_raw,
 
@@ -128,22 +121,10 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     LIMIT 1
   ) m ON true
 
-  WHERE LOWER(
-    CASE
-      WHEN LOWER(BTRIM(COALESCE(v.operacion, ''))) IN (
-        '',
-        'null',
-        'sin operacion',
-        'sin operación',
-        'falta identificar'
-      )
-      THEN 'Sin Operación'
-      ELSE BTRIM(v.operacion)
-    END
-  ) = LOWER($3)
+  WHERE v.cliente_operacion_id = $3::integer
 
   ORDER BY v.placa ASC
-`, [startDate, endDate, operacion]);
+`, [startDate, endDate, clienteOperacionId]);
   const inspecciones = result.rows;
   if (!inspecciones.length) throw Object.assign(new Error('No hay inspecciones para esa operación en el período seleccionado'), { status: 404 });
 
@@ -157,10 +138,10 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     }
   }));
   const imageIds = new Map();
-    
+
 
   // Helper para crear pestaña de Operaciones (LBB, PRX, AAQ, IND)
-    const createOperationSheet = async (sheetName) => {
+  const createOperationSheet = async (sheetName) => {
     const ws = workbook.addWorksheet(sheetName);
 
     ws.columns = [
@@ -232,8 +213,8 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   // 1. TI-PR-01 (Mantenimiento Técnico)
   // ==============================================
   const ws1 = workbook.addWorksheet('TI-PR-01', { views: [{ showGridLines: false }] });
-  
-  const borderAll = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+
+  const borderAll = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
   const fontBold = { bold: true, name: 'Arial', size: 10 };
   const fontNormal = { name: 'Arial', size: 9 };
   const centerAlign = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -265,8 +246,8 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   ws1.getCell('A2').border = borderAll;
 
   const metadata = ['Versión:', 'Fecha:', 'Revisa:', 'Aprueba:'];
-  for(let i=0; i<4; i++) {
-    const c = ws1.getCell('V' + (i+2));
+  for (let i = 0; i < 4; i++) {
+    const c = ws1.getCell('V' + (i + 2));
     c.value = metadata[i];
     c.border = borderAll;
     c.font = fontNormal;
@@ -293,8 +274,8 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     'FECHA ULT MANTENIMIENTO', 'FRECUENCIA', 'FECHA PROX MANTENIMIENTO',
     'DVR', 'COPILOTO', 'RADIO BASE', 'HANDY', 'CAMARA INTERNA', 'CAMARA EXTERNA', 'CAMARA DE RETROCESO', 'SENSORES DE RETROCESO', 'SENSORES DELANTEROS', 'SISTEMA ADAS', 'FECHA EJECUTADA'
   ];
-  const widthsMant = [4, 15, 12, 12, 12, 15, 12, 12, 15, 10, 15, 5,5,5,5,5,5,5,5,5,5, 15];
-  
+  const widthsMant = [4, 15, 12, 12, 12, 15, 12, 12, 15, 10, 15, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 15];
+
   headersMant.forEach((h, index) => {
     const colLetter = ws1.getColumn(index + 1).letter;
     const c = ws1.getCell(colLetter + '7');
@@ -305,10 +286,10 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
     c.border = borderAll;
     ws1.getColumn(index + 1).width = widthsMant[index];
   });
-  ws1.getRow(7).height = 80; 
+  ws1.getRow(7).height = 80;
 
-  
-  const dataRes = { rows: inspecciones};
+
+  const dataRes = { rows: inspecciones };
   let rowNum = 8;
   dataRes.rows.forEach((row, i) => {
     let rawF = row.fecha_ejecutada_raw;
@@ -376,10 +357,22 @@ export const generateMasterReport = async (pool, startDate, endDate,operacion) =
   ws2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2458E8' } };
 
-  inspecciones.forEach(r => ws2.addRow({...r, tipo: r.tipo_vehiculo, programa:r.operacion, estado_vehiculo:r.estado_operativo || ''}));
+  inspecciones.forEach(r => ws2.addRow({ ...r, tipo: r.tipo_vehiculo, programa: r.operacion, estado_vehiculo: r.estado_operativo || '' }));
 
 
-  const sheetName = `OP ${operacion}`.replace(/[\\/*?:\[\]\x00-\x1f]/g, ' ').slice(0, 31).trim().replace(/'+$/, '');
+const relacionNombre = [
+  inspecciones[0]?.cliente,
+  inspecciones[0]?.operacion
+]
+  .filter(Boolean)
+  .join(' — ');
+
+const sheetName =
+  `OP ${relacionNombre}`
+    .replace(/[\\/*?:\[\]\x00-\x1f]/g, ' ')
+    .slice(0, 31)
+    .trim()
+    .replace(/'+$/, '');
   await createOperationSheet(sheetName);
 
   return workbook;

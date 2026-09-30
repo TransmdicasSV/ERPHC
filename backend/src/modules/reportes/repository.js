@@ -8,48 +8,26 @@ import {
 
 export const obtenerOperacionesReportes =
   async () => {
-    const result =
-      await pool.query(`
-        SELECT MIN(op) AS operacion
-        FROM (
-          SELECT
-            CASE
-              WHEN LOWER(
-                BTRIM(
-                  COALESCE(operacion, '')
-                )
-              ) IN (
-                '',
-                'null',
-                'sin operacion',
-                'sin operación',
-                'falta identificar'
-              )
-              THEN 'Sin Operación'
-              ELSE BTRIM(operacion)
-            END AS op
-
-          FROM vehiculos
-
-          WHERE LOWER(
-            BTRIM(
-              COALESCE(operacion, '')
-            )
-          ) NOT IN (
-            'test',
-            'text'
-          )
-        ) operaciones_limpias
-
-        GROUP BY LOWER(op)
-        ORDER BY operacion
-      `);
-
-    return result.rows.map(
-      row => row.operacion
+    const result = await pool.query(
+      `SELECT
+         v.cliente_operacion_id AS id,
+         MIN(BTRIM(v.cliente)) AS cliente,
+         MIN(BTRIM(v.operacion)) AS operacion
+       FROM vehiculos v
+       WHERE v.cliente_operacion_id IS NOT NULL
+       GROUP BY v.cliente_operacion_id
+       ORDER BY
+         MIN(BTRIM(v.cliente)),
+         MIN(BTRIM(v.operacion))`
     );
-  };
 
+    return result.rows.map(row => ({
+      id: row.id,
+      cliente: row.cliente,
+      operacion: row.operacion,
+      etiqueta: `${row.cliente} — ${row.operacion}`
+    }));
+  };
 // ==========================================
 // MANTENIMIENTO EXCEL
 // ==========================================
