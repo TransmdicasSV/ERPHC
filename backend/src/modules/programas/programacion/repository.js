@@ -3,8 +3,10 @@ import { pool } from '../../../config/database.js';
 import {
   ESTADO_CANCELADO,
   ESTADO_REPROGRAMADO,
+  ESTADO_PROGRAMADO,
   ESTADOS_REPROGRAMABLES,
-  ESTADOS_CANCELABLES
+  ESTADOS_CANCELABLES,
+  ESTADOS_PROGRAMABLES
 } from './service.js';
 
 // ==========================================
@@ -221,6 +223,36 @@ export const reprogramarVisita = async (
       quincenaReprogramada,
       ESTADO_REPROGRAMADO,
       ESTADOS_REPROGRAMABLES
+    ]
+  );
+
+  return result.rowCount > 0;
+};
+
+// Promocion. Igual que cancelar: una sola columna, estado, y la puerta de estado dentro
+// del mismo WHERE. No crea nada -ni fila, ni equipos, ni OT- y no toca ninguna quincena: la
+// obligacion es la misma, solo pasa a estar confirmada.
+//
+// ESTADOS_PROGRAMABLES es solo ['PROYECTADO'], asi que un PROGRAMADO que llegue hasta aqui
+// devolveria rowCount 0. No llega: el controller resuelve ese caso antes, para no mover
+// updated_at en una operacion idempotente.
+export const programarVisita = async (
+  programaId,
+  id,
+  cliente = pool
+) => {
+  const result = await cliente.query(
+    `UPDATE programacion_mantenimiento p
+     SET estado = $3
+     WHERE p.programa_id = $1
+       AND p.id = $2
+       AND p.estado = ANY($4::text[])
+     RETURNING p.id`,
+    [
+      programaId,
+      id,
+      ESTADO_PROGRAMADO,
+      ESTADOS_PROGRAMABLES
     ]
   );
 

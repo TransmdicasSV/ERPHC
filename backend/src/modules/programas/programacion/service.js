@@ -33,6 +33,26 @@
 // escribe estado = 'REPROGRAMADO' junto con la quincena.
 //
 // -------------------------------------------------------------------------------------
+// PROMOVER · PROYECTADO -> PROGRAMADO
+// -------------------------------------------------------------------------------------
+// Confirma una visita que el generador solo habia proyectado. NO crea nada: el id, el
+// programa, la unidad, las tres quincenas y los equipos previstos son los mismos. Cambia
+// el estado y nada mas.
+//
+// Es la transicion que 20260928_016 enumera primero -"PROYECTADO -> PROGRAMADO,
+// PROGRAMADO <-> REPROGRAMADO, y la cancelacion"- y la que 014 exige para poder abrir una
+// OT: "PROYECTADO es unicamente la proyeccion automatica del programa y no representa una
+// intervencion autorizada; la promocion a PROGRAMADO es el acto humano que la habilita".
+//
+// PROGRAMADO -> PROGRAMADO se atiende sin tocar la base, igual que CANCELADO -> CANCELADO:
+// medido, set_updated_at usa CURRENT_TIMESTAMP, asi que un UPDATE redundante SI avanzaria
+// updated_at fuera de una transaccion. Cortocircuitar es la unica forma de que la
+// operacion idempotente no deje rastro.
+//
+// Desde REPROGRAMADO se rechaza: este endpoint no deshace una reprogramacion. Desde
+// CANCELADO y desde los cuatro resultados tambien, porque son historicos.
+//
+// -------------------------------------------------------------------------------------
 // CANCELAR
 // -------------------------------------------------------------------------------------
 // Cambia solo el estado a CANCELADO. No borra la fila ni sus equipos previstos: son la
@@ -85,8 +105,16 @@ export const ESTADOS_CANCELABLES = [
   'REPROGRAMADO'
 ];
 
+// La promocion solo parte de PROYECTADO. PROGRAMADO no entra en la lista a proposito: ese
+// caso se atiende antes de llegar a la base, para no mover updated_at sin necesidad.
+export const ESTADOS_PROGRAMABLES = [
+  'PROYECTADO'
+];
+
 export const ESTADO_CANCELADO = 'CANCELADO';
 export const ESTADO_REPROGRAMADO = 'REPROGRAMADO';
+export const ESTADO_PROGRAMADO = 'PROGRAMADO';
+export const ESTADO_PROYECTADO = 'PROYECTADO';
 
 const esQuincena = texto =>
   /^\d{4}-\d{2}-\d{2}$/.test(texto);
@@ -312,21 +340,34 @@ export const prepararReprogramacion = datos => {
 // los dos PATCH los aplican. Una sola implementación de la regla.
 export const bloqueos = visita => {
   const motivos = {
+    programar: null,
     reprogramar: null,
     cancelar: null
   };
 
   if (visita.estado === ESTADO_CANCELADO) {
+    motivos.programar =
+      'La visita está CANCELADA: es histórica y no vuelve a un estado activo';
     motivos.reprogramar =
       'La visita está CANCELADA: es histórica y no vuelve a un estado activo';
     motivos.cancelar = null;
   } else if (RESULTADOS.includes(visita.estado)) {
+    motivos.programar =
+      `La visita tiene un resultado histórico (${visita.estado}) y no se programa`;
     motivos.reprogramar =
       `La visita tiene un resultado histórico (${visita.estado}) y no se reprograma`;
     motivos.cancelar =
       `La visita tiene un resultado histórico (${visita.estado}) y no se cancela`;
-  } else if (
-    !ESTADOS_REPROGRAMABLES.includes(visita.estado)
+  } else if (visita.estado === ESTADO_REPROGRAMADO) {
+    motivos.programar =
+      'La visita está REPROGRAMADA: este endpoint no deshace una reprogramación';
+  } else if (visita.estado === ESTADO_PROGRAMADO) {
+    motivos.programar = 'La visita ya está PROGRAMADA';
+  }
+
+  if (
+    !ESTADOS_REPROGRAMABLES.includes(visita.estado) &&
+    motivos.reprogramar === null
   ) {
     motivos.reprogramar =
       `Una visita en ${visita.estado} todavía no es una obligación confirmada: `
@@ -337,6 +378,9 @@ export const bloqueos = visita => {
     const detalle =
       `tiene ${visita.ot_no_anuladas} orden(es) de trabajo no anulada(s)`;
 
+    motivos.programar = motivos.programar
+      ?? `La visita ${detalle}: anula la OT antes de confirmarla`;
+
     motivos.reprogramar = motivos.reprogramar
       ?? `La visita ${detalle}: anula la OT antes de reprogramar`;
 
@@ -345,6 +389,8 @@ export const bloqueos = visita => {
   }
 
   return {
+    puede_programar: motivos.programar === null,
+    motivo_programar: motivos.programar,
     puede_reprogramar: motivos.reprogramar === null,
     motivo_reprogramar: motivos.reprogramar,
     puede_cancelar:

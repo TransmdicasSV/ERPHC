@@ -5,6 +5,7 @@ import {
 import {
   listarProgramacion,
   obtenerVisita,
+  programar,
   reprogramar,
   cancelar
 } from './controller.js';
@@ -35,9 +36,17 @@ router.get(
   obtenerVisita
 );
 
-// PATCH y no PUT: cada una toca una sola cosa. Reprogramar escribe exclusivamente
-// quincena_reprogramada -y el estado que el modelo le corresponde-; cancelar escribe
-// exclusivamente el estado.
+// PATCH y no PUT: cada una toca una sola cosa. Programar escribe exclusivamente el estado;
+// reprogramar escribe exclusivamente quincena_reprogramada -y el estado que el modelo le
+// corresponde-; cancelar escribe exclusivamente el estado.
+//
+// programar es el acto humano que 014 exige para poder abrir una OT: convierte la
+// proyeccion del generador en una obligacion confirmada, sobre la MISMA fila.
+router.patch(
+  '/:id/programar',
+  programar
+);
+
 router.patch(
   '/:id/reprogramar',
   reprogramar

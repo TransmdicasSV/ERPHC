@@ -3,6 +3,7 @@ import {
   contarProgramacion,
   obtenerVisitaPorId,
   obtenerEquiposDeVisitas,
+  programarVisita,
   reprogramarVisita,
   cancelarVisita
 } from './repository.js';
@@ -12,7 +13,8 @@ import {
   prepararReprogramacion,
   bloqueos,
   ESTADOS,
-  ESTADO_CANCELADO
+  ESTADO_CANCELADO,
+  ESTADO_PROGRAMADO
 } from './service.js';
 
 import {
@@ -236,6 +238,91 @@ export const obtenerVisita = manejar(
     ...ERRORES,
     mensajeGenerico:
       'Error al obtener la programación'
+  }
+);
+
+// Promocion de una visita proyectada. No crea nada: la misma fila, el mismo id, la misma
+// unidad, las mismas quincenas y los mismos equipos previstos. Solo cambia el estado.
+export const programar = manejar(
+  async (req, res) => {
+    const programaId = await programaDe(req);
+
+    const antes = await visitaDe(
+      programaId,
+      req
+    );
+
+    const equipos = (
+      await obtenerEquiposDeVisitas([antes.id])
+    ).get(antes.id);
+
+    // Idempotente Y SIN TOCAR LA BASE. Medido: set_updated_at usa CURRENT_TIMESTAMP, que
+    // dentro de una transacción no avanza, pero FUERA de ella sí -y la API escribe en
+    // autocommit-. Un UPDATE redundante movería updated_at sin que hubiera pasado nada. Se
+    // corta antes, igual que CANCELADO -> CANCELADO, para que la repetición no deje rastro.
+    if (antes.estado === ESTADO_PROGRAMADO) {
+      return res.json({
+        ...presentar(antes, equipos),
+        ya_estaba_programada: true
+      });
+    }
+
+    const permiso = bloqueos(antes);
+
+    if (!permiso.puede_programar) {
+      throw new ValidationError(
+        permiso.motivo_programar,
+        409
+      );
+    }
+
+    const programada = await programarVisita(
+      programaId,
+      antes.id
+    );
+
+    if (!programada) {
+      const ahora = await obtenerVisitaPorId(
+        programaId,
+        antes.id
+      );
+
+      throw new ValidationError(
+        bloqueos(ahora).motivo_programar
+        ?? 'La visita no admite confirmación en su estado actual',
+        409
+      );
+    }
+
+    const despues = await obtenerVisitaPorId(
+      programaId,
+      antes.id
+    );
+
+    await logAction(
+      req.user
+        ? req.user.id
+        : null,
+      `Confirmó la visita ${antes.id} de ${antes.placa} en la quincena `
+      + `${antes.quincena_efectiva}: PROYECTADO -> PROGRAMADO`,
+      'programacion_mantenimiento',
+      req,
+      antes,
+      despues
+    );
+
+    return res.json(
+      presentar(
+        despues,
+        (await obtenerEquiposDeVisitas([antes.id]))
+          .get(antes.id)
+      )
+    );
+  },
+  {
+    ...ERRORES,
+    mensajeGenerico:
+      'Error al programar la visita'
   }
 );
 
