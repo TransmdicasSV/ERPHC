@@ -96,10 +96,14 @@ export const normalizarTextoOpcional = (
 // Rechaza por NOMBRE lo que no se edita, en vez de ignorarlo en silencio: quien intente
 // escribir una columna que el cleanup elimina tiene que enterarse. Devuelve la lista de
 // campos realmente enviados, en el orden de la lista blanca.
+//
+// permitirVacio existe para las ALTAS cuyos campos son todos opcionales -abrir una orden de
+// trabajo, por ejemplo-: ahi un cuerpo vacio es valido y no hay nada que reprochar. En un
+// PATCH sigue siendo un error, que es el comportamiento por defecto.
 export const separarCamposEditables = (
   datos,
   editables,
-  { sujeto, ayuda = '', verbo = 'editan' }
+  { sujeto, ayuda = '', verbo = 'editan', permitirVacio = false }
 ) => {
   if (
     !datos ||
@@ -129,7 +133,10 @@ export const separarCamposEditables = (
     campo => enviados.includes(campo)
   );
 
-  if (campos.length === 0) {
+  if (
+    campos.length === 0 &&
+    !permitirVacio
+  ) {
     throw new ValidationError(
       `Nada que actualizar. Editables: ${editables.join(', ')}`
     );

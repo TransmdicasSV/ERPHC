@@ -10,6 +10,8 @@ import {
   cancelar
 } from './controller.js';
 
+import ordenesRoutes from './ordenes/routes.js';
+
 // mergeParams para recibir :programaId del router padre.
 const router = Router({
   mergeParams: true
@@ -55,6 +57,17 @@ router.patch(
 router.patch(
   '/:id/cancelar',
   cancelar
+);
+
+// Las ordenes de trabajo cuelgan de la visita, que es de quien dependen por FK obligatoria.
+// El parametro se llama :programacionId y no :id porque dentro de ese router conviven con
+// el :otId de la propia orden, y dos ids sin nombre propio se confunden.
+//
+// No colisiona con las rutas de arriba: '/:id' exige un solo segmento, y las de dos
+// segmentos terminan en un literal distinto -reprogramar, cancelar, programar-.
+router.use(
+  '/:programacionId/ordenes-trabajo',
+  ordenesRoutes
 );
 
 export default router;
