@@ -12,6 +12,7 @@ import {
 
 import unidadesRoutes from './unidades/routes.js';
 import frecuenciasRoutes from './frecuencias/routes.js';
+import programacionRoutes from './programacion/routes.js';
 
 const router = Router();
 
@@ -67,6 +68,15 @@ router.use(
 router.use(
   '/:programaId/frecuencias',
   frecuenciasRoutes
+);
+
+// ==========================================
+// PROGRAMACION DEL PROGRAMA · consulta, reprogramar y cancelar
+// ==========================================
+
+router.use(
+  '/:programaId/programacion',
+  programacionRoutes
 );
 
 export default router;

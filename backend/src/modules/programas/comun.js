@@ -161,7 +161,8 @@ export const traducirError = (
   {
     mensajeGenerico,
     mensajes = {},
-    porCodigo = {}
+    porCodigo = {},
+    reglasDeNegocio = []
   }
 ) => {
   if (error instanceof ValidationError) {
@@ -169,6 +170,22 @@ export const traducirError = (
       .status(error.status)
       .json({
         error: error.message
+      });
+  }
+
+  // P0001 es un RAISE EXCEPTION de un trigger: una regla de negocio de 013/015/016, no un
+  // fallo del servidor. Nunca puede contestar 500. Cada dominio declara qué patrón de su
+  // mensaje corresponde a qué respuesta; el texto del driver no se devuelve nunca.
+  if (error.code === 'P0001') {
+    const regla = reglasDeNegocio.find(
+      r => r.patron.test(error.message ?? '')
+    );
+
+    return res
+      .status(regla?.status ?? 409)
+      .json({
+        error: regla?.error ?? mensajeGenerico,
+        code: regla?.code ?? 'REGLA_DE_NEGOCIO'
       });
   }
 
