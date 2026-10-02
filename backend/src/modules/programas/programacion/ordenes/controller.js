@@ -9,12 +9,22 @@ import {
   obtenerOrdenes,
   obtenerOrdenPorId,
   obtenerDetallesDeOrdenes,
-  existeVisitaEnPrograma
+  existeVisitaEnPrograma,
+  obtenerOrdenParaEscritura,
+  obtenerDetalleDeOrden,
+  actualizarOrden,
+  actualizarDetalle,
+  evidenciasIgualesEnOrden,
+  evidenciasIgualesEnDetalle
 } from './repository.js';
 
 import {
   prepararApertura,
+  prepararActualizacionCabecera,
+  prepararActualizacionDetalle,
   bloqueosDeApertura,
+  resolverResultado,
+  exigirOrdenAbierta,
   presentarOrden,
   exigirVisita,
   MENSAJES,
@@ -259,6 +269,327 @@ export const abrirOrden = manejar(
     ...ERRORES,
     mensajeGenerico:
       'Error al abrir la orden de trabajo'
+  }
+);
+
+// ------------------------------------------------------------------------------------
+// PATCH · esqueleto transaccional comun a las dos ediciones (etapa 4.2)
+// ------------------------------------------------------------------------------------
+// Los dos PATCH hacen lo mismo alrededor de su escritura, y escribirlo dos veces seria
+// duplicar justo la parte delicada: el cerrojo, su orden y el ROLLBACK.
+//
+//   BEGIN
+//   1. leer y BLOQUEAR la CABECERA           FOR UPDATE OF o
+//   2. 404 si no existe en ese programa y esa visita
+//   3. 409 si no esta ABIERTA
+//   4. el trabajo propio de cada endpoint    -> devuelve si hubo escritura y su accion
+//   5. releer la OT y sus detalles
+//   6. logAction con el MISMO client, SOLO si hubo escritura real
+//   COMMIT        · ROLLBACK ante cualquier error
+//
+// El cerrojo se toma SIEMPRE primero y SIEMPRE sobre la cabecera, el mismo orden que usa
+// cerrar_orden_trabajo(). Nunca se bloquea el detalle antes que su cabecera.
+const editandoLaOrden = async (
+  req,
+  trabajo,
+  errores
+) => {
+  const {
+    programaId,
+    programacionId
+  } = await idsDe(req);
+
+  const otId = normalizarId(
+    'otId',
+    req.params.otId
+  );
+
+  const usuarioId = req.user?.id ?? null;
+
+  if (!usuarioId) {
+    throw new ValidationError(
+      'No se pudo determinar el usuario que edita la orden de trabajo',
+      401
+    );
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const orden = await obtenerOrdenParaEscritura(
+      programaId,
+      programacionId,
+      otId,
+      client
+    );
+
+    if (!orden) {
+      throw noEncontrado(NO_ENCONTRADA_ORDEN);
+    }
+
+    exigirOrdenAbierta(orden);
+
+    const resultado = await trabajo({
+      client,
+      orden,
+      otId,
+      programaId,
+      programacionId
+    });
+
+    const actualizada = await obtenerOrdenPorId(
+      programaId,
+      programacionId,
+      otId,
+      client
+    );
+
+    const detalles = (
+      await obtenerDetallesDeOrdenes([otId], client)
+    ).get(otId);
+
+    // Sin escritura real no hay nada que auditar: una peticion idempotente no deja rastro.
+    if (resultado.escribio) {
+      await logAction(
+        usuarioId,
+        resultado.accion,
+        resultado.tabla,
+        req,
+        resultado.antes,
+        resultado.despues ?? actualizada,
+        { client }
+      );
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      cuerpo: presentarOrden(actualizada, detalles),
+      escribio: resultado.escribio
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+// ------------------------------------------------------------------------------------
+// PATCH · cabecera
+// ------------------------------------------------------------------------------------
+// Idempotente: si todos los valores enviados ya son los almacenados no se emite ningun
+// UPDATE, updated_at no se mueve y no se escribe auditoria. Es el mismo criterio que usan
+// programar y cancelar en la etapa 3.1.
+//
+// evidencias se compara en PostgreSQL con el operador de jsonb, no con JSON.stringify: el
+// orden de las claves no debe contar como un cambio.
+export const editarOrden = manejar(
+  async (req, res) => {
+    const {
+      campos,
+      data
+    } = prepararActualizacionCabecera(req.body);
+
+    const { cuerpo } = await editandoLaOrden(req, async ({
+      client,
+      orden,
+      otId,
+      programaId,
+      programacionId
+    }) => {
+      const igualEnLaBase = async campo => {
+        if (campo === 'evidencias') {
+          return evidenciasIgualesEnOrden(
+            otId,
+            data.evidencias,
+            client
+          );
+        }
+
+        return orden[campo] === data[campo];
+      };
+
+      const distintos = [];
+
+      for (const campo of campos) {
+        if (!await igualEnLaBase(campo)) {
+          distintos.push(campo);
+        }
+      }
+
+      if (distintos.length === 0) {
+        return { escribio: false };
+      }
+
+      const filas = await actualizarOrden(
+        otId,
+        distintos,
+        data,
+        client
+      );
+
+      if (filas !== 1) {
+        // La guarda del WHERE no dejo pasar la fila. Se RELEE el estado actual para decir
+        // por que: informar con el estado leido al tomar el cerrojo daria el mensaje
+        // absurdo de que una OT ABIERTA es inmutable.
+        throw new ValidationError(
+          MENSAJES.noAbierta(
+            (await obtenerOrdenPorId(
+              programaId,
+              programacionId,
+              otId,
+              client
+            ))?.estado ?? orden.estado
+          ),
+          409
+        );
+      }
+
+      return {
+        escribio: true,
+        tabla: 'ordenes_trabajo',
+        antes: orden,
+        accion: `Edito la orden de trabajo ${otId} de ${orden.placa}: `
+          + distintos.join(', ')
+      };
+    });
+
+    return res.json(cuerpo);
+  },
+  {
+    ...ERRORES,
+    mensajeGenerico:
+      'Error al editar la orden de trabajo'
+  }
+);
+
+// ------------------------------------------------------------------------------------
+// PATCH · resultado de un equipo
+// ------------------------------------------------------------------------------------
+// La coherencia se valida sobre el resultado FUSIONADO con lo almacenado, no sobre las
+// claves presentes: lo resuelve resolverResultado en el service, que es la unica
+// definicion de esas reglas.
+export const editarDetalle = manejar(
+  async (req, res) => {
+    const {
+      campos,
+      data
+    } = prepararActualizacionDetalle(req.body);
+
+    const detalleId = normalizarId(
+      'detalleId',
+      req.params.detalleId
+    );
+
+    const { cuerpo } = await editandoLaOrden(req, async ({
+      client,
+      orden,
+      otId,
+      programaId,
+      programacionId
+    }) => {
+      const detalle = await obtenerDetalleDeOrden(
+        otId,
+        detalleId,
+        client
+      );
+
+      if (!detalle) {
+        throw noEncontrado(MENSAJES.detalleNoEncontrado);
+      }
+
+      // Primero la coherencia: si la combinacion final es invalida no se escribe nada, y
+      // en particular un PARCIAL sobre GPS o ADAS no llega nunca a los ciclos.
+      const resultado = resolverResultado(
+        detalle,
+        campos,
+        data
+      );
+
+      const porEscribir = {
+        ...data,
+        estado: resultado.estado,
+        nivel_completado: resultado.nivel_completado
+      };
+
+      const igualEnLaBase = async campo => {
+        if (campo === 'evidencias') {
+          return evidenciasIgualesEnDetalle(
+            detalleId,
+            data.evidencias,
+            client
+          );
+        }
+
+        return detalle[campo] === porEscribir[campo];
+      };
+
+      const distintos = [];
+
+      for (const campo of campos) {
+        if (!await igualEnLaBase(campo)) {
+          distintos.push(campo);
+        }
+      }
+
+      if (distintos.length === 0) {
+        return { escribio: false };
+      }
+
+      const filas = await actualizarDetalle(
+        detalleId,
+        distintos,
+        porEscribir,
+        client
+      );
+
+      if (filas !== 1) {
+        // La guarda del WHERE no dejo pasar la fila. Se RELEE el estado actual para decir
+        // por que: informar con el estado leido al tomar el cerrojo daria el mensaje
+        // absurdo de que una OT ABIERTA es inmutable.
+        throw new ValidationError(
+          MENSAJES.noAbierta(
+            (await obtenerOrdenPorId(
+              programaId,
+              programacionId,
+              otId,
+              client
+            ))?.estado ?? orden.estado
+          ),
+          409
+        );
+      }
+
+      const despues = await obtenerDetalleDeOrden(
+        otId,
+        detalleId,
+        client
+      );
+
+      return {
+        escribio: true,
+        tabla: 'ordenes_trabajo_detalle',
+        antes: detalle,
+        despues,
+        accion: `Registro el resultado de ${detalle.tipo_equipo} (previsto `
+          + `${detalle.nivel_programado}) en la orden de trabajo ${otId}: `
+          + resultado.estado
+          + (resultado.nivel_completado
+            ? ' ' + resultado.nivel_completado
+            : '')
+      };
+    });
+
+    return res.json(cuerpo);
+  },
+  {
+    ...ERRORES,
+    mensajeGenerico:
+      'Error al editar el resultado del equipo'
   }
 );
 

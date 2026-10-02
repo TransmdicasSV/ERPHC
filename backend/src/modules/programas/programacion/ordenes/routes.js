@@ -5,7 +5,9 @@ import {
 import {
   abrirOrden,
   listarOrdenes,
-  obtenerOrden
+  obtenerOrden,
+  editarOrden,
+  editarDetalle
 } from './controller.js';
 
 // mergeParams para recibir :programaId y :programacionId de los routers padres.
@@ -19,8 +21,8 @@ const router = Router({
 // ordenes-trabajo, asi que heredan la regla de autorizacion del modulo 'mantenimiento' que
 // ya declara security.js para toda la familia. No hace falta tocar app.js ni security.js.
 //
-// ETAPA 4.1: solo abrir, listar y obtener. Cerrar, anular, editar la cabecera y escribir
-// resultados de detalle son etapas posteriores.
+// ETAPA 4.2: abrir, listar, obtener, editar la cabecera y registrar el resultado de un
+// equipo. Cerrar y anular son de la etapa 4.3.
 //
 // SIN POST de detalles, ni ahora ni despues: el conjunto de detalles es exactamente el de
 // los equipos previstos de la visita, y se materializa al abrir, en la misma transaccion.
@@ -44,6 +46,19 @@ router.get(
 router.get(
   '/:otId',
   obtenerOrden
+);
+
+// PATCH y no PUT: cada uno toca un subconjunto declarado de campos y deja el resto intacto.
+router.patch(
+  '/:otId',
+  editarOrden
+);
+
+// El resultado se registra POR EQUIPO. No hay POST ni DELETE de detalles: el conjunto es
+// exactamente el de los equipos previstos y se materializo al abrir la orden.
+router.patch(
+  '/:otId/detalles/:detalleId',
+  editarDetalle
 );
 
 export default router;
