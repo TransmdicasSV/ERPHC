@@ -15,16 +15,23 @@ import {
   actualizarOrden,
   actualizarDetalle,
   evidenciasIgualesEnOrden,
-  evidenciasIgualesEnDetalle
+  evidenciasIgualesEnDetalle,
+  cerrarOrden,
+  anularOrden,
+  obtenerResultadoDeVisita
 } from './repository.js';
 
 import {
   prepararApertura,
   prepararActualizacionCabecera,
   prepararActualizacionDetalle,
+  prepararCierre,
+  prepararAnulacion,
   bloqueosDeApertura,
   resolverResultado,
   exigirOrdenAbierta,
+  exigirAnulable,
+  yaEstaAnulada,
   presentarOrden,
   exigirVisita,
   MENSAJES,
@@ -93,6 +100,51 @@ const ERRORES = {
       status: 409,
       code: 'ALCANCE_CONGELADO',
       error: MENSAJES.alcanceCongelado
+    },
+    // Las siete excepciones de cerrar_orden_trabajo(), inventariadas una por una desde
+    // pg_proc antes de escribir esto. Todas llegan como P0001: la funcion no usa ERRCODE,
+    // asi que el patron es su texto. Nada de coincidencias vagas.
+    {
+      patron: /no se puede cerrar de nuevo/,
+      status: 409,
+      code: 'OT_YA_CERRADA',
+      error: MENSAJES.cierreYaCerrada
+    },
+    {
+      patron: /no tiene quincena_efectiva/,
+      status: 409,
+      code: 'VISITA_SIN_FASE',
+      error: MENSAJES.cierreSinQuincena
+    },
+    {
+      patron: /es futura respecto a la fecha de negocio/,
+      status: 409,
+      code: 'FECHA_FUTURA',
+      error: MENSAJES.cierreFechaFutura
+    },
+    {
+      patron: /no prevee ningun equipo/,
+      status: 409,
+      code: 'VISITA_VACIA',
+      error: MENSAJES.cierreVisitaVacia
+    },
+    {
+      patron: /No se puede cerrar una visita incompleta/,
+      status: 409,
+      code: 'VISITA_INCOMPLETA',
+      error: MENSAJES.cierreVisitaIncompleta
+    },
+    {
+      patron: /exige fecha_ejecucion/,
+      status: 409,
+      code: 'CIERRE_EXIGE_FECHA',
+      error: MENSAJES.cierreExigeFecha
+    },
+    {
+      patron: /^La OT \d+ no existe/,
+      status: 404,
+      code: 'OT_INEXISTENTE',
+      error: MENSAJES.cierreOtInexistente
     }
   ]
 };
@@ -292,7 +344,7 @@ export const abrirOrden = manejar(
 const editandoLaOrden = async (
   req,
   trabajo,
-  errores
+  { cortocircuito, exigir = exigirOrdenAbierta } = {}
 ) => {
   const {
     programaId,
@@ -329,7 +381,29 @@ const editandoLaOrden = async (
       throw noEncontrado(NO_ENCONTRADA_ORDEN);
     }
 
-    exigirOrdenAbierta(orden);
+    // La anulacion repetida sale por aqui: se responde con la orden tal como esta, sin
+    // tocar la base. Es el unico caso en que el estado no ABIERTA no es un conflicto.
+    if (cortocircuito) {
+      const atajo = await cortocircuito({ orden, otId, client });
+
+      if (atajo) {
+        const detallesAtajo = (
+          await obtenerDetallesDeOrdenes([otId], client)
+        ).get(otId);
+
+        await client.query('COMMIT');
+
+        return {
+          cuerpo: {
+            ...presentarOrden(orden, detallesAtajo),
+            ...atajo
+          },
+          escribio: false
+        };
+      }
+    }
+
+    exigir(orden);
 
     const resultado = await trabajo({
       client,
@@ -366,7 +440,10 @@ const editandoLaOrden = async (
     await client.query('COMMIT');
 
     return {
-      cuerpo: presentarOrden(actualizada, detalles),
+      cuerpo: {
+        ...presentarOrden(actualizada, detalles),
+        ...(resultado.extra ?? {})
+      },
       escribio: resultado.escribio
     };
   } catch (error) {
@@ -590,6 +667,145 @@ export const editarDetalle = manejar(
     ...ERRORES,
     mensajeGenerico:
       'Error al editar el resultado del equipo'
+  }
+);
+
+// ------------------------------------------------------------------------------------
+// POST · cerrar
+// ------------------------------------------------------------------------------------
+// El cierre LO HACE LA BASE. cerrar_orden_trabajo() fija la fecha fisica en la visita,
+// propaga los ciclos con la jerarquia acumulativa, deriva el resultado y cierra la OT, todo
+// en una sentencia. Aqui solo se la invoca con el MISMO client de la transaccion y se
+// traducen sus excepciones.
+//
+// No se adivina el resultado antes de llamarla, ni se decide aqui si fecha_ejecucion es
+// obligatoria: eso depende del resultado derivado, que solo se conoce dentro. La API valida
+// el FORMATO de la fecha -eso si es del payload, 400- y deja el resto a la funcion.
+//
+// Tampoco se escribe un solo ciclo desde JavaScript, ni se toca el estado de la visita.
+export const cerrarOrdenTrabajo = manejar(
+  async (req, res) => {
+    const {
+      fecha_ejecucion,
+      minutos,
+      observaciones
+    } = prepararCierre(req.body);
+
+    const { cuerpo } = await editandoLaOrden(req, async ({
+      client,
+      orden,
+      otId,
+      programacionId
+    }) => {
+      const visitaAntes = await obtenerResultadoDeVisita(
+        programacionId,
+        client
+      );
+
+      const cierre = await cerrarOrden(
+        otId,
+        req.user.id,
+        fecha_ejecucion,
+        minutos,
+        observaciones,
+        client
+      );
+
+      const visitaDespues = await obtenerResultadoDeVisita(
+        programacionId,
+        client
+      );
+
+      return {
+        escribio: true,
+        tabla: 'ordenes_trabajo',
+        antes: { orden, visita: visitaAntes },
+        despues: { visita: visitaDespues, cierre },
+        accion: `Cerro la orden de trabajo ${otId} de ${orden.placa}: la visita queda `
+          + `${cierre.estado_programacion} en la quincena ${orden.quincena_efectiva}, `
+          + `dia fisico ${visitaDespues.fecha_ejecucion ?? 'sin fecha'}, `
+          + `${cierre.ciclos_afectados} ciclo(s) afectado(s)`,
+        extra: {
+          estado_programacion: cierre.estado_programacion,
+          ciclos_afectados: cierre.ciclos_afectados,
+          visita_resultado: visitaDespues
+        }
+      };
+    });
+
+    return res.json(cuerpo);
+  },
+  {
+    ...ERRORES,
+    mensajeGenerico:
+      'Error al cerrar la orden de trabajo'
+  }
+);
+
+// ------------------------------------------------------------------------------------
+// PATCH · anular
+// ------------------------------------------------------------------------------------
+// Anular no borra nada: la fila permanece con su motivo, su tecnico, sus observaciones, sus
+// evidencias y todos sus detalles. No mueve ciclos y no escribe resultado en la visita, y
+// eso es justo lo que vuelve a habilitar reprogramar y cancelar, porque
+// congelar_visita_con_ot cuenta solo las OT NO anuladas.
+//
+// Repetir la anulacion es idempotente: se responde 200 con la orden tal como esta, sin
+// UPDATE, sin mover updated_at y sin auditoria. Es el mismo criterio que cancelar en la
+// etapa 3.1, y encaja con el modelo: impedir_modificar_ot_cerrada prohibiria el UPDATE de
+// una OT ya ANULADA, asi que cortocircuitar no es una comodidad, es la unica via correcta.
+export const anularOrdenTrabajo = manejar(
+  async (req, res) => {
+    const { motivo_anulacion } = prepararAnulacion(req.body);
+
+    const { cuerpo } = await editandoLaOrden(
+      req,
+      async ({ client, orden, otId, programaId, programacionId }) => {
+        const filas = await anularOrden(
+          otId,
+          motivo_anulacion,
+          req.user.id,
+          client
+        );
+
+        if (filas !== 1) {
+          throw new ValidationError(
+            MENSAJES.anularNoAbierta(
+              (await obtenerOrdenPorId(
+                programaId,
+                programacionId,
+                otId,
+                client
+              ))?.estado ?? orden.estado
+            ),
+            409
+          );
+        }
+
+        return {
+          escribio: true,
+          tabla: 'ordenes_trabajo',
+          antes: orden,
+          accion: `Anulo la orden de trabajo ${otId} de ${orden.placa}: `
+            + motivo_anulacion
+        };
+      },
+      {
+        exigir: exigirAnulable,
+        cortocircuito: ({ orden }) => (
+          yaEstaAnulada(orden)
+            ? { ya_estaba_anulada: true }
+            : null
+        )
+      }
+    );
+
+    return res.json(cuerpo);
+  },
+  {
+    ...ERRORES,
+    mensajeGenerico:
+      'Error al anular la orden de trabajo'
   }
 );
 

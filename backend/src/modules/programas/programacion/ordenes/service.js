@@ -1,6 +1,7 @@
 import {
   ValidationError,
   normalizarId,
+  normalizarTextoObligatorio,
   normalizarTextoOpcional,
   separarCamposEditables
 } from '../../comun.js';
@@ -63,9 +64,42 @@ import {
 // rechaza aquí, antes de cualquier escritura.
 //
 // -------------------------------------------------------------------------------------
+// CERRAR (etapa 4.3)
+// -------------------------------------------------------------------------------------
+// El cierre NO se implementa aqui. Lo hace cerrar_orden_trabajo() en la base, que en una
+// sola sentencia fija la fecha fisica en la visita, propaga los ciclos con la jerarquia
+// acumulativa, deriva el resultado de la visita y cierra la OT. Este modulo la invoca como
+// contrato transaccional y traduce sus siete excepciones; no reimplementa nada de eso.
+//
+// En particular NO se deriva aqui el resultado de la visita ni se decide si fecha_ejecucion
+// es obligatoria: eso depende del resultado, que solo se conoce DENTRO de la funcion. La
+// API valida el formato de la fecha -eso si es un problema del payload- y deja que la
+// funcion imponga el resto.
+//
+// La fase administrativa es quincena_efectiva, nunca la fecha fisica. Lo garantiza la
+// propia funcion y lo verifica trg_validar_coherencia_ciclo_ot fila a fila.
+//
+// -------------------------------------------------------------------------------------
+// ANULAR (etapa 4.3)
+// -------------------------------------------------------------------------------------
+// Anular NO es borrar. La fila permanece con su motivo, su tecnico, sus observaciones, sus
+// evidencias y todos sus detalles: es la constancia de que la orden existio y se desistio.
+// 016 R1 prohibe borrar una OT en cualquier estado, asi que esta es la unica salida.
+//
+// No mueve ciclos y no escribe resultado en la visita: para la programacion es como si la
+// orden no hubiera llegado a ejecutarse, y eso es justamente lo que vuelve a habilitar
+// reprogramar y cancelar -lo gobierna congelar_visita_con_ot, que cuenta solo las OT NO
+// anuladas-.
+//
+// chk_ot_cierre exige fecha_cierre y cerrada_por_id para CUALQUIER estado distinto de
+// ABIERTA, asi que al anular hay que escribir los cuatro campos juntos aunque el nombre de
+// dos de ellos hable de cierre.
+//
+// -------------------------------------------------------------------------------------
 // LO QUE ESTA ETAPA NO HACE
 // -------------------------------------------------------------------------------------
-// Ni cierra, ni anula, ni mueve ciclos o anclas, ni toca la programación.
+// No reabre, no borra, no escribe ciclos ni anclas desde JavaScript, y no toca el estado
+// de la programacion por su cuenta.
 
 // chk_ot_estado, en el orden del ciclo de vida.
 export const ESTADOS = [
@@ -113,6 +147,27 @@ export const CAMPOS_EDITABLES_DETALLE = [
   'observaciones',
   'evidencias'
 ];
+
+// Los tres campos opcionales del cierre. El usuario y el estado los decide el servidor, y
+// el resultado de la visita lo deriva la funcion.
+export const CAMPOS_ADMITIDOS_CIERRE = [
+  'fecha_ejecucion',
+  'minutos',
+  'observaciones'
+];
+
+// Lo unico que admite la anulacion. Texto libre, sin catalogo.
+export const CAMPOS_ADMITIDOS_ANULACION = [
+  'motivo_anulacion'
+];
+
+const AYUDA_CIERRE =
+  'El resultado de la visita y los ciclos los deriva el cierre; el usuario sale de la '
+  + 'sesion. fecha_ejecucion es el dia FISICO del trabajo, no la quincena.';
+
+const AYUDA_ANULACION =
+  'Anular conserva la orden y todos sus detalles: no es un borrado. El estado, la fecha y '
+  + 'el usuario los fija el servidor.';
 
 const AYUDA_CABECERA =
   'El estado, las fechas y el usuario los fija el servidor; el resultado por equipo se '
@@ -218,6 +273,37 @@ export const MENSAJES = {
   parcialAnual: familia =>
     `El equipo ${familia} no admite resultado PARCIAL; su mantenimiento anual solo `
     + 'contempla M3. Declara COMPLETADO, PENDIENTE o NO_APLICA.',
+  // Las siete excepciones de cerrar_orden_trabajo(), traducidas una por una. Todas llegan
+  // como P0001 -la funcion no usa ERRCODE-, asi que se distinguen por su texto, que quedo
+  // inventariado antes de escribir esto.
+  cierreOtInexistente:
+    'Orden de trabajo no encontrada en esta programación',
+  cierreYaCerrada:
+    'La orden de trabajo ya no está ABIERTA: no se puede cerrar de nuevo.',
+  cierreSinQuincena:
+    'La visita no tiene quincena efectiva: sin fase administrativa no se puede cerrar.',
+  cierreFechaFutura:
+    'fecha_ejecucion es futura respecto a la fecha de negocio de Perú: no se puede '
+    + 'registrar como ejecutado un trabajo que todavía no ha ocurrido.',
+  cierreVisitaVacia:
+    'La visita no prevé ningún equipo: una orden sin alcance no es ejecutable y no puede '
+    + 'cerrarse.',
+  cierreVisitaIncompleta:
+    'Falta registrar el resultado de algún equipo previsto: no se puede cerrar una visita '
+    + 'incompleta.',
+  cierreExigeFecha:
+    'El resultado de la visita afirma que se ejecutó mantenimiento, así que '
+    + 'fecha_ejecucion es obligatoria: es el día físico del trabajo y los ciclos la citan. '
+    + 'NO_EJECUTADO y NO_APLICA sí admiten fecha nula.',
+  motivoObligatorio:
+    'motivo_anulacion es obligatorio: deja constancia de por qué se desiste de la orden',
+  anularNoAbierta: estado =>
+    `La orden de trabajo está ${estado} y es inmutable: solo una orden ABIERTA se puede `
+    + 'anular.',
+  fechaFormato: campo =>
+    `${campo} debe tener el formato AAAA-MM-DD`,
+  fechaInvalida: (campo, texto) =>
+    `${campo} ${texto} no es una fecha válida`,
   sinNivel: estado =>
     `${estado} exige nivel_completado nulo: no se completó ningún nivel. Envía `
     + '"nivel_completado": null de forma explícita.'
@@ -255,17 +341,20 @@ export const bloqueosDeApertura = (
   };
 };
 
-// Qué admite una OT según SU estado. Derivado de impedir_modificar_ot_cerrada, que solo
-// deja pasar un UPDATE cuando la fila está ABIERTA. No hay ninguna regla nueva aquí.
+// Qué admite una OT según SU estado. Las tres capacidades dependen del mismo hecho:
+// impedir_modificar_ot_cerrada solo deja pasar un UPDATE cuando la fila está ABIERTA. No hay
+// ninguna regla nueva aquí.
 //
 // Cada puede_X se publica cuando existe su endpoint, igual que hizo la etapa 3.1 con
-// puede_programar. En 4.2 hay PATCH de cabecera y de detalle, así que puede_editar es real.
-// puede_cerrar y puede_anular se añadirán en 4.3 con sus rutas.
+// puede_programar y la 4.2 con puede_editar. En 4.3 existen POST /cerrar y PATCH /anular,
+// así que los dos flags que faltaban entran ahora, con su ruta ya real detrás.
 export const accionesDeOrden = orden => {
   const abierta = orden.estado === ESTADO_ABIERTA;
 
   return {
     puede_editar: abierta,
+    puede_cerrar: abierta,
+    puede_anular: abierta,
     motivo: abierta
       ? null
       : MENSAJES.noAbierta(orden.estado)
@@ -528,6 +617,130 @@ export const resolverResultado = (
 
   return { estado, nivel_completado: nivel };
 };
+
+// ------------------------------------------------------------------------------------
+// NORMALIZADORES DE 4.3
+// ------------------------------------------------------------------------------------
+
+// El dominio es DATE, no timestamp: la fecha fisica de un trabajo es un dia, sin hora.
+// Se valida el formato y que el dia exista de verdad -31 de febrero no-, y nada mas: que
+// no sea futura respecto a America/Lima lo impone la funcion de cierre, porque su
+// referencia se mueve y la base es la autoridad sobre la fecha de negocio.
+//
+// No se reutiliza normalizarQuincena de la programacion: esa exige dia 1 o 16, que es la
+// regla de la FASE administrativa. La fecha fisica puede ser cualquier dia del mes.
+export const normalizarFecha = (
+  campo,
+  valor
+) => {
+  if (typeof valor !== 'string') {
+    throw new ValidationError(
+      MENSAJES.fechaFormato(campo)
+    );
+  }
+
+  const texto = valor.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    throw new ValidationError(
+      MENSAJES.fechaFormato(campo)
+    );
+  }
+
+  const [anio, mes, dia] = texto.split('-').map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+
+  if (
+    fecha.getUTCFullYear() !== anio ||
+    fecha.getUTCMonth() !== mes - 1 ||
+    fecha.getUTCDate() !== dia
+  ) {
+    throw new ValidationError(
+      MENSAJES.fechaInvalida(campo, texto)
+    );
+  }
+
+  return texto;
+};
+
+// Los tres campos del cierre son opcionales: una visita que no se ejecuto se cierra sin
+// cuerpo. De ahi permitirVacio, igual que en la apertura.
+export const prepararCierre = datos => {
+  const cuerpo =
+    datos === null || datos === undefined
+      ? {}
+      : datos;
+
+  separarCamposEditables(
+    cuerpo,
+    CAMPOS_ADMITIDOS_CIERRE,
+    {
+      sujeto: 'al cerrar una orden de trabajo',
+      ayuda: AYUDA_CIERRE,
+      verbo: 'admiten',
+      permitirVacio: true
+    }
+  );
+
+  return {
+    fecha_ejecucion:
+      cuerpo.fecha_ejecucion === null ||
+      cuerpo.fecha_ejecucion === undefined ||
+      cuerpo.fecha_ejecucion === ''
+        ? null
+        : normalizarFecha('fecha_ejecucion', cuerpo.fecha_ejecucion),
+    minutos: normalizarMinutos(cuerpo.minutos),
+    observaciones: normalizarTextoOpcional(
+      'observaciones',
+      cuerpo.observaciones
+    )
+  };
+};
+
+// motivo_anulacion es text en la base, sin longitud maxima, asi que no se inventa una: se
+// reutiliza el normalizador obligatorio del modulo -que exige string y rechaza el vacio
+// tras recortar- con un tope infinito en vez de duplicar esa comprobacion aqui.
+export const prepararAnulacion = datos => {
+  separarCamposEditables(
+    datos,
+    CAMPOS_ADMITIDOS_ANULACION,
+    {
+      sujeto: 'al anular una orden de trabajo',
+      ayuda: AYUDA_ANULACION,
+      verbo: 'admiten'
+    }
+  );
+
+  if (typeof datos.motivo_anulacion !== 'string') {
+    throw new ValidationError(
+      MENSAJES.motivoObligatorio
+    );
+  }
+
+  return {
+    motivo_anulacion: normalizarTextoObligatorio(
+      'motivo_anulacion',
+      datos.motivo_anulacion,
+      Number.POSITIVE_INFINITY
+    )
+  };
+};
+
+// Solo una OT ABIERTA se anula. Mensaje propio: el de la edicion habla de cambios, y aqui
+// lo que se rechaza es el desistimiento.
+export const exigirAnulable = orden => {
+  if (orden.estado !== ESTADO_ABIERTA) {
+    throw new ValidationError(
+      MENSAJES.anularNoAbierta(orden.estado),
+      409
+    );
+  }
+
+  return orden;
+};
+
+export const yaEstaAnulada = orden =>
+  orden.estado === ESTADO_ANULADA;
 
 // Solo una OT ABIERTA admite cambios. Se comprueba antes de intentar el UPDATE para dar un
 // mensaje operativo; impedir_modificar_ot_cerrada lo volveria a rechazar de todos modos.

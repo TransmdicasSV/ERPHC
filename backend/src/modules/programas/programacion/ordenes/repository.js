@@ -173,6 +173,93 @@ export const materializarDetalles = async (
 };
 
 // ------------------------------------------------------------------------------------
+// CIERRE Y ANULACION (etapa 4.3)
+// ------------------------------------------------------------------------------------
+
+// EL CIERRE NO SE IMPLEMENTA AQUI. cerrar_orden_trabajo() hace todo el trabajo en una
+// sola sentencia -fija la fecha fisica en la visita, propaga los ciclos con la jerarquia
+// acumulativa, deriva el resultado y cierra la OT- y devuelve el resultado derivado y el
+// numero de ciclos realmente escritos. Reimplementar cualquier parte de eso en JavaScript
+// seria una segunda definicion de las mismas reglas.
+//
+// Se invoca con el MISMO cliente de la transaccion, de modo que su trabajo y la auditoria
+// se confirman o se revierten juntos.
+//
+// Los dos parametros opcionales se pasan siempre explicitos: la funcion los declara con
+// DEFAULT NULL y COALESCE conserva el valor anterior cuando llegan nulos.
+export const cerrarOrden = async (
+  otId,
+  cerradaPorId,
+  fechaEjecucion,
+  minutos,
+  observaciones,
+  cliente = pool
+) => {
+  const result = await cliente.query(
+    'SELECT estado_programacion, ciclos_afectados'
+    + ' FROM cerrar_orden_trabajo($1, $2, $3::date, $4, $5)',
+    [otId, cerradaPorId, fechaEjecucion, minutos, observaciones]
+  );
+
+  return result.rows[0];
+};
+
+// Anular NO es borrar: la fila permanece con su motivo y con todo lo registrado. Se
+// escriben los cuatro campos juntos porque chk_ot_cierre exige fecha_cierre y
+// cerrada_por_id para cualquier estado distinto de ABIERTA, aunque sus nombres hablen de
+// cierre; y chk_ot_anulacion exige que motivo_anulacion exista exactamente cuando el
+// estado es ANULADA.
+//
+// La guarda de estado va en el propio WHERE: con el cerrojo de la cabecera ya tomado no
+// deberia poder cambiar, pero asi la escritura y su permiso son la misma operacion.
+//
+// NO se tocan tecnico_id, minutos, observaciones, evidencias ni ningun detalle.
+export const anularOrden = async (
+  otId,
+  motivo,
+  cerradaPorId,
+  cliente = pool
+) => {
+  const result = await cliente.query(
+    `UPDATE ordenes_trabajo
+        SET estado           = 'ANULADA',
+            motivo_anulacion = $2,
+            fecha_cierre     = CURRENT_TIMESTAMP,
+            cerrada_por_id   = $3
+      WHERE id = $1
+        AND estado = 'ABIERTA'
+      RETURNING id`,
+    [otId, motivo, cerradaPorId]
+  );
+
+  return result.rowCount;
+};
+
+// El resultado que el cierre deja en la VISITA. Se lee antes y despues para auditar el
+// cambio, y para responder sin que el cliente tenga que pedir la programacion aparte.
+//
+// quincena_efectiva es GENERATED ALWAYS: se lee, nunca se escribe. Las tres quincenas
+// viajan como texto porque date -> Date de JavaScript desplaza la zona horaria.
+export const obtenerResultadoDeVisita = async (
+  programacionId,
+  cliente = pool
+) => {
+  const result = await cliente.query(
+    `SELECT p.id,
+            p.estado,
+            p.fecha_ejecucion::text       AS fecha_ejecucion,
+            p.quincena_programada::text   AS quincena_programada,
+            p.quincena_reprogramada::text AS quincena_reprogramada,
+            p.quincena_efectiva::text     AS quincena_efectiva
+       FROM programacion_mantenimiento p
+      WHERE p.id = $1`,
+    [programacionId]
+  );
+
+  return result.rows[0] ?? null;
+};
+
+// ------------------------------------------------------------------------------------
 // LECTURA
 // ------------------------------------------------------------------------------------
 

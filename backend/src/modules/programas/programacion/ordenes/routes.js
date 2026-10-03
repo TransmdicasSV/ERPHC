@@ -7,7 +7,9 @@ import {
   listarOrdenes,
   obtenerOrden,
   editarOrden,
-  editarDetalle
+  editarDetalle,
+  cerrarOrdenTrabajo,
+  anularOrdenTrabajo
 } from './controller.js';
 
 // mergeParams para recibir :programaId y :programacionId de los routers padres.
@@ -21,8 +23,8 @@ const router = Router({
 // ordenes-trabajo, asi que heredan la regla de autorizacion del modulo 'mantenimiento' que
 // ya declara security.js para toda la familia. No hace falta tocar app.js ni security.js.
 //
-// ETAPA 4.2: abrir, listar, obtener, editar la cabecera y registrar el resultado de un
-// equipo. Cerrar y anular son de la etapa 4.3.
+// ETAPA 4.3: abrir, listar, obtener, editar la cabecera, registrar el resultado de un
+// equipo, cerrar y anular. El ciclo de vida completo de una orden.
 //
 // SIN POST de detalles, ni ahora ni despues: el conjunto de detalles es exactamente el de
 // los equipos previstos de la visita, y se materializa al abrir, en la misma transaccion.
@@ -59,6 +61,22 @@ router.patch(
 router.patch(
   '/:otId/detalles/:detalleId',
   editarDetalle
+);
+
+// POST y no PATCH: cerrar no es editar un campo. Es una transicion con efectos en tres
+// tablas -la visita, los ciclos y la propia orden- que ejecuta cerrar_orden_trabajo() en la
+// base. No es idempotente: cerrar dos veces es un conflicto, no una repeticion inocua.
+router.post(
+  '/:otId/cerrar',
+  cerrarOrdenTrabajo
+);
+
+// PATCH y no DELETE: anular NO borra. La orden permanece con su motivo y con todos sus
+// detalles, porque su existencia es lo que vuelve historico el alcance de la visita
+// (016 R1). Repetirlo SI es idempotente: la situacion final es la misma.
+router.patch(
+  '/:otId/anular',
+  anularOrdenTrabajo
 );
 
 export default router;
