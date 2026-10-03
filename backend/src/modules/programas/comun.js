@@ -17,15 +17,32 @@ export class ValidationError extends Error {
 export const noEncontrado = mensaje =>
   new ValidationError(mensaje, 404);
 
+// Todas las columnas a las que viajan estos id son integer de PostgreSQL -int4-: los id de
+// programas_mantenimiento, programa_mantenimiento_unidades, programacion_mantenimiento,
+// ordenes_trabajo, ordenes_trabajo_detalle y personal, mas minutos. Un valor mayor no cabe,
+// y el servidor contestaria 22003 'value out of range for type integer', que es un fallo de
+// la peticion y no del servidor. Se rechaza aqui, ANTES de consultar la base.
+const INT4_MAX = 2147483647;
+
 // etiqueta va en el mensaje para que cada ruta diga de QUE id habla.
 export const normalizarId = (
   etiqueta,
   valor
 ) => {
-  const id = Number.parseInt(
-    valor,
-    10
-  );
+  // SOLO number y string. parseInt coacciona estructuras: [7] daba 7, ["7"] daba 7, y
+  // cualquier objeto con su propio toString tambien, de modo que una entrada del tipo
+  // equivocado se convertia en un id valido. Por las rutas no es alcanzable -los
+  // parametros llegan como texto- pero por el cuerpo JSON si: {"tecnico_id": [7]}.
+  //
+  // La comprobacion alimenta la MISMA condicion de abajo en vez de lanzar aparte, para que
+  // null, undefined, true y los demas casos que ya se rechazaban conserven su mensaje.
+  const esPrimitivo =
+    typeof valor === 'number' ||
+    typeof valor === 'string';
+
+  const id = esPrimitivo
+    ? Number.parseInt(valor, 10)
+    : Number.NaN;
 
   if (
     !Number.isInteger(id) ||
@@ -34,6 +51,14 @@ export const normalizarId = (
   ) {
     throw new ValidationError(
       `${etiqueta} debe ser un entero positivo`
+    );
+  }
+
+  // Mensaje propio: 2147483648 SI es un entero positivo, asi que decir lo contrario
+  // confundiria a quien llama. El rechazo anterior conserva su texto intacto.
+  if (id > INT4_MAX) {
+    throw new ValidationError(
+      `${etiqueta} no puede superar ${INT4_MAX}`
     );
   }
 
@@ -159,7 +184,11 @@ const HTTP_POR_CODIGO = {
   23514: 400,
   23502: 422,
   22008: 400,
-  22007: 400
+  22007: 400,
+  // Defensa secundaria. La entrada conocida se rechaza en normalizarId, antes de llegar a
+  // la base; esto cubre cualquier otro camino por el que un numero fuera del rango de una
+  // columna numerica alcance al servidor. Es un error de la peticion, nunca un 500.
+  22003: 400
 };
 
 export const traducirError = (
