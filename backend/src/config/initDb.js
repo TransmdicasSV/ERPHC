@@ -196,7 +196,138 @@ solicitud_descarga_video_placas: [
     'fecha_creacion',
     'fecha_lectura'
   ],
-  
+
+  // ==========================================
+  // TI-PR-01 · PROGRAMA DE MANTENIMIENTO PREVENTIVO
+  // ==========================================
+  // Contrato del esquema FINAL, el posterior a 20261001_900 y _901. Las columnas que esos
+  // cleanup retiran NO se declaran aquí, a propósito: si se declararan, initDb fallaría el
+  // día que se ejecuten y el servidor no arrancaría. Las que sí están sobreviven al cleanup
+  // y existen también antes de él, así que este contrato vale para los dos esquemas.
+  //
+  // Lo retirado y deliberadamente ausente:
+  //   programas_mantenimiento      version, fecha_documento, periodo_inicio, periodo_fin
+  //                                (viven en programas_mantenimiento_versiones)
+  //                                frecuencia_m1_dias, m2, m3
+  //                                (viven en programa_mantenimiento_frecuencias)
+  //   programa_mantenimiento_unidades  fecha_base_m1, m2, m3, quincena_arranque
+  //                                (la fase vive en los ciclos y las anclas de la unidad)
+  //   programacion_mantenimiento   fecha_programada, fecha_reprogramada
+  //                                (la unidad de planificación es la quincena)
+  //                                nivel_mantenimiento
+  //                                (el nivel vive por equipo en ..._equipos)
+  programas_mantenimiento: [
+    'id',
+    'codigo',
+    'nombre',
+    'estado',
+    'created_at',
+    'updated_at'
+  ],
+
+  programas_mantenimiento_versiones: [
+    'id',
+    'programa_id',
+    'version',
+    'fecha_documento',
+    'vigencia_desde',
+    'vigencia_hasta',
+    'periodo_inicio',
+    'periodo_fin',
+    'estado',
+    'observaciones'
+  ],
+
+  programa_mantenimiento_frecuencias: [
+    'id',
+    'programa_id',
+    'version_id',
+    'tipo_equipo',
+    'nivel_mantenimiento',
+    'frecuencia_quincenas'
+  ],
+
+  programa_mantenimiento_unidades: [
+    'id',
+    'programa_id',
+    'placa',
+    'quincena_incorporacion',
+    'observaciones'
+  ],
+
+  // La fase de cada equipo: lo que sustituye a fecha_base_m1/m2/m3.
+  programa_mantenimiento_unidad_ciclos: [
+    'id',
+    'programa_unidad_id',
+    'programa_id',
+    'tipo_equipo',
+    'nivel_mantenimiento',
+    'ultima_quincena',
+    'ultima_fecha_real',
+    'fuente',
+    'orden_trabajo_detalle_id'
+  ],
+
+  programa_mantenimiento_unidad_anclas: [
+    'id',
+    'programa_unidad_id',
+    'programa_id',
+    'tipo_equipo',
+    'nivel_mantenimiento',
+    'quincena_ancla',
+    'origen'
+  ],
+
+  // quincena_efectiva es GENERATED ALWAYS sobre las otras dos: se exige porque el índice
+  // único parcial de las visitas y todo el cálculo de fase dependen de ella.
+  programacion_mantenimiento: [
+    'id',
+    'programa_id',
+    'programa_unidad_id',
+    'version_programa_id',
+    'quincena_programada',
+    'quincena_reprogramada',
+    'quincena_efectiva',
+    'estado',
+    'fecha_ejecucion',
+    'observaciones'
+  ],
+
+  // El alcance previsto de cada visita, y la fuente del nivel por equipo.
+  programacion_mantenimiento_equipos: [
+    'id',
+    'programacion_id',
+    'programa_id',
+    'tipo_equipo',
+    'nivel_mantenimiento'
+  ],
+
+  ordenes_trabajo: [
+    'id',
+    'programacion_id',
+    'tecnico_id',
+    'abierta_por_id',
+    'cerrada_por_id',
+    'fecha_apertura',
+    'fecha_cierre',
+    'estado',
+    'motivo_anulacion',
+    'minutos',
+    'evidencias',
+    'observaciones'
+  ],
+
+  ordenes_trabajo_detalle: [
+    'id',
+    'orden_trabajo_id',
+    'programacion_id',
+    'programacion_equipo_id',
+    'estado',
+    'nivel_completado',
+    'evidencias',
+    'observaciones'
+  ]
+
 };
 
 const CAMPOS_DATE = [
@@ -206,6 +337,19 @@ const CAMPOS_DATE = [
   'personal.fecha_ingreso',
   'personal.fecha_cese',
   'solicitudes_descarga_videos.fecha_descarga',
+  // TI-PR-01. El dominio de la quincena y del día de trabajo es DATE, nunca timestamp:
+  // sobre estas columnas se calcula la fase, y una hora metida de contrabando desplazaría
+  // la zona horaria. Se declaran las que entran en comparaciones o aritmética.
+  'programacion_mantenimiento.quincena_programada',
+  'programacion_mantenimiento.quincena_reprogramada',
+  'programacion_mantenimiento.quincena_efectiva',
+  'programacion_mantenimiento.fecha_ejecucion',
+  'programa_mantenimiento_unidades.quincena_incorporacion',
+  'programa_mantenimiento_unidad_ciclos.ultima_quincena',
+  'programa_mantenimiento_unidad_ciclos.ultima_fecha_real',
+  'programa_mantenimiento_unidad_anclas.quincena_ancla',
+  'programas_mantenimiento_versiones.vigencia_desde',
+  'programas_mantenimiento_versiones.vigencia_hasta',
 ];
 
 export const initDb = async () => {

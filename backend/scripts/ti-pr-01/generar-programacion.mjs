@@ -428,10 +428,10 @@ try {
   for (const [etq, v] of muestra) {
     console.log(`\n   ${etq.toUpperCase()} · ${v.placa} · quincena ${v.quincena}`);
     console.log(`      cabecera: estado=${ESTADO_INICIAL} quincena_programada=${v.quincena}`
-      + ` fecha_programada=${v.quincena}`);
-    console.log(`                nivel_mantenimiento=${v.nivel_cabecera}`
-      + ` (vestigial = nivel_regular${v.solo_anual ? ', visita solo anual' : ''})`
       + ` version_programa_id=${v.version_id}`);
+    console.log(`                resumen de nivel=${v.nivel_cabecera}`
+      + ` (= nivel_regular${v.solo_anual ? ', visita solo anual' : ''};`
+      + ` NO se persiste: el nivel va por equipo)`);
     if (v.resumen_ui_maximo !== v.nivel_cabecera)
       console.log(`      OJO · el maximo global seria ${v.resumen_ui_maximo} y MENTIRIA:`
         + ` el regular fue ${v.nivel_regular}`);
@@ -574,9 +574,12 @@ try {
     const v5 = await una(`SELECT count(*)::int AS n FROM programacion_mantenimiento
       WHERE quincena_programada < $1::date`, [CUTOVER]);
     chk(v5.n === 0, 'ninguna programacion anterior al cutover', `${v5.n}`);
+    // La mitad que comparaba fecha_programada con quincena_programada cae con el 900: esa
+    // columna ya no existe y no hay nada con lo que contrastar. Sobrevive la parte que
+    // sigue siendo exigible; no se sustituye por una comprobacion inventada.
     const v6 = await una(`SELECT count(*)::int AS n FROM programacion_mantenimiento
-      WHERE quincena_programada IS NULL OR fecha_programada <> quincena_programada`);
-    chk(v6.n === 0, 'fecha_programada = quincena_programada, y nunca NULL', 'valor derivado');
+      WHERE quincena_programada IS NULL`);
+    chk(v6.n === 0, 'quincena_programada nunca NULL', `${v6.n} nulas`);
     const v7 = await una(`SELECT count(*)::int AS n FROM programacion_mantenimiento
       WHERE estado <> $1`, [ESTADO_INICIAL]);
     chk(v7.n === 0, `todas nacen en estado ${ESTADO_INICIAL}`, `${v7.n} con otro estado`);

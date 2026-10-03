@@ -375,9 +375,10 @@ export function generar(ins, desde, hasta) {
   for (const v of visitas.values()) {
     v.quincena = quin(v.i);
     v.nivel_regular = nivelRegular.get(`${v.unidad}|${v.i}`) ?? null;
-    // cabecera vestigial que retira el 900: nivel_regular, NUNCA el maximo global.
-    // En una visita solo anual no hay componente regular y el dominio no admite NULL:
-    // se escribe 'M3', el unico nivel realmente presente.
+    // Resumen de la visita: nivel_regular, NUNCA el maximo global. En una visita solo
+    // anual no hay componente regular y se resume como 'M3', el unico nivel presente.
+    // YA NO SE PERSISTE: con el contrato posterior al 900 la cabecera no tiene columna de
+    // nivel. Queda como dato en memoria para los informes del generador.
     v.nivel_cabecera = v.nivel_regular ?? 'M3';
     v.solo_anual = v.nivel_regular === null;
     const ver = versionDe(ins.vers, v.quincena);
@@ -494,22 +495,25 @@ export async function materializar(cliente, visitas) {
     escritas: [],
   };
   const nota = v => `Proyeccion del generador TI-PR-01. nivel_regular=`
-    + `${v.nivel_regular ?? 'ninguno, visita solo anual'}. nivel_mantenimiento y `
-    + `fecha_programada son columnas vestigiales que retira el 900: el nivel real de cada `
-    + `equipo esta en programacion_mantenimiento_equipos.`;
+    + `${v.nivel_regular ?? 'ninguno, visita solo anual'}. El nivel real de cada equipo `
+    + `esta en programacion_mantenimiento_equipos.nivel_mantenimiento.`;
 
   for (const v of visitas) {
     await cliente.query('SAVEPOINT visita');
     try {
+      // Contrato posterior a 20261001_900: la cabecera NO lleva fecha_programada,
+      // fecha_reprogramada ni nivel_mantenimiento. La quincena es la unica referencia
+      // administrativa, y el nivel vive por equipo en
+      // programacion_mantenimiento_equipos.nivel_mantenimiento, que es el INSERT de abajo.
       const { rows } = await cliente.query(`INSERT INTO programacion_mantenimiento
-          (programa_unidad_id, programa_id, version_programa_id, fecha_programada,
-           nivel_mantenimiento, estado, quincena_programada, observaciones)
-        VALUES ($1, $2, $3, $4::date, $5, $6, $4::date, $7)
+          (programa_unidad_id, programa_id, version_programa_id,
+           estado, quincena_programada, observaciones)
+        VALUES ($1, $2, $3, $4, $5::date, $6)
         ON CONFLICT (programa_unidad_id, quincena_efectiva) WHERE estado <> 'CANCELADO'
         DO NOTHING
         RETURNING id`,
-        [v.unidad, v.programa_id, v.version_id, v.quincena, v.nivel_cabecera,
-          ESTADO_INICIAL, nota(v)]);
+        [v.unidad, v.programa_id, v.version_id,
+          ESTADO_INICIAL, v.quincena, nota(v)]);
       if (!rows.length) {
         // el indice parcial la rechazo: alguien ocupo el slot despues de leer los insumos
         await cliente.query('ROLLBACK TO SAVEPOINT visita');

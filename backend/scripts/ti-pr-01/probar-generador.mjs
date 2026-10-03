@@ -492,7 +492,7 @@ try {
     const w = await una(`SELECT
       (SELECT count(*)::int FROM programacion_mantenimiento WHERE estado<>$1) AS otro_estado,
       (SELECT count(*)::int FROM programacion_mantenimiento
-        WHERE quincena_programada IS NULL OR fecha_programada<>quincena_programada) AS fecha,
+        WHERE quincena_programada IS NULL) AS fecha,
       (SELECT count(*)::int FROM programacion_mantenimiento
         WHERE EXTRACT(day FROM quincena_programada) NOT IN (1,16)) AS dia,
       (SELECT count(*)::int FROM programacion_mantenimiento_equipos
@@ -505,7 +505,8 @@ try {
       (SELECT count(*)::int FROM ordenes_trabajo_detalle) AS otd`,
       [ESTADO_INICIAL, ANUALES, REGULARES]);
     chk(w.otro_estado === 0, `L.bis · todas en ${ESTADO_INICIAL}`, `${w.otro_estado}`);
-    chk(w.fecha === 0, 'L.bis · fecha_programada = quincena_programada', `${w.fecha}`);
+    // fecha_programada ya no existe tras el 900: queda lo exigible de esta comprobacion.
+    chk(w.fecha === 0, 'L.bis · quincena_programada nunca NULL', `${w.fecha}`);
     chk(w.dia === 0, 'L.bis · toda quincena en dia 1 o 16', `${w.dia}`);
     chk(w.anual_no_m3 === 0, 'L.bis · ningun GPS/ADAS fuera de M3', `${w.anual_no_m3}`);
     chk(w.mezcla === 0, 'L.bis · ninguna visita mezcla niveles regulares', `${w.mezcla}`);
@@ -777,7 +778,10 @@ try {
     const a = await proj();
     await materializar(cliente, soloDe(a.g, u));
     const pid = soloDe(a.g, u)[0].programacion_id;
-    const antes = await una(`SELECT estado, nivel_mantenimiento AS niv, observaciones,
+    // nivel_mantenimiento sale de la lista: el 900 la retira de la cabecera. La prueba
+    // sigue demostrando lo mismo -que la fila no se toco- con estado, observaciones,
+    // updated_at y el numero de detalles.
+    const antes = await una(`SELECT estado, observaciones,
         updated_at::text AS upd,
         (SELECT count(*)::int FROM programacion_mantenimiento_equipos WHERE programacion_id=$1) AS det
       FROM programacion_mantenimiento WHERE id=$1`, [pid]);
@@ -790,13 +794,13 @@ try {
     const r = await materializar(cliente, soloDe(b.g, u));
     chk(r.programaciones === 0 && r.detalles === 0,
       'P8 · la materializacion no escribe nada para esa unidad', '0 / 0');
-    const desp = await una(`SELECT estado, nivel_mantenimiento AS niv, observaciones,
+    const desp = await una(`SELECT estado, observaciones,
         updated_at::text AS upd,
         (SELECT count(*)::int FROM programacion_mantenimiento_equipos WHERE programacion_id=$1) AS det
       FROM programacion_mantenimiento WHERE id=$1`, [pid]);
-    chk(desp.estado === antes.estado && desp.niv === antes.niv && desp.upd === antes.upd
+    chk(desp.estado === antes.estado && desp.upd === antes.upd
       && desp.observaciones === antes.observaciones,
-      'P8 · la programacion existente no se toco', `${desp.estado}/${desp.niv}`);
+      'P8 · la programacion existente no se toco', `${desp.estado} · updated_at intacto`);
     chk(desp.det === antes.det, 'P8 · ni se le colgo ningun detalle', `${desp.det} detalles`);
     chk((await filasDe(u)).n === 1, 'P8 · ni se creo una segunda programacion', '1 fila');
   });

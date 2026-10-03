@@ -402,17 +402,22 @@ try {
   sec('4 · CARGA · UNA SOLA TRANSACCION');
   await cliente.query('BEGIN');
 
+  // CONTRATO POSTERIOR A 20261001_900 Y _901. El encabezado ya no lleva periodo_inicio,
+  // periodo_fin, version, fecha_documento ni frecuencia_m1/m2/m3_dias. No se pierde ningun
+  // dato: los cuatro documentales van a programas_mantenimiento_versiones en B0-bis, y la
+  // periodicidad a programa_mantenimiento_frecuencias en B1, que es su sitio definitivo.
+  // Aqui solo eran duplicacion que esas columnas NOT NULL obligaban a rellenar.
+  //
+  // Consecuencia: este cargador exige el esquema YA limpio. Sobre el esquema anterior
+  // fallaria con 23502 por esas columnas. No es un problema practico -aborta antes si
+  // TI-PR-01 existe, y es un cargador de un solo uso ya ejecutado-, pero queda dicho.
   const programa = await una(`INSERT INTO programas_mantenimiento
-      (codigo, nombre, periodo_inicio, periodo_fin, version, fecha_documento,
-       frecuencia_m1_dias, frecuencia_m2_dias, frecuencia_m3_dias, estado)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-    [CODIGO, NOMBRE, PERIODO_INICIO, PERIODO_FIN, VERSION, FECHA_DOCUMENTO,
-     diasM1, diasM2, diasM3, ESTADO_PROGRAMA]);
+      (codigo, nombre, estado)
+    VALUES ($1,$2,$3) RETURNING id`,
+    [CODIGO, NOMBRE, ESTADO_PROGRAMA]);
   console.log(`   B0      programa ${CODIGO} creado`);
   console.log(`           nombre "${NOMBRE}"`);
-  console.log(`           legacy NOT NULL rellenado con valores del Excel:`);
-  console.log(`             periodo ${PERIODO_INICIO}..${PERIODO_FIN} · version ${VERSION} · fecha ${FECHA_DOCUMENTO}`);
-  console.log(`             frecuencia_m1/m2/m3_dias = ${diasM1}/${diasM2}/${diasM3} (cajetin, columna AD)`);
+  console.log(`           encabezado sin datos documentales ni periodicidad: van a B0-bis y B1`);
 
   const version = await una(`INSERT INTO programas_mantenimiento_versiones
       (programa_id, version, fecha_documento, vigencia_desde, vigencia_hasta,
@@ -433,7 +438,7 @@ try {
   const uni = await cliente.query(`INSERT INTO programa_mantenimiento_unidades (programa_id, placa)
     SELECT $1, p FROM unnest($2::text[]) AS p`, [programa.id, UNIDADES]);
   console.log(`   B2      ${uni.rowCount} unidades activas · V5K756 no entra (vendida, en BAJAS)`);
-  console.log(`           fecha_base_m1/m2/m3, quincena_arranque y quincena_incorporacion quedan NULL`);
+  console.log(`           quincena_incorporacion queda NULL: la fase de cada equipo vive en ciclos y anclas`);
 
   let cargadas = 0;
   const LOTE = 200;
